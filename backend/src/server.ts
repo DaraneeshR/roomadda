@@ -4,6 +4,7 @@ import { prisma } from "./lib/prisma.js";
 import { redis } from "./lib/redis.js";
 import { buildApp } from "./app.js";
 import { startBookingExpiry, stopBookingExpiry } from "./jobs/booking-expiry.js";
+import { startAdExpiry, stopAdExpiry } from "./jobs/ad-expiry.js";
 
 async function main(): Promise<void> {
   const app = await buildApp();
@@ -14,8 +15,9 @@ async function main(): Promise<void> {
   await app.listen({ host: env.HOST, port: env.PORT });
   logger.info({ host: env.HOST, port: env.PORT, env: env.NODE_ENV }, "roomadda-api listening");
 
-  // Background worker: sweep expired booking holds.
+  // Background workers: sweep expired booking holds and ended ad slots.
   await startBookingExpiry();
+  await startAdExpiry();
 
   let shuttingDown = false;
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
@@ -25,6 +27,7 @@ async function main(): Promise<void> {
     try {
       await app.close(); // stop accepting connections, drain in-flight requests
       await stopBookingExpiry();
+      await stopAdExpiry();
       await prisma.$disconnect();
       await redis.quit();
       logger.info("graceful shutdown complete");

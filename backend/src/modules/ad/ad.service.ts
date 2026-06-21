@@ -202,4 +202,20 @@ export const adService = {
     await redis.set(FEATURED_CACHE_KEY, JSON.stringify(listings), "EX", FEATURED_TTL_SECONDS);
     return listings.slice(0, limit);
   },
+
+  /**
+   * Sweep ad slots whose window has ended: PENDING_PAYMENT / PENDING_APPROVAL /
+   * APPROVED past endDate -> EXPIRED. REJECTED and CANCELLED (terminal records)
+   * and already-EXPIRED rows are left untouched, so the sweep is idempotent.
+   * One atomic UPDATE. Run by the BullMQ job. Returns the number of slots
+   * expired. Mirrors bookingService.expireStaleHolds.
+   */
+  async expireEndedAdSlots(): Promise<number> {
+    return prisma.$executeRaw`
+      UPDATE ad_slots
+      SET status = 'EXPIRED', "updatedAt" = now()
+      WHERE "endDate" < now()
+        AND status IN ('PENDING_PAYMENT', 'PENDING_APPROVAL', 'APPROVED')
+    `;
+  },
 };
