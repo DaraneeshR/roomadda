@@ -1,15 +1,13 @@
-import { z } from "zod";
+/**
+ * Cursor pagination helpers. The page-size limits, the `limitSchema` query
+ * contract, and the `Page<T>` shape are defined once in `@roomadda/shared`
+ * (single source of truth, see /CLAUDE.md) and re-exported here; only the
+ * server-side `toPage` slicing logic lives in the backend.
+ */
+export { MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE, limitSchema } from "@roomadda/shared";
+export type { Page } from "@roomadda/shared";
 
-/** Cursor pagination limits (see /CLAUDE.md: every list endpoint is capped). */
-export const MAX_PAGE_SIZE = 50;
-export const DEFAULT_PAGE_SIZE = 20;
-
-export const limitSchema = z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE);
-
-export interface Page<T> {
-  items: T[];
-  nextCursor: string | null;
-}
+import type { Page } from "@roomadda/shared";
 
 /**
  * Given `limit + 1` fetched rows, trim to `limit` and derive the next cursor

@@ -5,9 +5,9 @@ import { z } from "zod";
  * the single source of truth for API shapes (see /CLAUDE.md). Response DTOs
  * mirror the backend serializers.
  *
- * NOTE: the backend currently defines its zod input schemas inside each module;
- * those should be migrated to import from here so there is exactly one
- * definition per contract.
+ * Request (input) zod schemas live alongside these in `requests.ts`; the
+ * backend modules re-export both from here so there is exactly one definition
+ * per contract.
  */
 
 // ---------------------------------------------------------------------------
@@ -289,6 +289,32 @@ export interface AdPendingItem {
 // paise (see /CLAUDE.md). `bookings` always carries every BookingStatus (0 when
 // absent) so the client shape is stable.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Health (liveness + readiness) — unversioned endpoints for orchestrators.
+// ---------------------------------------------------------------------------
+
+/** Liveness — process is up. Cheap, no dependency checks. */
+export const livenessResponseSchema = z.object({
+  status: z.literal("ok"),
+  uptimeSeconds: z.number().int().nonnegative(),
+});
+export type LivenessResponse = z.infer<typeof livenessResponseSchema>;
+
+/** Readiness — dependencies are reachable (DB + PostGIS + Redis). */
+export const readinessResponseSchema = z.object({
+  status: z.enum(["ready", "not_ready"]),
+  checks: z.object({
+    database: z.string(),
+    postgis: z.string(),
+    redis: z.string(),
+  }),
+});
+export type ReadinessResponse = z.infer<typeof readinessResponseSchema>;
+
+/** Liveness payload returned by every service's health endpoint. */
+export const healthStatusSchema = livenessResponseSchema;
+export type HealthStatus = LivenessResponse;
+
 export const metricsSchema = z.object({
   listings: z.object({
     total: z.number().int().nonnegative(),

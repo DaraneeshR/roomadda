@@ -1,20 +1,8 @@
-import { z } from "zod";
+/**
+ * Health-module response schemas. Definitions live in `@roomadda/shared`
+ * (single source of truth, see /CLAUDE.md); this module only re-exports them
+ * under the names the route uses.
+ */
+export { livenessResponseSchema, readinessResponseSchema } from "@roomadda/shared";
 
-/** Liveness — process is up. Cheap, no dependency checks. */
-export const livenessResponseSchema = z.object({
-  status: z.literal("ok"),
-  uptimeSeconds: z.number().int().nonnegative(),
-});
-
-/** Readiness — dependencies are reachable (DB + PostGIS + Redis). */
-export const readinessResponseSchema = z.object({
-  status: z.enum(["ready", "not_ready"]),
-  checks: z.object({
-    database: z.string(),
-    postgis: z.string(),
-    redis: z.string(),
-  }),
-});
-
-export type LivenessResponse = z.infer<typeof livenessResponseSchema>;
-export type ReadinessResponse = z.infer<typeof readinessResponseSchema>;
+export type { LivenessResponse, ReadinessResponse } from "@roomadda/shared";

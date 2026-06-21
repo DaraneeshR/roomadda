@@ -1,4 +1,5 @@
 import { Prisma, type ListingPhoto, type UserRole } from "@prisma/client";
+import type { PrivateListing, PublicListing } from "@roomadda/shared";
 
 /**
  * Listing masking (see /CLAUDE.md domain rule #4). The public shape NEVER
@@ -6,7 +7,12 @@ import { Prisma, type ListingPhoto, type UserRole } from "@prisma/client";
  * alias, areaLabel, city, and a coarse approximate marker. Whether a caller may
  * see the private shape is decided by `canViewPrivateListing` and enforced in
  * the route.
+ *
+ * The `PublicListing` / `PrivateListing` DTO shapes are defined once in
+ * `@roomadda/shared`; we re-export them here so callers keep importing from the
+ * serializer while the contract stays single-sourced.
  */
+export type { PrivateListing, PublicListing } from "@roomadda/shared";
 
 /** Canonical relations loaded for every listing read, so types stay aligned. */
 export const listingInclude = {
@@ -49,21 +55,6 @@ interface CommonListing {
   photos: PhotoView[];
   rooms: RoomView[];
   createdAt: string;
-}
-
-export interface PublicListing extends CommonListing {
-  masked: true;
-  /** Coarse area marker (~1 km). Exact geo is never exposed publicly. */
-  approxLocation: { lat: number; lng: number };
-}
-
-export interface PrivateListing extends CommonListing {
-  masked: false;
-  hostId: string;
-  actualName: string;
-  fullAddress: string;
-  pincode: string;
-  location: { lat: number; lng: number };
 }
 
 const toPhoto = (p: ListingPhoto): PhotoView => ({
