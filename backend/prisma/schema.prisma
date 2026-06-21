@@ -1,0 +1,525 @@
+// RoomAdda data model.
+//
+// Conventions (see /CLAUDE.md):
+//  - Money is ALWAYS integer paise; every money field ends in `Paise` (Int).
+//  - PostGIS geography lives on PgListing.location; it is maintained from
+//    latitude/longitude by a trigger (prisma/sql/01_postgis.sql) because Prisma
+//    cannot read/write the `geography` type — it is mapped as Unsupported.
+//  - Bed-level inventory: a bed has at most ONE live booking. Enforced by a
+//    partial unique index (prisma/sql/02_booking_guard.sql) AND a row-locked
+//    transaction in the booking service.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  TENANT
+  HOST
+  AGENT
+  ADMIN
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum KycDocType {
+  AADHAAR
+  PASSPORT
+  DRIVING_LICENSE
+  VOTER_ID
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  SUSPENDED
+}
+
+enum GenderPolicy {
+  MALE
+  FEMALE
+  COED
+}
+
+enum BedStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+  BLOCKED
+}
+
+enum BookingStatus {
+  INITIATED
+  TOKEN_PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  CASH
+  SPLIT
+}
+
+enum TransactionStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum CashCollectionStatus {
+  PENDING
+  COLLECTED
+  DEPOSITED
+  RECONCILED
+}
+
+enum AdSlotType {
+  DAY
+  WEEK
+}
+
+enum AdSlotStatus {
+  PENDING_PAYMENT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum TrustTagKind {
+  VERIFIED_OWNER
+  AGENT_VISITED
+  FAST_RESPONDER
+  DOCUMENTS_CLEAR
+}
+
+enum AgentVisitStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum WebhookProvider {
+  RAZORPAY
+  MSG91
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  SKIPPED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & KYC
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  role            UserRole @default(TENANT)
+  phone           String   @unique
+  email           String?  @unique
+  fullName        String
+  isPhoneVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  kyc             KycRecord?
+  listings        PgListing[]      @relation("HostListings")
+  bookings        Booking[]        @relation("TenantBookings")
+  agentVisits     AgentVisit[]     @relation("AgentVisits")
+  cashCollections CashCollection[] @relation("AgentCashCollections")
+  grantedTrust    TrustTag[]       @relation("TrustGrantedBy")
+  refreshTokens   RefreshToken[]   @relation("UserRefreshTokens")
+
+  @@index([role])
+  @@map("users")
+}
+
+model KycRecord {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @unique @db.Uuid
+  status      KycStatus  @default(PENDING)
+  docType     KycDocType
+  // Reference token to the doc held by the KYC vendor — NEVER the raw number.
+  docRef      String
+  verifiedAt  DateTime?
+  rejectedAt  DateTime?
+  rejectReason String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("kyc_records")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory: listing -> room -> bed
+// ---------------------------------------------------------------------------
+
+model PgListing {
+  id          String        @id @default(uuid()) @db.Uuid
+  hostId      String        @db.Uuid
+  // Public-safe identity (always returned).
+  alias       String
+  areaLabel   String
+  city        String
+  amenities   String[]      @default([])
+  // Masked fields — only revealed to a confirmed tenant / owner / admin / agent.
+  actualName  String
+  fullAddress String
+  pincode     String
+  latitude    Float
+  longitude   Float
+  // NOTE: a PostGIS `location geography(Point,4326)` column is added to this
+  // table out-of-band by prisma/sql/01_postgis.sql (Prisma does not model the
+  // geography type). It is maintained from latitude/longitude by a trigger and
+  // queried via raw SQL. Kept out of the Prisma schema so migrations stay
+  // relational and portable.
+  status      ListingStatus @default(DRAFT)
+  gender      GenderPolicy  @default(COED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  host        User          @relation("HostListings", fields: [hostId], references: [id])
+  rooms       Room[]
+  photos      ListingPhoto[]
+  bookings    Booking[]
+  trustTags   TrustTag[]
+  adSlots     AdSlot[]
+  agentVisits AgentVisit[]
+
+  @@index([hostId])
+  @@index([status])
+  @@map("pg_listings")
+}
+
+model Room {
+  id            String   @id @default(uuid()) @db.Uuid
+  listingId     String   @db.Uuid
+  name          String
+  floor         Int?
+  sharingType   Int      @default(1)
+  monthlyRentPaise Int
+  depositPaise  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  beds    Bed[]
+
+  @@index([listingId])
+  @@map("rooms")
+}
+
+model Bed {
+  id               String    @id @default(uuid()) @db.Uuid
+  roomId           String    @db.Uuid
+  label            String
+  status           BedStatus @default(AVAILABLE)
+  monthlyRentPaise Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([roomId, label])
+  @@index([roomId])
+  @@map("beds")
+}
+
+// ---------------------------------------------------------------------------
+// Bookings & payments (money in paise)
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id              String        @id @default(uuid()) @db.Uuid
+  bedId           String        @db.Uuid
+  tenantId        String        @db.Uuid
+  // Denormalised for fast masking checks (tenant <-> listing).
+  listingId       String        @db.Uuid
+  status          BookingStatus @default(INITIATED)
+  // Money snapshot taken at hold time (so later room edits don't move it).
+  tokenAmountPaise Int
+  monthlyRentPaise Int
+  depositPaise     Int
+  moveInDate      DateTime?
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+  // Hold expiry: TOKEN_PENDING beyond this is swept to EXPIRED by the job.
+  holdExpiresAt   DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  bed             Bed              @relation(fields: [bedId], references: [id])
+  tenant          User             @relation("TenantBookings", fields: [tenantId], references: [id])
+  listing         PgListing        @relation(fields: [listingId], references: [id])
+  payment         Payment?
+  cashCollections CashCollection[]
+
+  // NOTE: the "one live booking per bed" partial unique index
+  // (uniq_live_booking_per_bed) is created in prisma/sql/02_booking_guard.sql —
+  // Prisma cannot express a partial (WHERE status IN (...)) unique index.
+  @@index([bedId])
+  @@index([tenantId])
+  @@index([listingId, status])
+  @@map("bookings")
+}
+
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  bookingId       String        @unique @db.Uuid
+  amountPaise     Int
+  currency        String        @default("INR")
+  status          PaymentStatus @default(CREATED)
+  method          PaymentMethod @default(RAZORPAY)
+  razorpayOrderId String?       @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  booking      Booking              @relation(fields: [bookingId], references: [id])
+  transactions PaymentTransaction[]
+
+  @@index([status])
+  @@map("payments")
+}
+
+model PaymentTransaction {
+  id                String            @id @default(uuid()) @db.Uuid
+  paymentId         String            @db.Uuid
+  razorpayPaymentId String?           @unique
+  amountPaise       Int
+  status            TransactionStatus @default(CREATED)
+  method            PaymentMethod     @default(RAZORPAY)
+  capturedAt        DateTime?
+  // Links the ledger entry to the verified webhook that produced it.
+  webhookEventId    String?           @db.Uuid
+  createdAt         DateTime          @default(now())
+
+  payment      Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  webhookEvent WebhookEvent? @relation(fields: [webhookEventId], references: [id])
+
+  @@index([paymentId])
+  @@map("payment_transactions")
+}
+
+model CashCollection {
+  id          String               @id @default(uuid()) @db.Uuid
+  bookingId   String               @db.Uuid
+  agentId     String               @db.Uuid
+  amountPaise Int
+  status      CashCollectionStatus @default(PENDING)
+  collectedAt DateTime?
+  reconciledAt DateTime?
+  note        String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  agent   User    @relation("AgentCashCollections", fields: [agentId], references: [id])
+
+  @@index([bookingId])
+  @@index([agentId])
+  @@map("cash_collections")
+}
+
+// ---------------------------------------------------------------------------
+// Advertising
+// ---------------------------------------------------------------------------
+
+model AdPricing {
+  id         String     @id @default(uuid()) @db.Uuid
+  slotType   AdSlotType @unique
+  pricePaise Int
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("ad_pricing")
+}
+
+model AdSlot {
+  id              String       @id @default(uuid()) @db.Uuid
+  listingId       String       @db.Uuid
+  createdById     String       @db.Uuid
+  slotType        AdSlotType
+  startDate       DateTime
+  endDate         DateTime
+  // Snapshot of the price at purchase time (paise).
+  pricePaise      Int
+  status          AdSlotStatus @default(PENDING_PAYMENT)
+  razorpayOrderId String?      @unique
+  paidAt          DateTime?
+  approvedById    String?      @db.Uuid
+  approvedAt      DateTime?
+  rejectedReason  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([status, startDate, endDate])
+  @@index([listingId])
+  @@map("ad_slots")
+}
+
+// ---------------------------------------------------------------------------
+// Trust, agent visits, photos
+// ---------------------------------------------------------------------------
+
+model TrustTag {
+  id          String       @id @default(uuid()) @db.Uuid
+  listingId   String       @db.Uuid
+  kind        TrustTagKind
+  grantedById String?      @db.Uuid
+  grantedAt   DateTime     @default(now())
+
+  listing   PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  grantedBy User?     @relation("TrustGrantedBy", fields: [grantedById], references: [id])
+
+  @@unique([listingId, kind])
+  @@map("trust_tags")
+}
+
+model AgentVisit {
+  id          String           @id @default(uuid()) @db.Uuid
+  listingId   String           @db.Uuid
+  agentId     String           @db.Uuid
+  status      AgentVisitStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  visitedAt   DateTime?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  agent   User      @relation("AgentVisits", fields: [agentId], references: [id])
+
+  @@index([listingId])
+  @@index([agentId])
+  @@map("agent_visits")
+}
+
+model ListingPhoto {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @db.Uuid
+  url       String
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@map("listing_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Webhook idempotency ledger
+// ---------------------------------------------------------------------------
+
+model WebhookEvent {
+  id          String          @id @default(uuid()) @db.Uuid
+  provider    WebhookProvider @default(RAZORPAY)
+  // Provider's unique event id — the idempotency key. A duplicate delivery
+  // hits this unique constraint and is skipped.
+  eventId     String
+  eventType   String
+  status      WebhookStatus   @default(RECEIVED)
+  payloadHash String?
+  receivedAt  DateTime        @default(now())
+  processedAt DateTime?
+  error       String?
+
+  transactions PaymentTransaction[]
+
+  @@unique([provider, eventId])
+  @@index([status])
+  @@map("webhook_events")
+}
+
+// ---------------------------------------------------------------------------
+// Auth: phone OTP, refresh-token sessions, audit trail
+// ---------------------------------------------------------------------------
+
+model OtpRequest {
+  id         String    @id @default(uuid()) @db.Uuid
+  phone      String
+  // HMAC-SHA256 of the 6-digit code (domain-separated). The plaintext OTP is
+  // NEVER stored, logged, or returned.
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@map("otp_requests")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  // Rotation chain / session id. All tokens minted from one login share a
+  // familyId; reusing a revoked token revokes the whole family.
+  familyId  String    @db.Uuid
+  // SHA-256 of the opaque 256-bit token. The raw token is never stored.
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation("UserRefreshTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String
+  targetId  String?  @db.Uuid
+  ip        String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetId])
+  @@map("audit_logs")
+}

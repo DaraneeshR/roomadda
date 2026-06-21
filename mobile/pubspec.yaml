@@ -1,0 +1,46 @@
+name: roomadda_mobile
+description: "RoomAdda mobile app (Flutter). Standalone — not part of the pnpm workspace."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Networking
+  dio: ^5.8.0
+
+  # Secure token storage (NEVER SharedPreferences for tokens)
+  flutter_secure_storage: ^9.2.4
+
+  # Env (also supports --dart-define)
+  flutter_dotenv: ^5.2.1
+
+  # Payments (online token leg only; the server webhook confirms)
+  razorpay_flutter: ^1.4.0
+
+  # Crash reporting
+  firebase_core: ^3.13.0
+  firebase_crashlytics: ^4.3.0
+
+  # Money formatting
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,7 @@
+# pnpm workspace. NOTE: `mobile/` (Flutter) is intentionally NOT a member —
+# it has its own pubspec.yaml and toolchain and is built separately.
+packages:
+  - "backend"
+  - "webadmin"
+  - "website"
+  - "packages/*"

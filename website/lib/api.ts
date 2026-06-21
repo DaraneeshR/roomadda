@@ -1,0 +1,46 @@
+import "server-only";
+import type { NearbyListing, Page, PublicListing } from "@roomadda/shared";
+import { env } from "./env";
+
+interface FetchOpts {
+  revalidate?: number;
+}
+
+/** Server-side fetch of the backend's PUBLIC (masked) endpoints. Returns null on error. */
+async function getJson<T>(path: string, opts: FetchOpts = {}): Promise<T | null> {
+  try {
+    const res = await fetch(`${env.BACKEND_API_URL}${path}`, {
+      headers: { Accept: "application/json" },
+      next: { revalidate: opts.revalidate ?? 60 },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function qs(params: Record<string, string | undefined>): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") sp.set(key, value);
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+export const publicApi = {
+  featured: (limit = 8) =>
+    getJson<{ items: PublicListing[] }>(`/v1/featured?limit=${limit}`, { revalidate: 60 }),
+
+  listings: (params: Record<string, string | undefined>, revalidate = 30) =>
+    getJson<Page<PublicListing>>(`/v1/listings${qs(params)}`, { revalidate }),
+
+  listing: (id: string) =>
+    getJson<{ listing: PublicListing }>(`/v1/listings/${encodeURIComponent(id)}`, { revalidate: 60 }),
+
+  nearby: (lat: string, lng: string, radiusM: string) =>
+    getJson<{ items: NearbyListing[] }>(`/v1/listings/search/nearby${qs({ lat, lng, radiusM })}`, {
+      revalidate: 30,
+    }),
+};

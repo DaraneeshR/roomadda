@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    // The backend compiles to a Node artifact with tsc, so it consumes the
+    // *built* @roomadda/shared package (its dist .d.ts via the workspace
+    // symlink) rather than the src path alias from tsconfig.base — keeping
+    // shared's source out of this project's rootDir/emit. The bundler apps
+    // (website, webadmin) still use the src alias.
+    "paths": {}
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

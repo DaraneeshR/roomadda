@@ -1,0 +1,72 @@
+import type { FastifyPluginAsync } from "fastify";
+import { getAuthUser } from "../../plugins/auth.js";
+import { adminService } from "./admin.service.js";
+import {
+  bookingSearchSchema,
+  cashQuerySchema,
+  idParamSchema,
+  kycQuerySchema,
+  listingReviewQuerySchema,
+  paymentSearchSchema,
+  rejectSchema,
+} from "./admin.schema.js";
+
+/**
+ * Admin surface. EVERY route is ADMIN-only and paginated; every state change
+ * writes an AuditLog (handled in the service).
+ */
+export const adminRoutes: FastifyPluginAsync = async (app) => {
+  app.addHook("preHandler", app.authenticate);
+  app.addHook("preHandler", app.requireRole("ADMIN"));
+
+  // ---- KYC review ----
+  app.get("/admin/kyc", async (request) => adminService.listKyc(kycQuerySchema.parse(request.query)));
+
+  app.post("/admin/kyc/:id/approve", async (request) => {
+    const admin = getAuthUser(request);
+    const { id } = idParamSchema.parse(request.params);
+    return adminService.approveKyc(admin, id, request.ip);
+  });
+
+  app.post("/admin/kyc/:id/reject", async (request) => {
+    const admin = getAuthUser(request);
+    const { id } = idParamSchema.parse(request.params);
+    const { reason } = rejectSchema.parse(request.body);
+    return adminService.rejectKyc(admin, id, reason, request.ip);
+  });
+
+  // ---- Listing review / publish ----
+  app.get("/admin/listings", async (request) =>
+    adminService.listListings(listingReviewQuerySchema.parse(request.query)),
+  );
+
+  app.post("/admin/listings/:id/publish", async (request) => {
+    const admin = getAuthUser(request);
+    const { id } = idParamSchema.parse(request.params);
+    return adminService.publishListing(admin, id, request.ip);
+  });
+
+  app.post("/admin/listings/:id/suspend", async (request) => {
+    const admin = getAuthUser(request);
+    const { id } = idParamSchema.parse(request.params);
+    return adminService.suspendListing(admin, id, request.ip);
+  });
+
+  // ---- Cash reconciliation ----
+  app.get("/admin/agents/cash-in-hand", async (request) =>
+    adminService.cashInHand(cashQuerySchema.parse(request.query)),
+  );
+
+  app.get("/admin/cash-collections", async (request) =>
+    adminService.reconciliationQueue(cashQuerySchema.parse(request.query)),
+  );
+
+  // ---- Search ----
+  app.get("/admin/bookings", async (request) =>
+    adminService.searchBookings(bookingSearchSchema.parse(request.query)),
+  );
+
+  app.get("/admin/payments", async (request) =>
+    adminService.searchPayments(paymentSearchSchema.parse(request.query)),
+  );
+};

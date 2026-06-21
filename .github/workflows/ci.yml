@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint · Typecheck · Test · Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # The backend imports the generated Prisma client; generate it before any
+      # typecheck/test. (pnpm does not run @prisma/client's postinstall.)
+      - name: Generate Prisma client
+        run: pnpm --filter @roomadda/backend exec prisma generate
+
+      - name: Lint, typecheck & test
+        run: pnpm exec turbo run lint typecheck test
+
+      # Fail the build on high/critical advisories in the dependency tree.
+      - name: Security audit
+        run: pnpm audit --audit-level=high
+
+  integration:
+    name: Integration (Postgres + Redis)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: roomadda
+          POSTGRES_PASSWORD: roomadda
+          POSTGRES_DB: roomadda
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U roomadda -d roomadda"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://roomadda:roomadda@localhost:5432/roomadda?schema=public
+      INTEGRATION_DATABASE_URL: postgresql://roomadda:roomadda@localhost:5432/roomadda?schema=public
+      INTEGRATION_REDIS_URL: redis://localhost:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @roomadda/backend exec prisma generate
+
+      # Migrations create the tables; the raw SQL adds the PostGIS objects AND the
+      # uniq_live_booking_per_bed partial index that the concurrency test relies on.
+      - name: Apply migrations + raw SQL
+        run: |
+          pnpm --filter @roomadda/backend exec prisma migrate deploy
+          pnpm --filter @roomadda/backend run db:sql
+
+      - name: Integration tests (concurrency, webhook idempotency, split)
+        run: pnpm --filter @roomadda/backend run test:integration
