@@ -1,0 +1,24 @@
+name: roomadda_mobile
+
+packages:
+  - core
+  - tenant
+  - host_agent
+
+# Scripts use melos's native `exec:` (melos fans the command out across packages
+# itself), so they run via `dart run melos run <name>` without needing the melos
+# binary on PATH. `flutter` must be on PATH (it normally is).
+scripts:
+  get:
+    description: Fetch dependencies for every package.
+    exec: flutter pub get
+
+  analyze:
+    description: Static-analyze every package.
+    exec: flutter analyze
+
+  test:
+    description: Run tests in every package that has a test/ dir.
+    exec: flutter test
+    packageFilters:
+      dirExists: test

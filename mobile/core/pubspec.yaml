@@ -1,0 +1,46 @@
+name: roomadda_core
+description: "Shared core for RoomAdda apps: networking, auth, theme, money, widgets, DI, shared sign-in UI, and the role-aware router gate."
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing (the shared auth gate builds the GoRouter)
+  go_router: ^14.8.1
+
+  # Networking
+  dio: ^5.8.0
+
+  # Secure token storage (NEVER SharedPreferences for tokens)
+  flutter_secure_storage: ^9.2.4
+
+  # Env (also supports --dart-define)
+  flutter_dotenv: ^5.2.1
+
+  # Crash reporting
+  firebase_core: ^3.13.0
+  firebase_crashlytics: ^4.3.0
+
+  # Money formatting
+  intl: ^0.20.2
+
+  # Design-system fonts (Plus Jakarta Sans + JetBrains Mono)
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,14 @@
+# RoomAdda Tenant launcher icon.
+#
+# Drop a square 1024x1024 PNG at the image_path below, then run from this dir:
+#   dart run flutter_launcher_icons
+#
+# NOTE: design/assets/roomadda-logo.jpg is a wide wordmark (~3:1) shared by both
+# apps — it is NOT a square icon and is identical for tenant + host_agent, so it
+# is unsuitable here. Provide a DISTINCT per-app square mark so the two installs
+# look different on the home screen.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/launcher/icon.png"

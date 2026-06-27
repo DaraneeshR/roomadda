@@ -1,0 +1,38 @@
+name: roomadda_tenant
+description: "RoomAdda Tenant app (Flutter). Serves the TENANT role only."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Shared core (networking, auth, theme, money, widgets, router gate)
+  roomadda_core:
+    path: ../core
+
+  # State management + routing
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+
+  # Networking (BookingRepository talks to dio directly)
+  dio: ^5.8.0
+
+  # Payments (online token leg only; the server webhook confirms) — tenant-only
+  razorpay_flutter: ^1.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  # Generates Android mipmaps + iOS AppIcon set from a square PNG.
+  # Config in flutter_launcher_icons.yaml; run: dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
