@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Roomadda — MVP Plan v1.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --ink: #0f0e0c;
+  --bg: #f7f4ef;
+  --warm2: #ede8df;
+  --accent: #d14f2a;
+  --accent2: #e8971e;
+  --green: #1e7a4f;
+  --blue: #1a4a8a;
+  --muted: #6b6356;
+  --border: #ddd7cc;
+  --white: #ffffff;
+  --card: #ffffff;
+  --phase1: #1e7a4f;
+  --phase2: #1a4a8a;
+  --phase3: #7a3a1a;
+  --phase4: #5a1a6a;
+  --phase5: #1a6a6a;
+  --phase6: #8a6a1a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',sans-serif;font-size:14.5px;line-height:1.7;}
+
+/* PROGRESS */
+#prog{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:9999;width:0%;transition:width .1s;}
+
+/* COVER */
+.cover{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:72px 80px;position:relative;overflow:hidden;page-break-after:always;}
+.cover-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:60px 60px;}
+.cover-glow{position:absolute;top:-100px;right:-100px;width:600px;height:600px;background:radial-gradient(circle,rgba(209,79,42,.15) 0%,transparent 65%);border-radius:50%;}
+.cover-glow2{position:absolute;bottom:-150px;left:-50px;width:500px;height:500px;background:radial-gradient(circle,rgba(26,74,138,.12) 0%,transparent 65%);border-radius:50%;}
+.cover-watermark{position:absolute;top:40px;right:60px;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.15);}
+.cover-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:12px;}
+.cover-label::before{content:'';width:32px;height:1px;background:var(--accent);}
+.cover h1{font-family:'Syne',sans-serif;font-size:clamp(52px,8vw,108px);font-weight:800;color:#fff;line-height:.95;letter-spacing:-3px;margin-bottom:28px;}
+.cover h1 span{color:var(--accent);}
+.cover-desc{font-size:16px;color:rgba(255,255,255,.45);max-width:520px;line-height:1.6;margin-bottom:56px;}
+.cover-pills{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:56px;}
+.cover-pill{border:1px solid rgba(255,255,255,.12);padding:7px 16px;font-size:12px;color:rgba(255,255,255,.55);letter-spacing:.5px;}
+.cover-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.06);}
+.cover-stat{padding:24px 20px;background:var(--ink);}
+.cover-stat-num{font-family:'Syne',sans-serif;font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;}
+.cover-stat-label{font-size:11px;color:rgba(255,255,255,.3);letter-spacing:1px;text-transform:uppercase;}
+
+/* NAV */
+.toc{background:var(--ink);border-top:1px solid rgba(255,255,255,.06);padding:52px 80px;}
+.toc-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:28px;}
+.toc-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;}
+.toc-item{display:flex;align-items:center;gap:12px;padding:11px 14px;color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;border:1px solid transparent;transition:all .2s;}
+.toc-item:hover{border-color:rgba(255,255,255,.1);color:#fff;background:rgba(255,255,255,.03);}
+.toc-n{font-family:'Syne',sans-serif;font-size:10px;color:var(--accent);min-width:22px;font-weight:700;}
+
+/* PAGE WRAP */
+.page{max-width:1080px;margin:0 auto;padding:0 56px;}
+
+/* STICKY NAV BAR */
+.sticky{position:sticky;top:0;z-index:100;background:rgba(247,244,239,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 56px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin:0 -56px;}
+
+/* SECTIONS */
+.section{padding:72px 0 32px;}
+.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.eyebrow::before{content:'';width:20px;height:1px;background:var(--accent);}
+.section-title{font-family:'Syne',sans-serif;font-size:clamp(30px,4vw,48px);font-weight:800;color:var(--ink);line-height:1.05;margin-bottom:14px;letter-spacing:-1px;}
+.section-sub{font-size:15px;color:var(--muted);max-width:640px;line-height:1.65;margin-bottom:44px;}
+
+/* PHASE TIMELINE */
+.timeline{position:relative;margin:40px 0;}
+.timeline::before{content:'';position:absolute;left:28px;top:56px;bottom:24px;width:2px;background:var(--border);}
+.phase-block{position:relative;margin-bottom:32px;}
+.phase-header{display:flex;align-items:flex-start;gap:20px;margin-bottom:16px;}
+.phase-dot{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;z-index:1;position:relative;}
+.phase-meta{flex:1;}
+.phase-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:3px;}
+.phase-duration{font-size:12px;color:var(--muted);font-weight:500;}
+.phase-body{margin-left:76px;}
+.phase-desc{font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.6;}
+.phase-tasks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.task-card{background:var(--card);border:1px solid var(--border);padding:12px 16px;font-size:13px;display:flex;gap:10px;align-items:flex-start;}
+.task-icon{width:20px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px;}
+.task-text{color:var(--ink);line-height:1.5;}
+.task-note{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* FEATURE TABLES */
+.ftable{width:100%;border-collapse:collapse;margin:24px 0;}
+.ftable th{background:var(--ink);color:#fff;padding:12px 16px;text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;}
+.ftable td{padding:13px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:top;}
+.ftable tr:nth-child(even) td{background:var(--warm2);}
+.ftable tr:hover td{background:#ece6da;}
+.ftable td:first-child{font-weight:600;color:var(--ink);width:220px;}
+.ftable td:last-child{width:100px;text-align:center;}
+
+/* BADGES */
+.b{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.8px;padding:3px 9px;border-radius:2px;}
+.b-yes{background:#e2f0e8;color:#1e7a4f;}
+.b-mvp{background:#fce8e4;color:#d14f2a;}
+.b-no{background:#f0eeeb;color:#888;}
+.b-p1{background:#ffe8cc;color:#8a4a00;}
+.b-user{background:#e8eef8;color:#1a4a8a;}
+.b-host{background:#e8f5ee;color:#1e7a4f;}
+.b-agent{background:#f8ece8;color:#8a2a0a;}
+.b-admin{background:#f0e8f8;color:#5a1a6a;}
+
+/* CALLOUTS */
+.callout{display:flex;gap:16px;padding:18px 22px;margin:20px 0;border:1px solid;align-items:flex-start;}
+.callout.warn{border-color:#e8971e;background:#fffbf2;}
+.callout.rule{border-color:#d14f2a;background:#fff8f6;}
+.callout.info{border-color:#1a4a8a;background:#f0f4ff;}
+.callout.ok{border-color:#1e7a4f;background:#f0f9f4;}
+.c-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.c-title{font-weight:600;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.c-body{font-size:13px;color:var(--muted);line-height:1.6;}
+
+/* MODULE BLOCKS */
+.module{margin-bottom:48px;}
+.module-h{display:flex;gap:16px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.module-icon{width:44px;height:44px;background:var(--ink);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.module-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin-bottom:2px;}
+.module-sub{font-size:12px;color:var(--muted);}
+
+/* FEATURE ITEMS */
+.flist{display:flex;flex-direction:column;gap:10px;}
+.fitem{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--ink);padding:16px 20px;display:grid;grid-template-columns:1fr auto;gap:12px;}
+.fitem.p0{border-left-color:var(--accent);}
+.fitem.p1{border-left-color:var(--blue);}
+.fname{font-weight:600;font-size:14px;margin-bottom:4px;}
+.fdesc{font-size:13px;color:var(--muted);line-height:1.55;}
+.ftags{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+
+/* ACCEPTANCE CRITERIA */
+.ac-list{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+.ac-list li{display:flex;gap:10px;font-size:12.5px;color:var(--muted);}
+.ac-list li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;margin-top:1px;}
+
+/* TECH GRID */
+.tech-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0;}
+.tech-card{background:var(--card);border:1px solid var(--border);padding:20px;}
+.tech-icon{font-size:24px;margin-bottom:10px;}
+.tech-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;}
+.tech-body{font-size:12.5px;color:var(--muted);line-height:1.55;}
+
+/* GANTT */
+.gantt{margin:28px 0;border:1px solid var(--border);overflow-x:auto;}
+.gantt-head{display:grid;grid-template-columns:180px repeat(6,1fr);background:var(--ink);}
+.gantt-head-cell{padding:10px 8px;font-size:10px;color:rgba(255,255,255,.55);letter-spacing:1.5px;text-transform:uppercase;text-align:center;border-right:1px solid rgba(255,255,255,.06);}
+.gantt-head-cell:first-child{text-align:left;padding-left:16px;}
+.gantt-row{display:grid;grid-template-columns:180px repeat(6,1fr);border-top:1px solid var(--border);}
+.gantt-row:nth-child(even){background:var(--warm2);}
+.gantt-label{padding:12px 16px;font-size:12.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;}
+.gantt-cell{border-left:1px solid var(--border);padding:8px 6px;display:flex;align-items:center;justify-content:center;}
+.gantt-bar{height:20px;border-radius:2px;width:100%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;letter-spacing:.5px;}
+
+/* RULE BOX */
+.rule-box{background:var(--ink);color:#fff;padding:32px 36px;margin:28px 0;}
+.rule-box h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent2);margin-bottom:16px;}
+.rule-item{display:flex;gap:12px;margin-bottom:12px;font-size:13.5px;color:rgba(255,255,255,.7);line-height:1.6;}
+.rule-item::before{content:'→';color:var(--accent);flex-shrink:0;margin-top:1px;}
+
+/* DELIVERABLES */
+.deliv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:24px 0;}
+.deliv-card{background:var(--card);border:1px solid var(--border);padding:24px;position:relative;overflow:hidden;}
+.deliv-card::after{content:attr(data-n);position:absolute;bottom:-16px;right:8px;font-family:'Syne',sans-serif;font-size:72px;font-weight:800;opacity:.04;color:var(--ink);}
+.deliv-icon{font-size:28px;margin-bottom:12px;}
+.deliv-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px;}
+.deliv-body{font-size:13px;color:var(--muted);line-height:1.55;}
+.deliv-list{list-style:none;margin-top:10px;}
+.deliv-list li{font-size:12.5px;color:var(--muted);padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;}
+.deliv-list li::before{content:'·';color:var(--accent);font-size:18px;line-height:1;}
+
+/* PAYMENT TABLE */
+.pay-table{width:100%;border-collapse:collapse;margin:20px 0;}
+.pay-table th{padding:11px 14px;background:var(--warm2);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:2px solid var(--border);}
+.pay-table td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;}
+.pay-table td:first-child{font-weight:600;}
+
+/* FOOTER */
+.footer{background:var(--ink);padding:44px 80px;display:flex;justify-content:space-between;align-items:center;margin-top:72px;flex-wrap:wrap;gap:20px;}
+.footer-brand{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#fff;}
+.footer-r{text-align:right;font-size:12px;color:rgba(255,255,255,.3);}
+
+@media print{
+  .cover{page-break-after:always;min-height:auto;}
+  .sticky{display:none;}
+  .section{page-break-inside:avoid;}
+}
+@media(max-width:768px){
+  .cover,.toc,.footer{padding:40px 24px;}
+  .page{padding:0 24px;}
+  .sticky{padding:10px 24px;margin:0 -24px;}
+  .toc-list{grid-template-columns:1fr;}
+  .phase-tasks,.tech-grid,.deliv-grid{grid-template-columns:1fr;}
+  .cover-stats{grid-template-columns:repeat(2,1fr);}
+  .gantt{font-size:11px;}
+}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="cover">
+  <div class="cover-grid"></div>
+  <div class="cover-glow"></div>
+  <div class="cover-glow2"></div>
+  <div class="cover-watermark">CONFIDENTIAL · MVP PLAN</div>
+
+  <div class="cover-label">Roomadda · MVP Development Plan · v1.0</div>
+  <h1>Build.<br><span>Ship.</span><br>Validate.</h1>
+  <p class="cover-desc">A complete, developer-ready MVP specification for the Roomadda PG platform — covering all portals, features, acceptance criteria, tech stack, and a detailed 6-week delivery timeline.</p>
+
+  <div class="cover-pills">
+    <div class="cover-pill">📱 Consumer Mobile App</div>
+    <div class="cover-pill">🏠 Host Mobile App</div>
+    <div class="cover-pill">🕵️ Agent Mobile App</div>
+    <div class="cover-pill">🛡️ Admin Web Panel</div>
+    <div class="cover-pill">🌐 Promotional Website</div>
+  </div>
+
+  <div class="cover-stats">
+    <div class="cover-stat">
+      <div class="cover-stat-num">1.5</div>
+      <div class="cover-stat-label">Months Delivery</div>
+    </div>
+    <div class="cover-stat">
+      <div class="cover-stat-num">6</div>
+      <div class="cover-stat-label">Delivery Phases</div>
+    </div>
+    <div class="cover-stat">
+      <div class="cover-stat-num">4</div>
+      <div class="cover-stat-label">Portals / Apps</div>
+    </div>
+    <div class="cover-stat">
+      <div class="cover-stat-num">68+</div>
+      <div class="cover-stat-label">MVP Features</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TOC ═══════════════════ -->
+<div class="toc">
+  <div class="toc-title">Table of Contents</div>
+  <div class="toc-list">
+    <a href="#overview" class="toc-item"><span class="toc-n">01</span>MVP Overview & Goals</a>
+    <a href="#scope" class="toc-item"><span class="toc-n">02</span>What's In & Out of MVP</a>
+    <a href="#user" class="toc-item"><span class="toc-n">03</span>User / Tenant App</a>
+    <a href="#host" class="toc-item"><span class="toc-n">04</span>Host / PG Owner App</a>
+    <a href="#agent" class="toc-item"><span class="toc-n">05</span>Field Agent App</a>
+    <a href="#admin" class="toc-item"><span class="toc-n">06</span>RA Admin Panel</a>
+    <a href="#promo" class="toc-item"><span class="toc-n">07</span>Promotional Website</a>
+    <a href="#payments" class="toc-item"><span class="toc-n">08</span>Payments Architecture</a>
+    <a href="#rules" class="toc-item"><span class="toc-n">09</span>Business & Privacy Rules</a>
+    <a href="#tech" class="toc-item"><span class="toc-n">10</span>Tech Stack</a>
+    <a href="#timeline" class="toc-item"><span class="toc-n">11</span>6-Week Timeline</a>
+    <a href="#deliverables" class="toc-item"><span class="toc-n">12</span>Deliverables & Handover</a>
+  </div>
+</div>
+
+<!-- ═══════════════════ CONTENT ═══════════════════ -->
+<div class="page">
+
+<!-- ─── 01 OVERVIEW ─── -->
+<div id="overview" class="section">
+  <div class="sticky">
+    <span>01 — MVP Overview</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 01</div>
+  <h2 class="section-title">MVP Overview<br>& Goals</h2>
+  <p class="section-sub">The MVP (Minimum Viable Product) of Roomadda must prove one core thing: a student or working professional can open the app, find a verified PG, pay a token, and confirm a booking — end to end — without a single phone call. Everything else in this MVP supports or enables that one outcome.</p>
+
+  <div class="callout ok">
+    <div class="c-icon">🎯</div>
+    <div>
+      <div class="c-title">North Star for MVP</div>
+      <div class="c-body">A user in Bangalore can search for a PG near their office, view photos and amenities, book a room by paying ₹1,000 online, receive a confirmation on WhatsApp, and the PG owner gets notified instantly — all within 5 minutes, all on their phone. This is the single experience the MVP must nail perfectly.</div>
+    </div>
+  </div>
+
+  <table class="ftable">
+    <thead><tr><th>Attribute</th><th>Details</th></tr></thead>
+    <tbody>
+      <tr><td>Product Name</td><td>Roomadda</td></tr>
+      <tr><td>Platform</td><td>Mobile App (iOS + Android) for Users, Hosts & Agents · Web Dashboard for Admin</td></tr>
+      <tr><td>Primary Target Users</td><td>Students relocating for college/coaching + Working professionals relocating for jobs</td></tr>
+      <tr><td>Host / Supply Side</td><td>PG owners managing 1 to 5 properties</td></tr>
+      <tr><td>MVP Delivery Timeline</td><td>6 weeks (1.5 months) from project kick-off</td></tr>
+      <tr><td>MVP Launch Cities</td><td>Start with 2 cities — confirm with team before kick-off (e.g. Bangalore + Pune)</td></tr>
+      <tr><td>Accommodation Type</td><td>PG (Paying Guest) — Single, Double, Triple sharing rooms</td></tr>
+      <tr><td>Monetisation in MVP</td><td>Platform commission on bookings. Featured listing (manual by admin). No subscription billing in MVP.</td></tr>
+      <tr><td>Languages in MVP</td><td>English only. Hindi/regional in Phase 2.</td></tr>
+      <tr><td>Definition of Done</td><td>All P0 features built, tested, deployed to staging, bug-free on both iOS and Android, admin panel live, at least 3 end-to-end test bookings completed on staging before release.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="c-icon">⚠️</div>
+    <div>
+      <div class="c-title">Important Framing for Agency</div>
+      <div class="c-body">This is a PG accommodation platform — NOT a real estate or property sales portal. The terminology throughout must reflect this: tenants (not buyers), hosts (not sellers), PG listings (not properties for sale), monthly rent (not property price), token payment (not down payment). This distinction must be reflected in every screen, every database model, and every API endpoint.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 02 SCOPE ─── -->
+<div id="scope" class="section">
+  <div class="sticky">
+    <span>02 — MVP Scope</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 02</div>
+  <h2 class="section-title">What's In &<br>Out of MVP</h2>
+  <p class="section-sub">Clarity on scope prevents scope creep. Every item below has been deliberately included or excluded. The agency must not implement excluded features, even if they seem easy — they will be built in Phase 2 after real user feedback.</p>
+
+  <table class="ftable">
+    <thead><tr><th>Feature Area</th><th>MVP Status</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>User registration + OTP login</td><td><span class="b b-mvp">IN MVP</span></td><td>Core — cannot function without it</td></tr>
+      <tr><td>Google Sign-In</td><td><span class="b b-mvp">IN MVP</span></td><td>Critical for low-friction user onboarding</td></tr>
+      <tr><td>PG search + filters</td><td><span class="b b-mvp">IN MVP</span></td><td>Core — the discovery engine</td></tr>
+      <tr><td>PG listing detail page</td><td><span class="b b-mvp">IN MVP</span></td><td>Core — the conversion page</td></tr>
+      <tr><td>Map view of listings</td><td><span class="b b-mvp">IN MVP</span></td><td>Students need to judge proximity to college/office</td></tr>
+      <tr><td>Token-based booking + online payment</td><td><span class="b b-mvp">IN MVP</span></td><td>Core revenue and trust mechanism</td></tr>
+      <tr><td>Wishlist</td><td><span class="b b-mvp">IN MVP</span></td><td>Simple, high-value feature for repeat visits</td></tr>
+      <tr><td>Booking history</td><td><span class="b b-mvp">IN MVP</span></td><td>User must be able to see their bookings</td></tr>
+      <tr><td>Post move-in tenant dashboard</td><td><span class="b b-mvp">IN MVP</span></td><td>Core retention — daily use after booking</td></tr>
+      <tr><td>Daily meal menu (tenant view)</td><td><span class="b b-mvp">IN MVP</span></td><td>High daily engagement for hostel users</td></tr>
+      <tr><td>Service request (tenant)</td><td><span class="b b-mvp">IN MVP</span></td><td>Critical for trust and repeat bookings</td></tr>
+      <tr><td>Monthly rent payment via app</td><td><span class="b b-mvp">IN MVP</span></td><td>Locks users in — creates recurring revenue</td></tr>
+      <tr><td>In-app chat (Tenant ↔ Host)</td><td><span class="b b-mvp">IN MVP</span></td><td>Prevents off-platform communication</td></tr>
+      <tr><td>Host listing creation</td><td><span class="b b-mvp">IN MVP</span></td><td>Core supply side</td></tr>
+      <tr><td>Host inventory management</td><td><span class="b b-mvp">IN MVP</span></td><td>Real-time availability accuracy</td></tr>
+      <tr><td>Host booking management</td><td><span class="b b-mvp">IN MVP</span></td><td>Hosts must accept/manage bookings</td></tr>
+      <tr><td>Host tenant roster</td><td><span class="b b-mvp">IN MVP</span></td><td>Host must see who's living in their PG</td></tr>
+      <tr><td>Host meal menu update</td><td><span class="b b-mvp">IN MVP</span></td><td>Linked to tenant dashboard feature</td></tr>
+      <tr><td>Host walk-in booking entry</td><td><span class="b b-mvp">IN MVP</span></td><td>Many PGs still get offline walk-ins</td></tr>
+      <tr><td>Host revenue dashboard</td><td><span class="b b-mvp">IN MVP</span></td><td>Basic — only rent collected view</td></tr>
+      <tr><td>Agent registration + profile</td><td><span class="b b-mvp">IN MVP</span></td><td>Agents need to function from day one</td></tr>
+      <tr><td>Agent property visit + inspection</td><td><span class="b b-mvp">IN MVP</span></td><td>Verification is a core trust feature</td></tr>
+      <tr><td>Agent assisted booking</td><td><span class="b b-mvp">IN MVP</span></td><td>On-ground conversions are key early on</td></tr>
+      <tr><td>Admin listing approvals</td><td><span class="b b-mvp">IN MVP</span></td><td>Every listing must be reviewed before going live</td></tr>
+      <tr><td>Admin user + host management</td><td><span class="b b-mvp">IN MVP</span></td><td>Governance is mandatory from day one</td></tr>
+      <tr><td>Admin KYC review</td><td><span class="b b-mvp">IN MVP</span></td><td>Basic document viewing and approval</td></tr>
+      <tr><td>Push notifications (key events)</td><td><span class="b b-mvp">IN MVP</span></td><td>Booking + payment notifications are mandatory</td></tr>
+      <tr><td>WhatsApp notification (booking)</td><td><span class="b b-mvp">IN MVP</span></td><td>Most Indians use WhatsApp — critical channel</td></tr>
+      <tr><td>Promotional website</td><td><span class="b b-mvp">IN MVP</span></td><td>Needed for host acquisition and credibility</td></tr>
+      <tr><td>KYC document upload (user)</td><td><span class="b b-mvp">IN MVP</span></td><td>Required before booking confirmation</td></tr>
+      <tr><td>Trusted contacts / SOS</td><td><span class="b b-mvp">IN MVP</span></td><td>Women safety — non-negotiable</td></tr>
+      <tr><td>Refer a Friend</td><td><span class="b b-no">POST MVP</span></td><td>Build growth loops after core is stable</td></tr>
+      <tr><td>Loyalty points redemption</td><td><span class="b b-no">POST MVP</span></td><td>Points tracked in MVP, redemption in Phase 2</td></tr>
+      <tr><td>Reviews & ratings</td><td><span class="b b-no">POST MVP</span></td><td>Need real completed stays first — launch with 0 reviews</td></tr>
+      <tr><td>Community / forum</td><td><span class="b b-no">POST MVP</span></td><td>Needs user base to be valuable</td></tr>
+      <tr><td>Roommate finder</td><td><span class="b b-no">POST MVP</span></td><td>Complex matching logic — not core to booking</td></tr>
+      <tr><td>Commute calculator</td><td><span class="b b-no">POST MVP</span></td><td>Nice to have — map view partially covers this</td></tr>
+      <tr><td>Dynamic pricing for hosts</td><td><span class="b b-no">POST MVP</span></td><td>Needs data to be meaningful</td></tr>
+      <tr><td>GST invoice generation</td><td><span class="b b-no">POST MVP</span></td><td>Basic receipts cover MVP needs</td></tr>
+      <tr><td>Multilingual support</td><td><span class="b b-no">POST MVP</span></td><td>English first, expand after validation</td></tr>
+      <tr><td>Corporate tie-up portal</td><td><span class="b b-no">POST MVP</span></td><td>B2B feature — separate roadmap</td></tr>
+      <tr><td>Smart lock integration</td><td><span class="b b-no">POST MVP</span></td><td>Hardware dependency — Phase 3</td></tr>
+      <tr><td>Agent lead management (full)</td><td><span class="b b-no">POST MVP</span></td><td>Complex CRM — Phase 2</td></tr>
+      <tr><td>Agent commission payouts</td><td><span class="b b-no">POST MVP</span></td><td>Manual process in MVP, automated in Phase 2</td></tr>
+      <tr><td>Superhost / badge programs</td><td><span class="b b-no">POST MVP</span></td><td>Needs data and completed stays</td></tr>
+      <tr><td>Housekeeping scheduling</td><td><span class="b b-no">POST MVP</span></td><td>Service request covers urgent needs in MVP</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── 03 USER APP ─── -->
+<div id="user" class="section">
+  <div class="sticky">
+    <span>03 — User / Tenant App</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 03</div>
+  <h2 class="section-title">User / Tenant<br>Mobile App</h2>
+  <p class="section-sub">The consumer-facing app for students and working professionals. This is the most polished, most tested, most important part of the MVP. Every screen must feel fast, clean, and trustworthy. The entire journey — from search to booking confirmation — must be completable in under 5 minutes.</p>
+
+  <!-- 3.1 -->
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">🚀</div>
+      <div><div class="module-title">3.1 — Onboarding & Registration</div><div class="module-sub">First-time experience and account creation</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Mobile OTP Registration & Login</div>
+          <div class="fdesc">User enters Indian mobile number → receives OTP via SMS → verified and logged in. OTP expires in 5 minutes. Max 3 OTP attempts before 10-minute lockout. After first login, user can enable biometric authentication (Face ID / fingerprint) for future logins. The OTP screen must have a 60-second resend timer.</div>
+          <ul class="ac-list">
+            <li>OTP delivered within 10 seconds via MSG91 or Twilio</li>
+            <li>Invalid OTP shows clear error — does not reveal if number exists</li>
+            <li>Biometric toggle visible in profile settings after first login</li>
+            <li>Session persists for 30 days unless manually logged out</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Google Sign-In</div>
+          <div class="fdesc">One-tap Google account authentication. On first Google login, the app collects the mobile number (with OTP verification) since it's needed for WhatsApp notifications and host contact. Google login is linked to OTP login — both point to the same account if the mobile number matches.</div>
+          <ul class="ac-list">
+            <li>Google login does not bypass mobile number requirement</li>
+            <li>If same mobile used for Google + OTP — accounts merge, not duplicate</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Profile Setup</div>
+          <div class="fdesc">After registration: Full name, profile photo (optional at signup), gender (Male / Female / Prefer not to say — used for gender-specific PG filters), date of birth, city of interest, and occupation type. If Student → college name + city. If Working Professional → company name + work location. Occupation type is saved and used to auto-fill search defaults. Profile can be completed later but is required before making a booking.</div>
+          <ul class="ac-list">
+            <li>Profile completion shown as a progress indicator</li>
+            <li>Incomplete profile prompts user on home screen with a non-blocking banner</li>
+            <li>Gender field is used for PG gender-filter matching — not displayed to hosts</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">KYC Document Upload</div>
+          <div class="fdesc">Required before payment is processed for any booking. User uploads: Aadhaar card (front + back photo). Plus one supporting ID: Student ID card (for students) or Office ID / Offer Letter (for working professionals). Photos uploaded to secure cloud storage. Admin reviews and approves in admin panel. Status shows: Not Submitted / Pending Review / Verified / Rejected. Booking initiation is allowed before KYC approval, but payment is blocked until status is Verified.</div>
+          <ul class="ac-list">
+            <li>Upload supports camera capture or gallery pick</li>
+            <li>Files compressed to max 2MB before upload — no quality loss visible</li>
+            <li>Rejected KYC shows specific reason and allows re-upload</li>
+            <li>KYC documents stored encrypted, only admin can view them</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Trusted Contacts (Safety Feature)</div>
+          <div class="fdesc">User adds 1–3 trusted contacts (name + mobile number). These are stored in the app. A visible SOS button on the main dashboard silently shares the user's current GPS location via SMS to all trusted contacts and sends an alert to RA Admin. The SOS button must be accessible within 2 taps from anywhere in the app. Must work even with poor connectivity (SMS fallback).</div>
+          <ul class="ac-list">
+            <li>SOS button visible on home dashboard at all times</li>
+            <li>Trusted contacts setup prompted during onboarding for female users</li>
+            <li>SOS sends SMS (not just app notification) for reliability</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.2 -->
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">🔍</div>
+      <div><div class="module-title">3.2 — Search & Discovery</div><div class="module-sub">Finding the right PG quickly</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Location-Based Search with Autocomplete</div>
+          <div class="fdesc">Search bar on home screen. Powered by Google Places API for autocomplete. Accepts: locality name, landmark, college name, metro station, or company name. The search resolves the entered query to GPS coordinates and shows all PGs within a configurable radius (default 3km, user can expand). Also supports "Near Me" using device GPS. Recent searches saved locally (last 5).</div>
+          <ul class="ac-list">
+            <li>Autocomplete results appear within 300ms of typing</li>
+            <li>College names resolve to coordinates via Places API</li>
+            <li>"Near Me" requests GPS permission only once — remembered</li>
+            <li>Empty state on search shows recent searches + popular cities</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Advanced Filters</div>
+          <div class="fdesc">Filter panel accessible from search results. Filters: Rent range (₹3,000–₹30,000 slider), Room type (Single / Double / Triple sharing), Gender (Boys / Girls / Co-ed), Meals included (Yes / No), Amenities multi-select (WiFi, AC, Geyser, Laundry, Parking, CCTV, Power Backup, Gym, Study Table), Furnishing (Fully furnished / Semi / Unfurnished), Verified only (toggle — shows RA-verified PGs only), Move-in date (date picker — shows PGs available on that date). Active filters shown as removable chips above results. Filter state persists during the session.</div>
+          <ul class="ac-list">
+            <li>Filter results update in real-time as sliders move</li>
+            <li>Number of matching PGs shown on the filter button</li>
+            <li>"Clear all filters" resets to default state</li>
+            <li>Gender filter auto-set from user's profile gender — can be manually changed</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Search Results — List View</div>
+          <div class="fdesc">Each listing card shows: Cover photo (swipeable thumbnails on card), property name, locality + distance from searched location, rent starting from (per month), key amenity icons (3–4 most relevant), room types available as tags, Verified badge (if admin-verified), Featured badge (if featured). Cards sorted by: Relevance (default), Price Low→High, Price High→Low, Distance, Newest. Infinite scroll — loads 15 at a time. Pull-to-refresh supported.</div>
+          <ul class="ac-list">
+            <li>Results load within 1.5 seconds for up to 50 listings</li>
+            <li>Skeleton loaders shown during fetch — no blank screen</li>
+            <li>Featured listings pinned to top 2 positions, clearly labeled</li>
+            <li>No results state shows "Expand search radius" suggestion</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Map View Toggle</div>
+          <div class="fdesc">Toggle between list view and map view. Map shows all matching PGs as pins. Tapping a pin shows a mini-card (photo + name + rent + distance). Tapping mini-card opens full detail page. Map uses Google Maps SDK. Pins are clustered when zoomed out — expand on zoom in. Map re-searches automatically when user pans significantly (with "Search this area" button).</div>
+          <ul class="ac-list">
+            <li>Map initialises centred on searched location</li>
+            <li>Cluster count shown on grouped pins</li>
+            <li>Current device location shown as a blue dot</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">PG Detail Page</div>
+          <div class="fdesc">Full listing page with: Swipeable photo gallery (full-screen expand on tap), property name + locality + verified badge, distance from searched location, room-wise pricing table (room type / occupancy / rent / deposit / availability), all amenities with icons, house rules (listed clearly), meals info (which meals, veg/non-veg), host profile card (name, photo, response rate — no phone number), Google Maps embed showing property location, "Book Now" and "Add to Wishlist" CTAs always visible at bottom. For multiple room types — user selects before proceeding to booking.</div>
+          <ul class="ac-list">
+            <li>Photo gallery supports pinch-to-zoom</li>
+            <li>"Book Now" disabled and shows reason if: no rooms available, user's KYC pending, or move-in date not selected</li>
+            <li>Share button generates a deep link to the listing</li>
+            <li>Back to results preserves scroll position and filters</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.3 -->
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">📅</div>
+      <div><div class="module-title">3.3 — Booking Flow</div><div class="module-sub">The single most critical user flow — must be flawless</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Booking Initiation</div>
+          <div class="fdesc">From the detail page, user taps "Book Now". A bottom sheet slides up with: selected room type (changeable), move-in date picker (blocks past dates and already-booked dates), meal plan selection (if PG offers meals: included / not required), booking summary — room type, rent per month, security deposit, token amount to pay now. User reviews and taps "Proceed to Pay." If the PG has "Instant Book" enabled — booking is confirmed on payment. If not — host must approve within 24 hours before payment link activates.</div>
+          <ul class="ac-list">
+            <li>Move-in date defaults to the earliest available date</li>
+            <li>Booking summary clearly distinguishes token (paid now) from rent (monthly)</li>
+            <li>Cancellation policy shown before payment</li>
+            <li>Double-booking prevented at database level — not just UI</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Token Payment</div>
+          <div class="fdesc">User pays a token amount (set per listing, e.g. ₹500–₹2,000) to confirm the booking. Payment options: UPI (PhonePe, GPay, Paytm, any UPI ID), Debit/Credit card, Net banking. Powered by Razorpay. On successful payment: booking status changes to Confirmed, user sees a success screen with Booking ID, WhatsApp message sent to user and push notification to host. Token is adjusted against first month's rent. Token is non-refundable if user cancels within 48 hours of move-in.</div>
+          <ul class="ac-list">
+            <li>Payment timeout of 10 minutes — expired sessions show clear error</li>
+            <li>Payment failure shows reason and allows retry without re-entering booking</li>
+            <li>Success screen shows: Booking ID, PG address, host name, move-in date</li>
+            <li>PDF booking confirmation downloadable from success screen</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Booking History & Status Tracking</div>
+          <div class="fdesc">A "My Bookings" tab shows all bookings — active, past, pending, cancelled. Each booking card shows: PG name + photo, booking status, room type, move-in date, monthly rent, token paid. Statuses: Pending Host Approval / Payment Pending / Confirmed / Active Stay / Completed / Cancelled. Tapping a booking shows full details, payment history, and available actions (cancel if within policy, contact host).</div>
+          <ul class="ac-list">
+            <li>Booking status updates in real-time via push notification</li>
+            <li>Cancelled bookings retained in history — not deleted</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p1">
+        <div>
+          <div class="fname">Wishlist / Saved PGs</div>
+          <div class="fdesc">Heart icon on every listing card and detail page. Wishlisted PGs saved to user's account (persists across devices). A dedicated Wishlist tab shows all saved PGs. Wishlisted PGs show "Available" or "Full" status in real-time. User gets push notification if a wishlisted PG drops rent or has a new room available.</div>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-p1">P1</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.4 -->
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">🏡</div>
+      <div><div class="module-title">3.4 — Tenant Dashboard (Post Move-In)</div><div class="module-sub">Daily-use features that keep tenants engaged with the app</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Home Dashboard — Active Stay View</div>
+          <div class="fdesc">Once a user's move-in date is reached, the home screen transforms into a Tenant Dashboard. Shows: PG name, room number, move-in date, monthly rent, next rent due date, host name, SOS button (always visible), quick action cards (Pay Rent, Raise Request, View Menu, Chat with Host). A leave notice section shows "Notice served / not yet served." Navigation bar changes to show: Home, Menu, Service, Chat, Profile.</div>
+          <ul class="ac-list">
+            <li>Dashboard activates automatically on move-in date — no manual trigger</li>
+            <li>SOS button visible in top-right of every screen during active stay</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Daily Meal Menu View</div>
+          <div class="fdesc">Only visible if the PG provides meals. Shows today's menu: Breakfast / Lunch / Dinner with dish names. If a meal is not provided for a slot, shows "Not available today." Scroll right to see tomorrow's menu (if host has entered it in advance). Host name and last-updated time shown at bottom of menu card for transparency.</div>
+          <ul class="ac-list">
+            <li>Menu refreshes automatically at midnight</li>
+            <li>If host hasn't updated menu for today — shows "Menu not updated yet" with timestamp of last update</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Monthly Rent Payment</div>
+          <div class="fdesc">Tenant sees current month's rent status: Paid / Due / Overdue. Tapping "Pay Rent" opens Razorpay with the exact amount pre-filled. After payment: status changes to Paid, receipt generated, push notification to host. Payment history shows all past rent payments with date, amount, transaction ID, and downloadable receipt. Overdue rent shown in red with the number of days overdue.</div>
+          <ul class="ac-list">
+            <li>Rent payment via UPI, card, net banking — same gateway as token</li>
+            <li>Partial payment NOT allowed — must pay full month's rent</li>
+            <li>Receipt PDF shows: PG name, tenant name, room, month, amount, transaction ID</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Service Request — Raise Maintenance Issue</div>
+          <div class="fdesc">Tenant raises a request from the Service tab. Form fields: Category (Electrical / Plumbing / Internet / Furniture / Cleanliness / Other), Description (text, required), Priority (Urgent / Normal), Photo (optional, max 3). After submission: request assigned a ticket number, host notified via push notification. Status tracking in-app: Submitted → Acknowledged → Resolved. Tenant can add follow-up comments. Urgent requests not resolved in 4 hours auto-escalate to admin.</div>
+          <ul class="ac-list">
+            <li>Tenant cannot delete a submitted request — only admin can</li>
+            <li>All requests visible to admin for quality monitoring</li>
+            <li>Resolved requests prompt a quick 1–5 star satisfaction rating</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">In-App Chat — Tenant ↔ Host</div>
+          <div class="fdesc">Dedicated chat channel between tenant and their current PG host. Standard text messaging with photo sharing. No voice or video in MVP. Messages delivered in real-time. Offline messages queued and delivered when reconnected. Typing indicators shown. Chat history persists. Host's business hours shown — "Typically replies within X hours" auto-computed from response data. All chats are logged and visible to admin.</div>
+          <ul class="ac-list">
+            <li>No phone numbers shared through chat — stays in-app</li>
+            <li>Chat unavailable for cancelled bookings</li>
+            <li>Offensive content reporting available on long-press of any message</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p1">
+        <div>
+          <div class="fname">Leave Notice Submission</div>
+          <div class="fdesc">Tenant can submit a leave notice from their dashboard. Enter intended move-out date (must be at least notice period days from today — defined per PG). Once submitted: host is notified, admin is notified, the room is queued as "Vacating Soon" in inventory. Tenant cannot withdraw notice within 3 days of move-out date. Leave notice date and status shown on tenant dashboard.</div>
+        </div>
+        <div class="ftags"><span class="b b-user">User</span><span class="b b-p1">P1</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 04 HOST APP ─── -->
+<div id="host" class="section">
+  <div class="sticky">
+    <span>04 — Host / PG Owner App</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 04</div>
+  <h2 class="section-title">Host / PG Owner<br>Mobile App</h2>
+  <p class="section-sub">The supply-side app used by PG owners to list and manage their properties. Hosts may have limited tech experience — the UI must be exceptionally simple and task-oriented. Hosts use this every single day, so speed and reliability are critical.</p>
+
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">📝</div>
+      <div><div class="module-title">4.1 — Host Onboarding & Property Listing</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Host Registration & KYC</div>
+          <div class="fdesc">Separate registration flow — host taps "List Your PG" from the app or promotional website. Collects: full name, mobile number (OTP verified), email, Aadhaar or PAN card upload, property ownership proof (electricity bill, rent agreement, or ownership deed). After submission — RA Admin reviews and activates the host account. Host receives SMS + email when approved. Until approved, host can complete the listing form but the listing goes live only after admin approval.</div>
+          <ul class="ac-list">
+            <li>Host and user are separate roles — same mobile number cannot be used for both</li>
+            <li>Host account creation does not require app download — web flow available</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Property Listing Creation — Guided Form</div>
+          <div class="fdesc">Step-by-step form with progress indicator. Step 1 — Basics: Property name, full address, Google Maps pin (drag to exact location), PG type (Boys / Girls / Co-ed). Step 2 — Rooms: For each room type (Single / Double / Triple), enter: number of rooms, monthly rent, security deposit, furnishing (Fully / Semi / Unfurnished), bathroom type (attached / shared). Host adds as many room types as needed. Step 3 — Amenities: Checkbox grid of all amenities. Step 4 — Meals: Does PG offer meals? If yes — which meals (Breakfast / Lunch / Dinner), type (Veg / Non-Veg / Both). Step 5 — House Rules: Visitor policy, curfew time, smoking/drinking allowed, notice period (days). Step 6 — Photos: Minimum 5 photos required. Camera capture or gallery. Each photo shows a label suggestion (e.g. "Add exterior photo"). Step 7 — Token & Booking: Token amount (₹500–₹5,000), booking type (Instant Book / Request to Book).</div>
+          <ul class="ac-list">
+            <li>Form saves draft at every step — host can resume later</li>
+            <li>Minimum 5 photos enforced — cannot submit without them</li>
+            <li>Address validated against Google Maps — pin must be manually confirmed</li>
+            <li>Submitted listing goes to admin queue — not live immediately</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Edit Listing Details</div>
+          <div class="fdesc">Host can edit any field of their listing post-approval. Minor edits (photos, amenities, meal info) go live immediately. Major edits (rent changes above 20%, address change) require re-approval by admin. An edit history log is maintained. Host can pause a listing (makes it invisible to users without deleting it — useful for renovation or full occupancy periods).</div>
+          <ul class="ac-list">
+            <li>Paused listings shown to host with "Paused" badge — invisible to users</li>
+            <li>Admin notified of major edits for review</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">📦</div>
+      <div><div class="module-title">4.2 — Inventory & Booking Management</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Daily Inventory Update</div>
+          <div class="fdesc">Host dashboard shows current room inventory for each room type: Total rooms / Occupied / Available. Host can adjust the available count per room type — this is specifically for walk-in tenants who were manually added. Regular app bookings auto-update inventory. The system recommends auto-inventory based on bookings (host can override). If all rooms of a type are marked full, users see "Fully Occupied — Join Waitlist" for that type.</div>
+          <ul class="ac-list">
+            <li>Inventory auto-updates on every confirmed booking and check-out</li>
+            <li>Manual override clearly flagged with a different colour in admin</li>
+            <li>Host gets a daily reminder to verify inventory if it hasn't been touched in 3 days</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Booking Request Management</div>
+          <div class="fdesc">For "Request to Book" listings: incoming requests appear in a Bookings tab with 24-hour countdown timer. Host sees: tenant name (after accepting), room type, move-in date, and can Accept or Decline with optional reason. Accepting sends a payment link to the tenant. If host doesn't respond in 24 hours, the request auto-expires and the tenant is notified. For Instant Book listings — bookings appear in the confirmed tab directly.</div>
+          <ul class="ac-list">
+            <li>Accepting a request locks that room for 4 hours while tenant pays</li>
+            <li>If tenant doesn't pay in 4 hours, room is released and request cancelled</li>
+            <li>Host cannot see tenant's KYC documents — only name and booking details</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Walk-In Booking Entry</div>
+          <div class="fdesc">When a tenant arrives directly without booking through the app, host manually creates a record: tenant name, mobile number, Aadhaar number (entered by host, not uploaded), room type, room number, move-in date, rent agreed, security deposit collected, payment mode (Cash / UPI). System sends an SMS invite to the tenant's number to download Roomadda and link their stay. Walk-in bookings are flagged differently in analytics.</div>
+          <ul class="ac-list">
+            <li>Walk-in bookings auto-reduce available room count</li>
+            <li>SMS invite contains a deep link to app download + pre-filled mobile number</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Tenant Roster</div>
+          <div class="fdesc">Host sees a list of all current tenants. For each tenant: name, room type + room number (if assigned), move-in date, monthly rent, current rent status (Paid / Due / Overdue), and a button to open their in-app chat thread. Past tenants visible in a separate "Past Tenants" tab with move-out date and stay duration. No sensitive KYC information shown to host.</div>
+          <ul class="ac-list">
+            <li>Overdue tenants shown in red at the top of the list</li>
+            <li>Host can mark a tenant as checked out from this view</li>
+            <li>Each tenant row is not expandable to show others' data</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h">
+      <div class="module-icon">🍽️</div>
+      <div><div class="module-title">4.3 — Daily Operations</div></div>
+    </div>
+    <div class="flist">
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Meal Menu Update</div>
+          <div class="fdesc">From the Operations tab, host updates today's meal menu. Three sections: Breakfast / Lunch / Dinner. Each accepts a free-text description (e.g. "Idli, Sambar, Chutney"). Toggle to mark a meal as "Not available today." Host can also update tomorrow's menu in advance. Weekly templates — host can save a template (e.g., "Standard Monday Menu") and apply it to any day to avoid re-typing the same menus each week.</div>
+          <ul class="ac-list">
+            <li>Menu updated pushes instant silent notification to all active tenants</li>
+            <li>Host reminded via push at 7am each day if today's menu is empty</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Service Request Queue</div>
+          <div class="fdesc">All open service requests from tenants shown in a prioritised list. Urgent requests at top in red. Each request shows: tenant name, room number, category, description, submitted time, current status. Host actions: Acknowledge (sets "In Progress"), Add a note (visible to tenant), Mark Resolved. Resolved request sends a notification to tenant with the host's note. Auto-escalation to admin visible to host as "Escalated" status.</div>
+          <ul class="ac-list">
+            <li>Requests cannot be deleted by host — only closed or escalated</li>
+            <li>Average resolution time computed and shown to host as self-improvement metric</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p0">
+        <div>
+          <div class="fname">Broadcast Message to All Tenants</div>
+          <div class="fdesc">Host can send a text message to all current tenants simultaneously. Use cases: water cut notice, WiFi password change, event/visitor policy reminder. Broadcast appears as a push notification AND is logged in each tenant's chat thread. Max 3 broadcasts per day per property. Character limit: 280. Host cannot broadcast to ex-tenants.</div>
+          <ul class="ac-list">
+            <li>Broadcast previewed before sending — confirmation step required</li>
+            <li>Broadcast history kept in admin panel for moderation</li>
+          </ul>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-mvp">P0 Core</span></div>
+      </div>
+      <div class="fitem p1">
+        <div>
+          <div class="fname">Basic Revenue Dashboard</div>
+          <div class="fdesc">Summary view for the host: total rent expected this month, total rent collected, total overdue, number of occupied rooms, number of vacant rooms. A simple bar chart showing last 3 months' rent collection. No payout management in MVP — handled manually by Roomadda finance team. Payout automation in Phase 2.</div>
+        </div>
+        <div class="ftags"><span class="b b-host">Host</span><span class="b b-p1">P1</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 05 AGENT APP ─── -->
+<div id="agent" class="section">
+  <div class="sticky">
+    <span>05 — Field Agent App</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 05</div>
+  <h2 class="section-title">Field Agent<br>Mobile App</h2>
+  <p class="section-sub">A lean, task-oriented mobile app for Roomadda's on-ground agents. Agents visit PGs, verify listings, and help users book. The app must work well on patchy connectivity — agents are often in buildings with weak signals.</p>
+
+  <div class="callout info">
+    <div class="c-icon">ℹ️</div>
+    <div>
+      <div class="c-title">Agent App Note</div>
+      <div class="c-body">The agent app can share the same mobile app binary as the user and host apps, with role-based routing on login. However the agent interface must be completely distinct — different navigation, different dashboard, different feature set. Agents are created by admin — they cannot self-register. Agent accounts are activated only by RA Admin.</div>
+    </div>
+  </div>
+
+  <div class="flist">
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Agent Dashboard — Today's Tasks</div>
+        <div class="fdesc">Home screen shows today's assigned visits in order, a count of pending assisted bookings, and a summary of bookings closed this month. Simple, clean — optimised for quick action, not data browsing. Offline mode shows last-synced data with a banner indicating connectivity status.</div>
+      </div>
+      <div class="ftags"><span class="b b-agent">Agent</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Property Visit Assignment & Check-In</div>
+        <div class="fdesc">Admin assigns property visits to agents from the admin panel. Each visit shows: property name + address, host contact name, scheduled date/time, and reason for visit. Agent taps "Start Visit" which triggers a GPS check-in (records lat/long at time of tap — must be within 200 metres of the property address to validate visit). If agent is not within range, they can flag "Cannot reach property" with a note.</div>
+        <ul class="ac-list">
+          <li>GPS check-in timestamp and coordinates saved to visit record</li>
+          <li>Admin sees check-in location on a map in the admin panel</li>
+          <li>Agent cannot complete inspection without GPS check-in</li>
+        </ul>
+      </div>
+      <div class="ftags"><span class="b b-agent">Agent</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Property Inspection Checklist</div>
+        <div class="fdesc">Structured checklist the agent fills during the visit. Sections: Amenity Verification (each amenity claimed in the listing is checked Yes/No/Partial — e.g., "WiFi working?" / "AC functional?" / "Geyser works?"), Room Count Verification (actual room count vs listed), Cleanliness (1–5 rating per area: rooms, bathrooms, kitchen, common areas), Security Infrastructure (CCTV presence, gate lock, security guard), Discrepancies (free text — any mismatch between listing and reality), Overall Recommendation (Approve / Approve with Conditions / Reject), Notes for admin (free text). Minimum 8 photos required — taken within the app.</div>
+        <ul class="ac-list">
+          <li>Photos taken in-app are geotagged and timestamped</li>
+          <li>Checklist cannot be submitted without minimum photos</li>
+          <li>Submitted reports go directly to admin's review queue</li>
+          <li>Partial saves supported — agent can pause and resume on the same visit</li>
+        </ul>
+      </div>
+      <div class="ftags"><span class="b b-agent">Agent</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Assisted Booking Flow</div>
+        <div class="fdesc">After accompanying a user on a property visit, if the user wants to book, the agent initiates from their app: selects the property, room type, move-in date, enters the user's name and mobile number. The system sends a WhatsApp + SMS payment link to the user's phone. The user taps the link, opens Razorpay, pays the token from their own device. Booking is linked to the agent's account for commission tracking. The agent can see the status of pending payment links (sent, paid, expired).</div>
+        <ul class="ac-list">
+          <li>Payment link valid for 2 hours — expired links shown clearly</li>
+          <li>Agent cannot make the payment on the user's behalf — user must pay</li>
+          <li>Booking attribution to agent is automatic and immutable once confirmed</li>
+        </ul>
+      </div>
+      <div class="ftags"><span class="b b-agent">Agent</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Walk-In Booking Entry (Agent Version)</div>
+        <div class="fdesc">If an agent is at a property and a walk-in user wants to book, agent records: user details, room type, move-in date. Collects token payment via a Razorpay QR code shown on screen (user scans with their UPI app). On payment success, booking is created, receipt generated as a shareable PDF. This walk-in booking is tagged as "Agent Walk-In" for commission and analytics.</div>
+        <ul class="ac-list">
+          <li>QR payment auto-confirms once Razorpay webhook fires</li>
+          <li>Agent's commission on walk-in bookings identical to assisted bookings</li>
+        </ul>
+      </div>
+      <div class="ftags"><span class="b b-agent">Agent</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p1">
+      <div>
+        <div class="fname">Agent Monthly Performance Summary</div>
+        <div class="fdesc">Simple view showing: visits completed this month, bookings closed (assisted + walk-in), commission earned this month, payout status (Pending — manual for MVP). No complex analytics in MVP — just the numbers agents need to track their own performance.</div>
+      </div>
+      <div class="ftags"><span class="b b-agent">Agent</span><span class="b b-p1">P1</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 06 ADMIN ─── -->
+<div id="admin" class="section">
+  <div class="sticky">
+    <span>06 — RA Admin Panel</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 06</div>
+  <h2 class="section-title">RA Admin<br>Web Panel</h2>
+  <p class="section-sub">The internal command centre — accessible only via web browser, only to Roomadda team members. Must be functional and fast, not beautiful. Designed for desktop use by ops and support staff. All data in the system is visible here. All approvals happen here.</p>
+
+  <div class="rule-box">
+    <h3>🚫 Hard Rule — No Booking Capability</h3>
+    <div class="rule-item">RA Admin accounts are completely restricted from initiating, approving, or making any booking on behalf of any user. This must be enforced at the backend API level — not just hidden in the UI. Any API request with an admin role token to the booking creation endpoint must return a 403 Forbidden response.</div>
+    <div class="rule-item">Admin accounts have a separate login URL (admin.roomadda.com). The admin panel is NOT accessible from the consumer mobile app in any way.</div>
+    <div class="rule-item">Admin actions are logged with: action type, timestamp, admin user ID, affected entity (user/host/listing/booking ID). This audit log is immutable and only accessible by Super Admin role.</div>
+  </div>
+
+  <div class="flist">
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Listing Approval Queue</div>
+        <div class="fdesc">Every new property listing submitted by a host appears here. Admin sees: listing details, all photos, host KYC status, and the agent inspection report (if a visit was done). Admin actions: Approve (listing goes live immediately), Approve with Edit Request (sends specific feedback to host — listing does not go live until host resubmits), Reject (with mandatory reason — host can resubmit after fixes). Approval/rejection triggers email + SMS to host. SLA target: review within 48 hours of submission.</div>
+        <ul class="ac-list">
+          <li>Listings older than 48 hours without action highlighted in orange</li>
+          <li>Admin cannot approve a listing without a verified host KYC</li>
+          <li>All approvals logged with admin name and timestamp</li>
+        </ul>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">User KYC Management</div>
+        <div class="fdesc">Admin sees all users with KYC status filters (Not Submitted / Pending / Verified / Rejected). For each user: view submitted photos (Aadhaar front/back, supporting ID), verify document authenticity, and Approve or Reject with reason. Rejected users receive a push notification with the reason and are prompted to resubmit. Approved users receive a push notification. Admin can view full user profile but cannot modify user data — only KYC status.</div>
+        <ul class="ac-list">
+          <li>KYC documents must be stored encrypted — admin sees them via secure signed URL valid for 30 minutes</li>
+          <li>Bulk approve for verified documents is not available — each KYC must be reviewed individually</li>
+        </ul>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">User Management</div>
+        <div class="fdesc">View all registered users with search (by name, mobile, email), sort by registration date and filters (KYC status, city, active/inactive). Per user: view full profile, booking history, payment history, KYC status. Admin can: Suspend account (user cannot login, reason stored), Permanently ban account (with reason), Issue a manual credit (Roomadda credits for compensation), Add internal notes (not visible to user). Suspended/banned accounts show reason and timestamp.</div>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Host Management</div>
+        <div class="fdesc">View all host accounts with filters (KYC status, city, active/inactive). Per host: all listings, KYC documents, booking history, tenant list (counts only — not personal data), payment/payout summary. Admin can: Approve or reject host KYC, Take down a listing (with mandatory reason — sent to host), Suspend or ban host, Mark a listing as Featured (paid or curated), Assign an agent for property verification. Featured status has a start and end date.</div>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Agent Management</div>
+        <div class="fdesc">Admin creates all agent accounts — no self-registration. Create agent: name, mobile, email, assigned city/zone. Agent receives login credentials via SMS. Admin can view: all agents, their assigned visits, completed visits, bookings closed, commission earned. Admin can: Deactivate an agent (prevents login), reassign territories, assign specific property visits. Commission tracking is read-only in MVP — payouts processed manually by finance team.</div>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Service Request Oversight & Escalations</div>
+        <div class="fdesc">Admin sees all escalated service requests (urgent, not resolved in 4 hours). Admin can view the full ticket, contact the host directly (from admin panel — no phone sharing), mark as resolved on behalf of the host, or flag the host account for poor response rate. Escalation history shown on the host's profile. Support tickets from users also land here — admin responds directly.</div>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Platform Overview Dashboard</div>
+        <div class="fdesc">Admin home page shows: Total registered users, Total active hosts, Total live listings, Total bookings this month, Total revenue (platform commission) this month, Pending KYC approvals count, Pending listing approvals count, Escalated service requests count. All numbers are real-time. Clicking any number opens the filtered view for that entity. Simple line chart for bookings over last 30 days.</div>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Push Notification Management</div>
+        <div class="fdesc">Admin can compose and send push notifications to: All users, All hosts, All agents, or specific city-based segments. Compose: title, body, optional deep link (e.g. links to a specific listing or section). Schedule for immediate or future date/time. Notification history with open rate tracking. Rate limit enforced: max 2 platform-wide pushes per week to avoid fatigue.</div>
+      </div>
+      <div class="ftags"><span class="b b-admin">Admin</span><span class="b b-p1">P1</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 07 PROMO SITE ─── -->
+<div id="promo" class="section">
+  <div class="sticky">
+    <span>07 — Promotional Website</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 07</div>
+  <h2 class="section-title">Promotional<br>Website</h2>
+  <p class="section-sub">A public-facing marketing website at roomadda.com. Its purpose: convert visitors into app downloads and host sign-ups. It is NOT the app — it is a 5–7 page marketing site with SEO best practices built in from day one.</p>
+
+  <div class="flist">
+    <div class="fitem p0">
+      <div>
+        <div class="fname">Homepage</div>
+        <div class="fdesc">Hero section with headline, value proposition, app download buttons (App Store + Google Play) and a "List Your PG" CTA. Feature highlights (3–4 key benefits for users and hosts). Featured cities (clickable — links to search results in app or web preview). Testimonials section (placeholder in MVP, real reviews added post-launch). Download CTA banner. Footer with all links, contact email, social links.</div>
+      </div>
+      <div class="ftags"><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">For Hosts Page</div>
+        <div class="fdesc">Separate landing page targeting PG owners. Headline: "List your PG and fill rooms faster." Benefits: verified tenants, online payments, zero phone call hassle. Step-by-step "How it works" for hosts. Commission/pricing transparency (if decided). "List Your PG" CTA opens the host registration form (web-based — no app required for hosts to start).</div>
+      </div>
+      <div class="ftags"><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">About + Contact Page</div>
+        <div class="fdesc">About Roomadda: mission, founding story, team. Contact form (name, email, message → goes to support@roomadda.com). FAQ section covering 10–15 common questions (for both users and hosts). Social media links.</div>
+      </div>
+      <div class="ftags"><span class="b b-mvp">P0 Core</span></div>
+    </div>
+    <div class="fitem p0">
+      <div>
+        <div class="fname">SEO & Technical Setup</div>
+        <div class="fdesc">Meta titles and descriptions on every page. Open Graph tags for social sharing. robots.txt and sitemap.xml. Google Analytics 4 + Google Search Console setup. Page load time under 2 seconds (Core Web Vitals: LCP &lt;2.5s, CLS &lt;0.1, FID &lt;100ms). HTTPS enforced. Mobile-first responsive design.</div>
+      </div>
+      <div class="ftags"><span class="b b-mvp">P0 Core</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 08 PAYMENTS ─── -->
+<div id="payments" class="section">
+  <div class="sticky">
+    <span>08 — Payments Architecture</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 08</div>
+  <h2 class="section-title">Payments<br>Architecture</h2>
+  <p class="section-sub">All money movement on the platform. Every rupee must be traceable, every transaction must have a receipt, and every failure must be recoverable. No shortcuts here.</p>
+
+  <table class="pay-table">
+    <thead><tr><th>Transaction Type</th><th>Who Pays</th><th>To Whom</th><th>Method</th><th>MVP Status</th></tr></thead>
+    <tbody>
+      <tr><td>Token Payment</td><td>User</td><td>Roomadda (held)</td><td>Razorpay — UPI, Card, Net Banking</td><td><span class="b b-mvp">IN MVP</span></td></tr>
+      <tr><td>Monthly Rent</td><td>User (Tenant)</td><td>Roomadda (held)</td><td>Razorpay — UPI, Card, Net Banking</td><td><span class="b b-mvp">IN MVP</span></td></tr>
+      <tr><td>Payout to Host</td><td>Roomadda</td><td>Host bank account</td><td>Manual bank transfer by finance team</td><td>Manual MVP → Auto Phase 2</td></tr>
+      <tr><td>Agent Commission</td><td>Roomadda</td><td>Agent bank account</td><td>Manual bank transfer by finance team</td><td>Manual MVP → Auto Phase 2</td></tr>
+      <tr><td>Refund to User</td><td>Roomadda</td><td>User original payment method</td><td>Razorpay refund API</td><td><span class="b b-mvp">IN MVP</span></td></tr>
+      <tr><td>Walk-In Token (Agent)</td><td>Walk-in User</td><td>Agent collects → logged</td><td>Razorpay QR on agent's app screen</td><td><span class="b b-mvp">IN MVP</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout rule">
+    <div class="c-icon">🏦</div>
+    <div>
+      <div class="c-title">Payment Gateway Requirement</div>
+      <div class="c-body"><strong>Razorpay</strong> is the recommended gateway. It supports UPI, cards, net banking, payment links, QR codes, webhooks, and refunds all under one integration. The agency must implement Razorpay webhooks for payment success/failure events — do NOT rely on the redirect callback alone, as users can close the app before the callback fires. All payment-related data must be stored server-side, never in the mobile app's local storage.</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="c-icon">⚠️</div>
+    <div>
+      <div class="c-title">Payout & Escrow Note</div>
+      <div class="c-body">In the MVP, Roomadda collects all payments (token + rent) and manually transfers to hosts after deducting commission. This is acceptable for early operations with low transaction volumes. By Phase 2, Razorpay Route (split payment / marketplace settlement) must be implemented to automate payouts. The agency must design the database model to support automated payouts from day one — even if the automation is wired up in Phase 2.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 09 RULES ─── -->
+<div id="rules" class="section">
+  <div class="sticky">
+    <span>09 — Business & Privacy Rules</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 09</div>
+  <h2 class="section-title">Business &<br>Privacy Rules</h2>
+  <p class="section-sub">These are non-negotiable constraints that must be implemented at the backend — not just hidden in the UI. Every rule here is a product or legal requirement.</p>
+
+  <div class="rule-box">
+    <h3>🔒 Privacy Rules — Non-Negotiable</h3>
+    <div class="rule-item">No tenant can see any other tenant's name, room, payment info, or contact details — even if they are in the same PG. The database query for tenant roster must be filtered by tenantId = currentUser and propertyId = currentProperty. Never return all tenants to a tenant-role API call.</div>
+    <div class="rule-item">Hosts can see their tenants' name, room, move-in date, rent status, and contact number. They cannot see KYC documents, payment card details, or any admin-level data.</div>
+    <div class="rule-item">Agents can only see data for leads and properties assigned to them. An agent for Bangalore cannot query users or listings in Delhi. Zone-based data access enforced at API level.</div>
+    <div class="rule-item">KYC documents (Aadhaar photos, ID proofs) are stored encrypted (AES-256 at rest). Access is via signed URLs valid for 30 minutes only. Only admin-role API tokens can generate these signed URLs.</div>
+    <div class="rule-item">No raw phone numbers are shared between users and hosts in chat. All communication routes through the in-app chat. Host contact number is shown to tenant only in an emergency context (visible on tenant dashboard as "Emergency Contact" — not in public chat).</div>
+    <div class="rule-item">Admin actions on sensitive data (KYC approvals, account bans, listing takedowns) must be logged in an immutable audit table with: admin_id, action_type, target_entity_id, timestamp, and reason. Audit logs cannot be deleted — only read.</div>
+  </div>
+
+  <div class="rule-box" style="margin-top:20px;">
+    <h3>📋 Business Rules</h3>
+    <div class="rule-item">Admin accounts cannot make bookings. Enforced at API level — booking creation endpoint returns 403 for admin role tokens.</div>
+    <div class="rule-item">A listing cannot go live without: minimum 5 photos, verified host KYC, at least one room type with pricing, and admin approval. Any listing failing these criteria stays in "Draft" status.</div>
+    <div class="rule-item">A booking cannot be confirmed without: user's KYC approved by admin, token payment successfully captured by Razorpay webhook, and available room count &gt;0 for the selected room type. All three checks must happen server-side — not in the app.</div>
+    <div class="rule-item">Double booking prevention: when a booking is initiated, the room count is decremented immediately in a database transaction. If payment fails, the count is restored. This prevents two users from paying for the same room simultaneously.</div>
+    <div class="rule-item">Token refund policy: Full refund if host cancels. Full refund if user cancels more than 7 days before move-in. 50% refund if cancelled 3–7 days before move-in. No refund if cancelled within 3 days of move-in. These rules are applied in code automatically based on cancellation timestamp vs move-in date.</div>
+    <div class="rule-item">Walk-in bookings entered by hosts or agents must generate an SMS invite to the tenant within 60 seconds of entry — the SMS must contain the app download link and a unique pre-registration token that links the download to that specific booking.</div>
+  </div>
+</div>
+
+<!-- ─── 10 TECH ─── -->
+<div id="tech" class="section">
+  <div class="sticky">
+    <span>10 — Tech Stack</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 10</div>
+  <h2 class="section-title">Recommended<br>Tech Stack</h2>
+  <p class="section-sub">The agency must confirm their chosen stack before kick-off. The choices below are strongly recommended based on the feature scope, timeline, and long-term scalability needs. Any deviations must be justified in writing.</p>
+
+  <div class="tech-grid">
+    <div class="tech-card">
+      <div class="tech-icon">📱</div>
+      <div class="tech-name">Mobile App</div>
+      <div class="tech-body"><strong>React Native (Expo)</strong> — Single codebase for iOS + Android. Expo managed workflow for fast initial development. Expo EAS for builds and OTA updates. All three apps (User, Host, Agent) in one project with role-based routing.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">🖥️</div>
+      <div class="tech-name">Admin Web Panel</div>
+      <div class="tech-body"><strong>React.js + Tailwind CSS</strong> — Fast, responsive web app. Desktop-optimised. Deployed separately from promotional site. Hosted on admin.roomadda.com with role-based authentication.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">🌐</div>
+      <div class="tech-name">Promotional Website</div>
+      <div class="tech-body"><strong>Next.js</strong> — Server-side rendering for SEO. Fast page loads. Deployed on Vercel. Image optimisation built in. One shared component library with admin panel.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">⚙️</div>
+      <div class="tech-name">Backend API</div>
+      <div class="tech-body"><strong>Node.js + Express.js</strong> — RESTful API. JWT authentication with role claims. All business logic and validation server-side. Rate limiting on auth endpoints. Docker containerised.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">🗄️</div>
+      <div class="tech-name">Primary Database</div>
+      <div class="tech-body"><strong>PostgreSQL</strong> — Relational DB for users, bookings, payments, listings. Hosted on AWS RDS or Supabase. Daily automated backups. Connection pooling via PgBouncer.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">⚡</div>
+      <div class="tech-name">Real-Time / Chat</div>
+      <div class="tech-body"><strong>Firebase Firestore</strong> for in-app chat (real-time, reliable). <strong>Firebase Cloud Messaging (FCM)</strong> for push notifications on iOS + Android. Chat messages mirrored to PostgreSQL for admin audit access.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">📁</div>
+      <div class="tech-name">File Storage</div>
+      <div class="tech-body"><strong>AWS S3</strong> — All photos, KYC documents, inspection photos. CDN via AWS CloudFront for fast image delivery to users. KYC documents in a separate private S3 bucket with no public access. Signed URL access only.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">🗺️</div>
+      <div class="tech-name">Maps & Location</div>
+      <div class="tech-body"><strong>Google Maps Platform</strong> — Maps SDK (map view), Places API (search autocomplete), Geocoding API (address to coordinates), Distance Matrix API (distance calculation). Set monthly budget alert in GCP console.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">💳</div>
+      <div class="tech-name">Payments</div>
+      <div class="tech-body"><strong>Razorpay</strong> — Token payment, rent payment, payment links, QR codes, refunds, webhooks. Razorpay test mode for development. Production keys only on staging and production environments.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">📲</div>
+      <div class="tech-name">SMS & WhatsApp</div>
+      <div class="tech-body"><strong>MSG91</strong> — OTP SMS, booking confirmations, invite SMS. <strong>Interakt or Gupshup</strong> — WhatsApp Business API for booking confirmations and rent reminders. All templates pre-approved before launch.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">☁️</div>
+      <div class="tech-name">Hosting & DevOps</div>
+      <div class="tech-body"><strong>AWS EC2 + RDS</strong> for backend and database. <strong>GitHub Actions</strong> for CI/CD pipeline. Separate environments: Development, Staging, Production. Staging must be a mirror of production with anonymised data.</div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-icon">📊</div>
+      <div class="tech-name">Monitoring</div>
+      <div class="tech-body"><strong>Sentry</strong> — Error tracking on app and backend. <strong>Firebase Analytics</strong> — User behavior tracking in mobile app. <strong>UptimeRobot</strong> — API uptime monitoring with SMS alerts to team if downtime &gt;1 minute.</div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="c-icon">🔐</div>
+    <div>
+      <div class="c-title">Security Requirements — Non-Negotiable</div>
+      <div class="c-body">HTTPS enforced everywhere — no HTTP in production. KYC files encrypted AES-256 at rest. JWT tokens expire in 30 days — refresh token mechanism required. API rate limiting: max 10 OTP requests per mobile number per hour. All passwords (admin panel) hashed with bcrypt (min cost factor 12). OWASP Top 10 vulnerabilities must be addressed before launch. SQL injection protection via parameterised queries only — no raw string concatenation in queries. File upload validation: accept only JPG/PNG/PDF — reject all other MIME types at server level.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 11 TIMELINE ─── -->
+<div id="timeline" class="section">
+  <div class="sticky">
+    <span>11 — 6-Week Timeline</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 11</div>
+  <h2 class="section-title">6-Week Delivery<br>Timeline</h2>
+  <p class="section-sub">The timeline below is structured for a team of 5–6 developers working in parallel (2 mobile developers, 2 backend developers, 1 frontend/admin developer, 1 QA engineer). The client must ensure design mockups are approved before Week 1 begins — design delays are the single biggest risk to this timeline.</p>
+
+  <div class="callout warn">
+    <div class="c-icon">⚠️</div>
+    <div>
+      <div class="c-title">Pre-Kick-Off Requirements (Must Be Done Before Week 1)</div>
+      <div class="c-body">Before development begins: Razorpay account registered and KYC completed (takes 3–5 days). Google Cloud project created with Maps API + Places API enabled and billing set up. MSG91 account registered and DLT template registration started (DLT takes 2–3 days for SMS approval). WhatsApp Business API account approved (Interakt/Gupshup — takes 3–5 days). Firebase project created. AWS account set up. S3 buckets created with correct permissions. All third-party credentials shared with agency in a secure credential manager (NOT over email or WhatsApp). Domain roomadda.com pointed to hosting. Design mockups finalised and approved by client.</div>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="phase-block">
+      <div class="phase-header">
+        <div class="phase-dot" style="background:var(--phase1)">W1</div>
+        <div class="phase-meta">
+          <div class="phase-name" style="color:var(--phase1)">Week 1 — Foundation & Auth</div>
+          <div class="phase-duration">Days 1–7 · Backend architecture + Auth flows + DB schema</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-desc">This week establishes everything else. No feature work begins until the database schema is finalised and reviewed by the client. Schema changes after Week 1 are expensive — get it right now.</div>
+        <div class="phase-tasks">
+          <div class="task-card"><div class="task-icon" style="background:#e2f0e8;color:var(--phase1)">DB</div><div><div class="task-text">Complete database schema design</div><div class="task-note">All tables, relations, indexes. Client review required before approval.</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e2f0e8;color:var(--phase1)">🔐</div><div><div class="task-text">User authentication system</div><div class="task-note">OTP login, Google Sign-In, JWT + refresh tokens, role-based middleware</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e2f0e8;color:var(--phase1)">📱</div><div><div class="task-text">Mobile app skeleton + navigation</div><div class="task-note">Role-based routing, navigation structure for all 3 app modes</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e2f0e8;color:var(--phase1)">⚙️</div><div><div class="task-text">Backend API boilerplate</div><div class="task-note">Express setup, error handling, logging, environment configs</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e2f0e8;color:var(--phase1)">☁️</div><div><div class="task-text">AWS S3 + Firebase setup</div><div class="task-note">S3 buckets (public + private), Firebase project, FCM configured</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e2f0e8;color:var(--phase1)">🎨</div><div><div class="task-text">Design system implementation</div><div class="task-note">Colours, typography, component library started in app</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-header">
+        <div class="phase-dot" style="background:var(--phase2)">W2</div>
+        <div class="phase-meta">
+          <div class="phase-name" style="color:var(--phase2)">Week 2 — User Onboarding + Host Listing</div>
+          <div class="phase-duration">Days 8–14 · Profile setup, KYC upload, listing creation, admin panel foundation</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-desc">The supply side (host listing) and demand side (user profile) are built in parallel this week. Admin panel skeleton allows the team to test approvals.</div>
+        <div class="phase-tasks">
+          <div class="task-card"><div class="task-icon" style="background:#e8eef8;color:var(--phase2)">👤</div><div><div class="task-text">User profile setup screens</div><div class="task-note">Name, gender, DOB, occupation, college/company info</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8eef8;color:var(--phase2)">📄</div><div><div class="task-text">KYC document upload</div><div class="task-note">Camera + gallery, S3 upload, encryption, status tracking</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8eef8;color:var(--phase2)">🏠</div><div><div class="task-text">Host listing creation form (all 7 steps)</div><div class="task-note">Draft saving, photo upload, Google Maps pin, room types</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8eef8;color:var(--phase2)">🛡️</div><div><div class="task-text">Admin panel — foundation</div><div class="task-note">Login, dashboard skeleton, listing approval queue, KYC viewer</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8eef8;color:var(--phase2)">📧</div><div><div class="task-text">SMS + WhatsApp integration</div><div class="task-note">MSG91 OTP, booking confirmation templates via Interakt</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8eef8;color:var(--phase2)">🏠</div><div><div class="task-text">Host registration + KYC flow</div><div class="task-note">Web-based host onboarding form, document upload</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-header">
+        <div class="phase-dot" style="background:var(--phase3)">W3</div>
+        <div class="phase-meta">
+          <div class="phase-name" style="color:var(--phase3)">Week 3 — Search, Discovery & Booking</div>
+          <div class="phase-duration">Days 15–21 · The core user flow — search to payment</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-desc">The most critical week. The end-to-end booking flow must be functional by end of this week — even if rough. Payment integration is the highest-risk item and must be started early in the week.</div>
+        <div class="phase-tasks">
+          <div class="task-card"><div class="task-icon" style="background:#f8ece8;color:var(--phase3)">🔍</div><div><div class="task-text">Search + filters + results list</div><div class="task-note">Google Places autocomplete, filter panel, sorted results, skeleton loaders</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f8ece8;color:var(--phase3)">🗺️</div><div><div class="task-text">Map view of listings</div><div class="task-note">Google Maps SDK, pin clustering, mini-card tap, area re-search</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f8ece8;color:var(--phase3)">📋</div><div><div class="task-text">PG detail page</div><div class="task-note">Photo gallery, room types table, amenities, host card, Book Now CTA</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f8ece8;color:var(--phase3)">💳</div><div><div class="task-text">Booking flow + Razorpay integration</div><div class="task-note">Booking initiation, token payment, webhook handling, success screen</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f8ece8;color:var(--phase3)">❤️</div><div><div class="task-text">Wishlist functionality</div><div class="task-note">Save/unsave, wishlist tab, availability status on saved PGs</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f8ece8;color:var(--phase3)">🔔</div><div><div class="task-text">Core push notifications</div><div class="task-note">Booking confirmed, host approved/declined, payment received</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-header">
+        <div class="phase-dot" style="background:var(--phase4)">W4</div>
+        <div class="phase-meta">
+          <div class="phase-name" style="color:var(--phase4)">Week 4 — Post Move-In + Host Operations + Agent App</div>
+          <div class="phase-duration">Days 22–28 · Tenant dashboard, host daily tools, agent visit + booking</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-desc">Everything that happens after the booking is confirmed. This is what makes Roomadda a daily-use app rather than a one-time booking tool. The agent app is also built here since it shares backend APIs already built in Week 2–3.</div>
+        <div class="phase-tasks">
+          <div class="task-card"><div class="task-icon" style="background:#f0e8f8;color:var(--phase4)">🏡</div><div><div class="task-text">Tenant dashboard — active stay mode</div><div class="task-note">Home dashboard, SOS button, quick actions, leave notice</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f0e8f8;color:var(--phase4)">🍽️</div><div><div class="task-text">Meal menu (tenant view + host update)</div><div class="task-note">Daily menu display, host menu editor, weekly templates</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f0e8f8;color:var(--phase4)">🔧</div><div><div class="task-text">Service request system (full)</div><div class="task-note">Tenant raise, host queue, status updates, escalation trigger</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f0e8f8;color:var(--phase4)">💬</div><div><div class="task-text">In-app chat (Tenant ↔ Host)</div><div class="task-note">Firebase Firestore real-time chat, photo sharing, chat history</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f0e8f8;color:var(--phase4)">💰</div><div><div class="task-text">Monthly rent payment</div><div class="task-note">Rent status, payment via Razorpay, receipt generation, history</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f0e8f8;color:var(--phase4)">🕵️</div><div><div class="task-text">Agent app — full build</div><div class="task-note">Dashboard, GPS visit check-in, inspection form, assisted booking, walk-in entry</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-header">
+        <div class="phase-dot" style="background:var(--phase5)">W5</div>
+        <div class="phase-meta">
+          <div class="phase-name" style="color:var(--phase5)">Week 5 — Admin Panel Complete + Promo Site + Integration Testing</div>
+          <div class="phase-duration">Days 29–35 · Admin panel full build, promotional website, end-to-end testing</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-desc">All user-facing features are complete. This week finishes the internal tools and begins serious testing. The promotional website should be built early this week so QA can test the complete system including website CTAs.</div>
+        <div class="phase-tasks">
+          <div class="task-card"><div class="task-icon" style="background:#e8f5f5;color:var(--phase5)">🛡️</div><div><div class="task-text">Admin panel — complete all modules</div><div class="task-note">User mgmt, host mgmt, agent mgmt, listing moderation, service escalations, platform dashboard</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8f5f5;color:var(--phase5)">🌐</div><div><div class="task-text">Promotional website (Next.js)</div><div class="task-note">Homepage, For Hosts page, About/Contact, SEO setup, GA4</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8f5f5;color:var(--phase5)">🧪</div><div><div class="task-text">End-to-end integration testing</div><div class="task-note">Full booking journey tested: search → book → pay → host notified → tenant dashboard active</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8f5f5;color:var(--phase5)">🔔</div><div><div class="task-text">All notifications tested</div><div class="task-note">Push, WhatsApp, SMS — all events verified on real devices</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8f5f5;color:var(--phase5)">📱</div><div><div class="task-text">iOS + Android device testing</div><div class="task-note">Test on minimum 3 iOS devices and 3 Android devices at different OS versions</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#e8f5f5;color:var(--phase5)">💳</div><div><div class="task-text">Payment edge cases</div><div class="task-note">Test: payment failure, timeout, duplicate submission, refund flow, webhook retry</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-header">
+        <div class="phase-dot" style="background:var(--phase6)">W6</div>
+        <div class="phase-meta">
+          <div class="phase-name" style="color:var(--phase6)">Week 6 — Bug Fixes, Staging Deployment & Handover</div>
+          <div class="phase-duration">Days 36–42 · Bug resolution, production deployment, documentation, go-live</div>
+        </div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-desc">Final polish, no new features. The definition of done is: 3 successful end-to-end test bookings on staging (user books → host confirms → payment captured → tenant dashboard active). App submitted to App Store and Google Play before end of this week.</div>
+        <div class="phase-tasks">
+          <div class="task-card"><div class="task-icon" style="background:#f5eed8;color:var(--phase6)">🐛</div><div><div class="task-text">Bug fixes from Week 5 testing</div><div class="task-note">Priority: P0 bugs (crashes, payment failures, data loss) fixed first</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f5eed8;color:var(--phase6)">🚀</div><div><div class="task-text">Staging + production deployment</div><div class="task-note">AWS setup, environment variables, SSL certificates, domain config</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f5eed8;color:var(--phase6)">✅</div><div><div class="task-text">3 complete test bookings on staging</div><div class="task-note">Different devices, different users, both Instant Book and Request to Book types</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f5eed8;color:var(--phase6)">📦</div><div><div class="task-text">App Store + Google Play submission</div><div class="task-note">Store listing copy, screenshots, privacy policy URL, age rating</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f5eed8;color:var(--phase6)">📚</div><div><div class="task-text">Technical documentation</div><div class="task-note">API documentation (Postman collection), DB schema doc, deployment runbook, environment setup guide</div></div></div>
+          <div class="task-card"><div class="task-icon" style="background:#f5eed8;color:var(--phase6)">🤝</div><div><div class="task-text">Code + credentials handover</div><div class="task-note">GitHub repo access, all third-party account credentials, server access</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gantt">
+    <div class="gantt-head">
+      <div class="gantt-head-cell">Module / Feature</div>
+      <div class="gantt-head-cell">Week 1</div>
+      <div class="gantt-head-cell">Week 2</div>
+      <div class="gantt-head-cell">Week 3</div>
+      <div class="gantt-head-cell">Week 4</div>
+      <div class="gantt-head-cell">Week 5</div>
+      <div class="gantt-head-cell">Week 6</div>
+    </div>
+    <div class="gantt-row"><div class="gantt-label">DB Schema + Auth</div><div class="gantt-cell"><div class="gantt-bar" style="background:#1e7a4f">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">User Onboarding + KYC</div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#1a4a8a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Host Listing Form</div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#1a4a8a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Search + Discovery</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#7a3a1a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Booking + Payment</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#7a3a1a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Tenant Dashboard</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#5a1a6a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Meal Menu + Service Req</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#5a1a6a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">In-App Chat</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#5a1a6a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Agent App (full)</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#5a1a6a">ACTIVE</div></div><div class="gantt-cell"></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Admin Panel (complete)</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#1a6a6a">ACTIVE</div></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Promotional Website</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#1a6a6a">ACTIVE</div></div><div class="gantt-cell"></div></div>
+    <div class="gantt-row"><div class="gantt-label">Testing + Bug Fixes</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#1a6a6a">ACTIVE</div></div><div class="gantt-cell"><div class="gantt-bar" style="background:#8a6a1a">ACTIVE</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">Deployment + Handover</div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"></div><div class="gantt-cell"><div class="gantt-bar" style="background:#8a6a1a">ACTIVE</div></div></div>
+  </div>
+</div>
+
+<!-- ─── 12 DELIVERABLES ─── -->
+<div id="deliverables" class="section">
+  <div class="sticky">
+    <span>12 — Deliverables & Handover</span><span>Roomadda · 1.5 Month Plan</span>
+  </div><br>
+  <div class="eyebrow">Section 12</div>
+  <h2 class="section-title">Deliverables &<br>Final Handover</h2>
+  <p class="section-sub">Everything the agency must hand over at the end of the project. Any item missing from this list is considered an incomplete delivery and must be resolved before final payment is released.</p>
+
+  <div class="deliv-grid">
+    <div class="deliv-card" data-n="01">
+      <div class="deliv-icon">📱</div>
+      <div class="deliv-title">Mobile Application (iOS + Android)</div>
+      <div class="deliv-body">Published to App Store and Google Play. Source code in GitHub with full commit history.</div>
+      <ul class="deliv-list">
+        <li>User / Tenant app — all P0 features functional</li>
+        <li>Host / PG Owner app — all P0 features functional</li>
+        <li>Agent app — all P0 features functional</li>
+        <li>iOS build tested on iOS 14, 15, 16, 17</li>
+        <li>Android tested on Android 9, 11, 13, 14</li>
+        <li>App store listing: screenshots, description, privacy policy</li>
+      </ul>
+    </div>
+    <div class="deliv-card" data-n="02">
+      <div class="deliv-icon">🛡️</div>
+      <div class="deliv-title">RA Admin Web Panel</div>
+      <div class="deliv-body">Deployed and live at admin.roomadda.com. Accessible only to admin role accounts.</div>
+      <ul class="deliv-list">
+        <li>User management — all features</li>
+        <li>Host management — all features</li>
+        <li>Agent management — all features</li>
+        <li>Listing approval queue — functional</li>
+        <li>Platform analytics dashboard</li>
+        <li>Service request escalation management</li>
+      </ul>
+    </div>
+    <div class="deliv-card" data-n="03">
+      <div class="deliv-icon">🌐</div>
+      <div class="deliv-title">Promotional Website</div>
+      <div class="deliv-body">Live at roomadda.com. SEO-ready, mobile-responsive, Google Analytics connected.</div>
+      <ul class="deliv-list">
+        <li>Homepage with app download CTAs</li>
+        <li>For Hosts landing page</li>
+        <li>About + Contact page</li>
+        <li>SEO meta tags, sitemap, robots.txt</li>
+        <li>Core Web Vitals score &gt;80 on PageSpeed</li>
+        <li>Google Analytics 4 + Search Console configured</li>
+      </ul>
+    </div>
+    <div class="deliv-card" data-n="04">
+      <div class="deliv-icon">⚙️</div>
+      <div class="deliv-title">Backend API + Database</div>
+      <div class="deliv-body">Deployed on AWS. All environments (dev, staging, production) live and functional.</div>
+      <ul class="deliv-list">
+        <li>Complete RESTful API with role-based auth</li>
+        <li>PostgreSQL database — production + staging</li>
+        <li>Firebase Firestore for real-time chat</li>
+        <li>AWS S3 buckets with correct permissions</li>
+        <li>Razorpay integration — token, rent, refund, webhook</li>
+        <li>All third-party integrations live and tested</li>
+      </ul>
+    </div>
+    <div class="deliv-card" data-n="05">
+      <div class="deliv-icon">📚</div>
+      <div class="deliv-title">Documentation Package</div>
+      <div class="deliv-body">Complete technical documentation for the development team and any future developers.</div>
+      <ul class="deliv-list">
+        <li>API documentation — full Postman collection with examples</li>
+        <li>Database schema document with all table definitions</li>
+        <li>Environment setup guide — how to run locally</li>
+        <li>Deployment runbook — how to deploy to production</li>
+        <li>Third-party integration guide — all credentials and configs</li>
+        <li>Known issues + workarounds doc</li>
+      </ul>
+    </div>
+    <div class="deliv-card" data-n="06">
+      <div class="deliv-icon">🔑</div>
+      <div class="deliv-title">Credentials & Access Handover</div>
+      <div class="deliv-body">All accounts and credentials transferred to client ownership before final payment.</div>
+      <ul class="deliv-list">
+        <li>GitHub repository — client as owner, agency as collaborator</li>
+        <li>AWS account access (root user credentials)</li>
+        <li>Firebase project ownership transferred</li>
+        <li>Google Cloud project (Maps API) ownership transferred</li>
+        <li>Razorpay account (client's own account — not agency's)</li>
+        <li>App Store + Google Play developer accounts (client's)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout ok" style="margin-top:32px;">
+    <div class="c-icon">✅</div>
+    <div>
+      <div class="c-title">Definition of Done — Go-Live Checklist</div>
+      <div class="c-body">Before final payment is released and project is marked complete: ① Three successful end-to-end bookings completed on staging (user searches → books → pays → host notified → tenant dashboard activates). ② All P0 features tested and working on both iOS and Android. ③ Admin panel live and tested — listing approval, KYC approval, user management all functional. ④ Promotional website live and scoring &gt;80 on Google PageSpeed. ⑤ All documentation delivered. ⑥ All credentials transferred to client accounts. ⑦ Sentry error monitoring active and showing zero crash-rate errors. ⑧ App submitted to App Store and Google Play (approval may take 1–7 days after submission — this is outside agency control).</div>
+    </div>
+  </div>
+
+  <div class="callout rule" style="margin-top:16px;">
+    <div class="c-icon">📋</div>
+    <div>
+      <div class="c-title">Post-MVP Support Expectation</div>
+      <div class="c-body">The agency must provide 2 weeks of post-launch bug support at no additional cost — covering any critical bugs (crashes, payment failures, data errors) discovered within 14 days of going live. Feature requests and Phase 2 items are out of scope for this support period. A separate Phase 2 contract should be discussed once the MVP has been live for 4 weeks and user feedback has been collected.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .page -->
+
+<!-- FOOTER -->
+<div class="footer">
+  <div>
+    <div class="footer-brand">Roomadda</div>
+    <div style="color:rgba(255,255,255,.3);font-size:12px;margin-top:6px;">MVP Product Plan · Version 1.0 · Confidential</div>
+  </div>
+  <div class="footer-r">
+    <div>Prepared for the Roomadda Development Team</div>
+    <div style="margin-top:4px;">All features subject to final scope confirmation before kick-off.</div>
+    <div style="margin-top:4px;">© Roomadda. Do not distribute without authorisation.</div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement.scrollHeight-document.documentElement.clientHeight;
+  document.getElementById('prog').style.width=(((document.documentElement.scrollTop||document.body.scrollTop)/h)*100)+'%';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Roomadda — Website Master Blueprint v3.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ink:#0f0e0c; --bg:#f7f4ef; --warm2:#ede8df;
+  --accent:#d14f2a; --accent2:#e8971e; --green:#1e7a4f;
+  --blue:#1a4a8a; --muted:#6b6356; --border:#ddd7cc;
+  --white:#fff; --card:#fff; --purple:#5a1a6a; --teal:#1a6a6a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',sans-serif;font-size:14.5px;line-height:1.7;}
+#prog{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:9999;width:0%;transition:width .1s;}
+
+/* COVER */
+.cover{min-height:100vh;background:var(--ink);display:flex;flex-direction:column;justify-content:flex-end;padding:72px 80px;position:relative;overflow:hidden;}
+.cover-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:60px 60px;}
+.cover-glow{position:absolute;top:-100px;right:-100px;width:600px;height:600px;background:radial-gradient(circle,rgba(209,79,42,.16) 0%,transparent 65%);border-radius:50%;}
+.cover-glow2{position:absolute;bottom:-150px;left:-50px;width:500px;height:500px;background:radial-gradient(circle,rgba(26,74,138,.12) 0%,transparent 65%);border-radius:50%;}
+.cover-watermark{position:absolute;top:40px;right:60px;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.15);}
+.cover-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:12px;}
+.cover-label::before{content:'';width:32px;height:1px;background:var(--accent);}
+.cover h1{font-family:'Syne',sans-serif;font-size:clamp(46px,7vw,98px);font-weight:800;color:#fff;line-height:.95;letter-spacing:-3px;margin-bottom:28px;}
+.cover h1 span{color:var(--accent);}
+.cover-desc{font-size:16px;color:rgba(255,255,255,.5);max-width:600px;line-height:1.65;margin-bottom:48px;}
+.cover-pills{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:52px;}
+.cover-pill{border:1px solid rgba(255,255,255,.12);padding:7px 16px;font-size:12px;color:rgba(255,255,255,.55);letter-spacing:.5px;}
+.cover-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:rgba(255,255,255,.06);}
+.cover-stat{padding:24px 20px;background:var(--ink);}
+.cover-stat-num{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:#fff;margin-bottom:4px;}
+.cover-stat-label{font-size:10px;color:rgba(255,255,255,.3);letter-spacing:1px;text-transform:uppercase;}
+
+/* TOC */
+.toc{background:var(--ink);border-top:1px solid rgba(255,255,255,.06);padding:52px 80px;}
+.toc-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:28px;}
+.toc-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;}
+.toc-item{display:flex;align-items:center;gap:12px;padding:11px 14px;color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;border:1px solid transparent;transition:all .2s;}
+.toc-item:hover{border-color:rgba(255,255,255,.1);color:#fff;background:rgba(255,255,255,.03);}
+.toc-n{font-family:'Syne',sans-serif;font-size:10px;color:var(--accent);min-width:22px;font-weight:700;}
+
+/* PAGE */
+.page{max-width:1080px;margin:0 auto;padding:0 56px;}
+.sticky{position:sticky;top:0;z-index:100;background:rgba(247,244,239,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 56px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin:0 -56px;}
+.section{padding:72px 0 32px;}
+.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.eyebrow::before{content:'';width:20px;height:1px;background:var(--accent);}
+.section-title{font-family:'Syne',sans-serif;font-size:clamp(28px,4vw,46px);font-weight:800;color:var(--ink);line-height:1.05;margin-bottom:14px;letter-spacing:-1px;}
+.section-sub{font-size:15px;color:var(--muted);max-width:680px;line-height:1.65;margin-bottom:44px;}
+h3.block{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin:36px 0 14px;letter-spacing:-.5px;}
+h4.block{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin:24px 0 10px;}
+p.body{font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.7;}
+p.body strong{color:var(--ink);}
+
+/* TABLES */
+.ftable{width:100%;border-collapse:collapse;margin:24px 0;}
+.ftable th{background:var(--ink);color:#fff;padding:12px 16px;text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;}
+.ftable td{padding:13px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:top;}
+.ftable tr:nth-child(even) td{background:var(--warm2);}
+.ftable td:first-child{font-weight:600;color:var(--ink);width:220px;}
+
+/* BADGES */
+.b{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.8px;padding:3px 9px;border-radius:2px;}
+.b-new{background:#e2f0e8;color:#1e7a4f;}
+.b-fix{background:#fce8e4;color:#d14f2a;}
+.b-keep{background:#e8eef8;color:#1a4a8a;}
+.b-seo{background:#fff8e8;color:#8a6a00;}
+.b-pay{background:#f0e8f8;color:#5a1a6a;}
+.b-ai{background:#e8f8f8;color:#1a6a6a;}
+.b-p0{background:#fce8e4;color:#d14f2a;}
+.b-p1{background:#ffe8cc;color:#8a4a00;}
+.b-p2{background:#e8eef8;color:#1a4a8a;}
+
+/* CALLOUTS */
+.callout{display:flex;gap:16px;padding:18px 22px;margin:20px 0;border:1px solid;align-items:flex-start;}
+.callout.warn{border-color:#e8971e;background:#fffbf2;}
+.callout.info{border-color:#1a4a8a;background:#f0f4ff;}
+.callout.ok{border-color:#1e7a4f;background:#f0f9f4;}
+.callout.red{border-color:#d14f2a;background:#fff8f6;}
+.callout.purp{border-color:#5a1a6a;background:#faf5ff;}
+.c-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.c-title{font-weight:600;font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.c-body{font-size:13px;color:var(--muted);line-height:1.6;}
+
+/* MODULES + FEATURE ITEMS */
+.module{margin-bottom:48px;}
+.module-h{display:flex;gap:16px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.module-icon{width:44px;height:44px;background:var(--ink);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.module-title{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;margin-bottom:2px;}
+.module-sub{font-size:12px;color:var(--muted);}
+.flist{display:flex;flex-direction:column;gap:10px;}
+.fitem{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--ink);padding:16px 20px;display:grid;grid-template-columns:1fr auto;gap:12px;}
+.fitem.p0{border-left-color:var(--accent);}
+.fitem.p1{border-left-color:var(--blue);}
+.fitem.p2{border-left-color:var(--green);}
+.fname{font-weight:600;font-size:14px;margin-bottom:4px;}
+.fdesc{font-size:13px;color:var(--muted);line-height:1.55;}
+.ftags{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.ac-list{list-style:none;display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+.ac-list li{display:flex;gap:10px;font-size:12.5px;color:var(--muted);}
+.ac-list li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;margin-top:1px;}
+
+/* LAYOUT BOXES */
+.page-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0;}
+.layout-box{background:var(--card);border:1px solid var(--border);padding:20px;}
+.layout-box h4{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink);}
+.layout-box ul{list-style:none;display:flex;flex-direction:column;gap:4px;}
+.layout-box ul li{font-size:12.5px;color:var(--muted);padding:3px 0;border-bottom:1px dotted var(--border);display:flex;align-items:center;gap:6px;}
+.layout-box ul li::before{content:'→';color:var(--accent);font-size:10px;}
+
+/* RULE BOX */
+.rule-box{background:var(--ink);color:#fff;padding:32px 36px;margin:28px 0;}
+.rule-box h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--accent2);margin-bottom:16px;}
+.rule-item{display:flex;gap:12px;margin-bottom:12px;font-size:13.5px;color:rgba(255,255,255,.72);line-height:1.6;}
+.rule-item::before{content:'→';color:var(--accent);flex-shrink:0;}
+.rule-item strong{color:#fff;}
+
+/* TECH GRID */
+.tech-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0;}
+.tech-card{background:var(--card);border:1px solid var(--border);padding:20px;}
+.tech-icon{font-size:24px;margin-bottom:10px;}
+.tech-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:6px;}
+.tech-body{font-size:12px;color:var(--muted);line-height:1.55;}
+
+/* BADGE SWATCHES (trust tags) */
+.tag-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:24px 0;}
+.tag-card{background:var(--card);border:1px solid var(--border);padding:18px 20px;border-top:3px solid var(--accent);}
+.tag-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 11px;border-radius:3px;margin-bottom:10px;}
+.tag-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px;}
+.tag-rule{font-size:12.5px;color:var(--muted);line-height:1.55;}
+.tag-rule b{color:var(--ink);}
+
+/* SPLIT */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin:24px 0;}
+.split-cell{background:var(--card);padding:18px 20px;}
+.split-cell.a{border-left:3px solid var(--blue);}
+.split-cell.b{border-left:3px solid var(--green);}
+.split-cell h5{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.split-cell ul{list-style:none;}
+.split-cell ul li{font-size:12.5px;color:var(--muted);padding:3px 0;display:flex;gap:8px;}
+.split-cell ul li::before{content:'·';color:var(--accent);font-size:18px;line-height:1;}
+
+/* STEP FLOW */
+.flow{counter-reset:step;margin:24px 0;}
+.flow-step{display:flex;gap:16px;padding:14px 0;border-bottom:1px solid var(--border);}
+.flow-num{counter-increment:step;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.flow-num::before{content:counter(step);}
+.flow-txt{font-size:13.5px;color:var(--muted);line-height:1.6;}
+.flow-txt b{color:var(--ink);}
+
+/* CODE */
+.code{background:#16140f;color:#e8e3d8;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.6;padding:18px 22px;border-radius:5px;margin:18px 0;overflow-x:auto;white-space:pre;}
+.code .k{color:#e8971e;} .code .s{color:#7fc8a0;} .code .c{color:#6b6356;}
+
+.divider{border:none;border-top:2px solid var(--border);margin:8px 0;}
+
+/* FOOTER */
+.footer{background:var(--ink);padding:44px 80px;display:flex;justify-content:space-between;align-items:center;margin-top:72px;flex-wrap:wrap;gap:20px;}
+.footer-brand{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#fff;}
+.footer-r{text-align:right;font-size:12px;color:rgba(255,255,255,.3);}
+
+/* PART BANNER */
+.part-banner{background:var(--ink);color:#fff;padding:46px 56px;margin:64px -56px 0;position:relative;overflow:hidden;}
+.part-banner::before{content:'';position:absolute;top:-80px;right:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(209,79,42,.18),transparent 65%);border-radius:50%;}
+.part-banner .pk{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:10px;}
+.part-banner h2{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,40px);font-weight:800;letter-spacing:-1px;line-height:1.05;}
+.part-banner p{font-size:14px;color:rgba(255,255,255,.5);max-width:640px;margin-top:12px;}
+
+/* AUDIT GRID */
+.audit-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin:24px 0;}
+.audit-cell{background:var(--card);padding:18px 20px;}
+.audit-cell.bad{background:#fff8f6;border-left:3px solid var(--accent);}
+.audit-cell.good{background:#f0f9f4;border-left:3px solid var(--green);}
+.audit-cell h5{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.audit-cell ul{list-style:none;}
+.audit-cell ul li{font-size:12.5px;color:var(--muted);padding:3px 0;display:flex;gap:8px;}
+.audit-cell.bad ul li::before{content:'✗';color:var(--accent);}
+.audit-cell.good ul li::before{content:'✓';color:var(--green);}
+
+/* STATUS BADGES for tracker */
+.st{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:3px;white-space:nowrap;}
+.st-have{background:#e2f0e8;color:#1e7a4f;}
+.st-part{background:#fff3dd;color:#8a5a00;}
+.st-build{background:#fce8e4;color:#d14f2a;}
+.st-new{background:#f0e8f8;color:#5a1a6a;}
+.trk th:last-child,.trk td:last-child{width:90px;text-align:center;}
+.trk td:first-child{width:auto;}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 6px;font-size:12px;color:var(--muted);}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+
+@media print{.sticky{display:none;}.section{page-break-inside:avoid;}}
+@media(max-width:768px){
+  .cover,.toc,.footer{padding:40px 24px;}
+  .page{padding:0 24px;}
+  .sticky{padding:10px 24px;margin:0 -24px;}
+  .toc-list,.page-layout,.tech-grid,.tag-grid,.split{grid-template-columns:1fr;}
+  .cover-stats{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+
+<!-- ═══ COVER ═══ -->
+<div class="cover">
+  <div class="cover-grid"></div>
+  <div class="cover-glow"></div>
+  <div class="cover-glow2"></div>
+  <div class="cover-watermark">CONFIDENTIAL · WEBSITE BLUEPRINT</div>
+
+  <div class="cover-label">Roomadda · Website Master Blueprint · v3.0 · The Product + Delivery Tracker</div>
+  <h1>The Whole<br><span>Website.</span><br>Every Pixel.</h1>
+  <p class="cover-desc">A complete, developer-ready specification for Roomadda's brand-new website — designed at the full product level, not just MVP. Airbnb-grade design, OYO &amp; MakeMyTrip-grade features, every filter, every trust tag, live social proof, two-way app sync, and an end-to-end SEO/GEO/AEO/AIO/CRO explainer. <strong>v3.0 adds Part II:</strong> a live audit of roomadda.co.in, a competitor benchmark (OYO · MakeMyTrip · MakeMyStay.AI · Gharpayy), new "mind" features (compare, cost-of-living, area insights, price ranges), the <strong>Roomie</strong> AI agent, and a full feature + animation delivery tracker.</p>
+
+  <div class="cover-pills">
+    <div class="cover-pill">🎨 Airbnb-grade design DNA</div>
+    <div class="cover-pill">🏷️ Full trust-tag system</div>
+    <div class="cover-pill">🔴 Live social proof</div>
+    <div class="cover-pill">🔄 Web ⇄ App real-time sync</div>
+    <div class="cover-pill">🔎 SEO · GEO · AEO · AIO · CRO</div>
+  </div>
+
+  <div class="cover-stats">
+    <div class="cover-stat"><div class="cover-stat-num">24</div><div class="cover-stat-label">Sections</div></div>
+    <div class="cover-stat"><div class="cover-stat-num">25+</div><div class="cover-stat-label">Filters</div></div>
+    <div class="cover-stat"><div class="cover-stat-num">8</div><div class="cover-stat-label">Trust Tags</div></div>
+    <div class="cover-stat"><div class="cover-stat-num">130+</div><div class="cover-stat-label">Tracked Features</div></div>
+    <div class="cover-stat"><div class="cover-stat-num">1</div><div class="cover-stat-label">Roomie AI Agent</div></div>
+  </div>
+</div>
+
+<!-- ═══ TOC ═══ -->
+<div class="toc">
+  <div class="toc-title">Table of Contents</div>
+  <div class="toc-list">
+    <a href="#vision" class="toc-item"><span class="toc-n">01</span>Vision &amp; Positioning</a>
+    <a href="#sync" class="toc-item"><span class="toc-n">02</span>Web ⇄ App Sync Architecture</a>
+    <a href="#design" class="toc-item"><span class="toc-n">03</span>Design Language (Airbnb DNA)</a>
+    <a href="#sitemap" class="toc-item"><span class="toc-n">04</span>Sitemap &amp; Page Architecture</a>
+    <a href="#homepage" class="toc-item"><span class="toc-n">05</span>Homepage</a>
+    <a href="#listing" class="toc-item"><span class="toc-n">06</span>Search &amp; Listing Page</a>
+    <a href="#filters" class="toc-item"><span class="toc-n">07</span>The Complete Filter System</a>
+    <a href="#tags" class="toc-item"><span class="toc-n">08</span>Trust Tags &amp; Badges</a>
+    <a href="#social" class="toc-item"><span class="toc-n">09</span>Live Social Proof Engine</a>
+    <a href="#property" class="toc-item"><span class="toc-n">10</span>Property Detail Page</a>
+    <a href="#booking" class="toc-item"><span class="toc-n">11</span>Booking, Payment &amp; Pricing Parity</a>
+    <a href="#account" class="toc-item"><span class="toc-n">12</span>User Account &amp; Tenant Portal</a>
+    <a href="#host" class="toc-item"><span class="toc-n">13</span>Host Portal (Web)</a>
+    <a href="#admin" class="toc-item"><span class="toc-n">14</span>Admin Dashboard</a>
+    <a href="#integrations" class="toc-item"><span class="toc-n">15</span>Integrations</a>
+    <a href="#search5" class="toc-item"><span class="toc-n">16</span>SEO·GEO·AEO·AIO·CRO</a>
+    <a href="#ai" class="toc-item"><span class="toc-n">17</span>AI &amp; Future Roadmap</a>
+    <a href="#tech" class="toc-item"><span class="toc-n">18</span>Tech Stack &amp; Open Items</a>
+  </div>
+  <div class="toc-title" style="margin-top:34px;color:var(--accent)">Part II — Audits, New Features &amp; Delivery Tracker <span style="color:rgba(255,255,255,.25)">(v3.0)</span></div>
+  <div class="toc-list">
+    <a href="#audit-live" class="toc-item"><span class="toc-n">19</span>Live Site Audit (roomadda.co.in)</a>
+    <a href="#audit-cross" class="toc-item"><span class="toc-n">20</span>Coverage &amp; Competitor Audit</a>
+    <a href="#mind" class="toc-item"><span class="toc-n">21</span>New "Mind" Features</a>
+    <a href="#roomie" class="toc-item"><span class="toc-n">22</span>Roomie — AI Agent Widget</a>
+    <a href="#tracker" class="toc-item"><span class="toc-n">23</span>Master Feature Tracker</a>
+    <a href="#anim" class="toc-item"><span class="toc-n">24</span>Animation Inventory</a>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ─── 01 VISION ─── -->
+<div id="vision" class="section">
+  <div class="sticky"><span>01 — Vision &amp; Positioning</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 01</div>
+  <h2 class="section-title">Product Vision<br>&amp; Positioning</h2>
+  <p class="section-sub">This is no longer a brochure site or a redesign of the old one. It is a brand-new flagship product — the public face of Roomadda and a full booking platform in its own right, built to feel like Airbnb, behave like OYO &amp; MakeMyTrip, and stay perfectly in step with the mobile app.</p>
+
+  <div class="callout ok">
+    <div class="c-icon">🎯</div>
+    <div>
+      <div class="c-title">The One-Line North Star</div>
+      <div class="c-body">A student or working professional lands on roomadda.com from a Google search, finds a verified PG near their college or office through powerful filters and a live map, trusts it instantly because of badges and live social proof, and either books on the web in a few clicks or is smoothly handed off to the app — with the <strong>exact same price, availability and listing</strong> shown in both places, always.</div>
+    </div>
+  </div>
+
+  <h3 class="block">The three brands we borrow from — and exactly what we take</h3>
+  <table class="ftable">
+    <thead><tr><th>We borrow from</th><th>What we take</th><th>How it shows up on Roomadda</th></tr></thead>
+    <tbody>
+      <tr><td>Airbnb 🏡 (design)</td><td>Calm, photo-first, generous whitespace, soft rounded cards, sticky booking panel, full-screen photo lightbox, honest microcopy, delightful but quiet motion.</td><td>This is our <strong>visual North Star</strong>. Every page should feel as clean and trustworthy as Airbnb — never cluttered like a typical Indian listing portal.</td></tr>
+      <tr><td>OYO 🏷️ (merchandising)</td><td>Category tabs, trust badges (Wizard / Company-Serviced style), "X people booked recently", coupon &amp; deal strips, instant-book confidence.</td><td>Our <strong>trust-tag &amp; social-proof system</strong> (Sections 08 &amp; 09) — Luxury, RA-Assured, RA Choice, Wizard-style, Trending.</td></tr>
+      <tr><td>MakeMyTrip ✈️ (conversion)</td><td>Power filters, price slider, sort, urgency nudges ("2 rooms left"), persuasive sticky CTA, coupon engine, "price drop" alerts.</td><td>Our <strong>filter system &amp; urgency engine</strong> — drives the browse-to-book conversion rate.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">What "full product level, not MVP" means here</h3>
+  <p class="body">The MVP plan deliberately ships a thin <em>promotional</em> website and pushes everything into the app. This blueprint does the opposite: it treats the website as a <strong>first-class booking surface</strong> that contains web versions of nearly every capability in the app — search, filters, map, property pages, booking, payments, wishlist, tenant dashboard, host portal, and admin. Anything the app can do, a user should be able to start (and usually finish) on the web. The two are not competitors; they are two windows into one backend.</p>
+
+  <div class="callout info">
+    <div class="c-icon">🔗</div>
+    <div>
+      <div class="c-title">The booking model you confirmed — "Web books, App is pushed"</div>
+      <div class="c-body">The website supports the <strong>full booking flow including the ₹3,000 token payment</strong>, so no user is ever forced to install an app to book. But at high-intent moments (checkout success, tenant dashboard, wishlist) the site actively promotes the app with one-tap deep links, a QR code, and app-only perks (real-time push, SOS, daily meal menu, in-app chat). Web is complete; the app is the upgrade.</div>
+    </div>
+  </div>
+
+  <h3 class="block">Who the website serves</h3>
+  <div class="page-layout">
+    <div class="layout-box">
+      <h4>🎓 Demand side (tenants)</h4>
+      <ul>
+        <li>Students relocating for college / coaching</li>
+        <li>Working professionals relocating for jobs</li>
+        <li>Parents researching on behalf of children</li>
+        <li>Returning tenants paying rent / raising requests</li>
+      </ul>
+    </div>
+    <div class="layout-box">
+      <h4>🏠 Supply side &amp; internal</h4>
+      <ul>
+        <li>PG owners (hosts) listing &amp; managing from web</li>
+        <li>Field agents (web view of assignments)</li>
+        <li>Roomadda admin &amp; ops team</li>
+        <li>Google / AI search engines crawling for SEO</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="c-icon">⚠️</div>
+    <div>
+      <div class="c-title">Framing every developer must hold</div>
+      <div class="c-body">Roomadda is a <strong>PG accommodation platform — not real estate</strong>. The language stays consistent everywhere: tenants (not buyers), hosts (not sellers), monthly rent (not price), token (not down payment), move-in date (not possession). This must be reflected in every screen, URL, schema field and API endpoint on the website too.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 02 SYNC ─── -->
+<div id="sync" class="section">
+  <div class="sticky"><span>02 — Web ⇄ App Sync</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 02</div>
+  <h2 class="section-title">Web ⇄ App<br>Sync Architecture</h2>
+  <p class="section-sub">You asked for the website and app to be "linked" with the same pricing reflecting in both at the same time. The only correct way to do this is one shared backend that both clients read from. There is never a "website price" and an "app price" — there is one price, served to whoever asks.</p>
+
+  <div class="callout purp">
+    <div class="c-icon">🧠</div>
+    <div>
+      <div class="c-title">The golden rule — Single Source of Truth</div>
+      <div class="c-body">The website is <strong>not its own system with its own database</strong>. The website, the user app, the host app and the admin panel are four clients that all call the <strong>same REST/GraphQL API backed by the same PostgreSQL database</strong>. A host changes the rent once; that change is instantly true on the web, in the app, in search results, in the wishlist, and in the admin panel — because there is only one number stored anywhere.</p></div>
+    </div>
+  </div>
+
+  <h3 class="block">How "same pricing at the same time" actually works</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Host edits rent in the host portal</b> (web or app). The API writes the new value to the single <code>room_types</code> record in PostgreSQL. No copy is made anywhere.</div></div>
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Cache is invalidated.</b> A Redis cache key for that property is busted so stale prices can't survive. Major edits (rent change &gt;20%) optionally route to admin re-approval before going live.</div></div>
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Every client re-reads the same record.</b> The website's property page, the app's detail screen, the search index and the wishlist all fetch the new value on their next load — identical to the rupee.</div></div>
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Open sessions get a live nudge.</b> Anyone currently viewing the property (web or app) receives a lightweight push/WebSocket event — "Price updated" — and the UI refreshes without a reload. This is how the change appears "at the same time" everywhere.</div></div>
+  </div>
+
+  <div class="split">
+    <div class="split-cell a">
+      <h5>One backend serves both</h5>
+      <ul>
+        <li>Listings, pricing, availability, photos</li>
+        <li>User accounts, KYC, wishlist, bookings</li>
+        <li>Token &amp; rent payments (Razorpay) + receipts</li>
+        <li>Reviews, ratings, trust-tag eligibility</li>
+        <li>Live counters (viewers, recent bookings)</li>
+        <li>Notifications (push, WhatsApp, email)</li>
+      </ul>
+    </div>
+    <div class="split-cell b">
+      <h5>Each client renders its own way</h5>
+      <ul>
+        <li>Website: SEO-rendered (Next.js SSR) for Google</li>
+        <li>App: native-feeling React Native screens</li>
+        <li>Both: identical data, identical business rules</li>
+        <li>Booking rules enforced server-side, not per-client</li>
+        <li>Account is shared — log in once, same wishlist &amp; bookings on both</li>
+        <li>Double-booking prevented at the database, for both</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="block">Deep linking &amp; "redirect to the app"</h3>
+  <p class="body">You want the website to be able to hand a user over to the app. We do this with <strong>universal / app links + deferred deep links</strong> so the journey never breaks:</p>
+  <div class="flist">
+    <div class="fitem p1">
+      <div>
+        <div class="fname">Universal Links (app installed)</div>
+        <div class="fdesc">Every property URL like <code>roomadda.com/bangalore/koramangala/warmth-house-pg</code> is registered as a universal link (iOS) / app link (Android). If the user already has the app, tapping that link on their phone opens the <em>same property inside the app</em> — not the browser. The web and app URL are the same string.</div>
+      </div>
+      <div class="ftags"><span class="b b-new">NEW</span></div>
+    </div>
+    <div class="fitem p1">
+      <div>
+        <div class="fname">Deferred Deep Links (app not installed)</div>
+        <div class="fdesc">If the user taps "Continue in app" but doesn't have it, they go to the store, install, open — and land on the <em>exact property they were viewing</em>, with their search context preserved. Implemented via Firebase Dynamic Links (or Branch). This is what makes "redirect to the application" feel seamless rather than dumping them on a generic home screen.</div>
+      </div>
+      <div class="ftags"><span class="b b-new">NEW</span></div>
+    </div>
+    <div class="fitem p1">
+      <div>
+        <div class="fname">Smart App Banner &amp; QR</div>
+        <div class="fdesc">A dismissible top banner on mobile web ("Open in the Roomadda app") and a QR code on desktop checkout/success pages that resolves to the correct store by device. Tracked in GA4 as <code>app_download_clicked</code> with the source page.</div>
+      </div>
+      <div class="ftags"><span class="b b-new">NEW</span></div>
+    </div>
+  </div>
+
+  <div class="rule-box">
+    <h3>Sync Rules — non-negotiable for the build team</h3>
+    <div class="rule-item"><strong>No second database.</strong> The website must never store its own copy of listings or prices. It reads the same API as the app.</div>
+    <div class="rule-item"><strong>One price object.</strong> Rent, deposit, premium/private price and token are fields on one record. Web and app render the same fields — they never compute price differently.</div>
+    <div class="rule-item"><strong>Shared identity.</strong> A user logging in with the same mobile number on web and app is the same account — same wishlist, same bookings, same KYC status. OTP + Google Sign-In via the same auth service (Firebase + MSG91).</div>
+    <div class="rule-item"><strong>Server-side business rules.</strong> Availability checks, KYC gating, double-booking prevention and refund logic live in the backend, so web and app behave identically and can't drift.</div>
+    <div class="rule-item"><strong>Availability is live.</strong> When a room is booked on the app, the website's "rooms available" count drops on next fetch and via the live event — and vice versa.</div>
+  </div>
+</div>
+
+<!-- ─── 03 DESIGN ─── -->
+<div id="design" class="section">
+  <div class="sticky"><span>03 — Design Language</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 03</div>
+  <h2 class="section-title">Design Language —<br>Airbnb DNA</h2>
+  <p class="section-sub">You said you love Airbnb's design. So the website's entire visual system is built around the same principles: photo-first, calm, spacious, trustworthy. Below is a concrete design system the developers and designer can implement directly — not vague mood-board language.</p>
+
+  <h3 class="block">The five Airbnb principles we enforce</h3>
+  <div class="flist">
+    <div class="fitem p0"><div><div class="fname">1 · Photos lead, text follows</div><div class="fdesc">Every card and page opens with a large, bright, real photo. No stock images, no broken placeholders — if a photo is missing, show an elegant branded "Photos coming soon" card, never a grey box. Images served as WebP at ~85% quality through a CDN.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">2 · Generous whitespace &amp; soft edges</div><div class="fdesc">Cards use 12–16px rounded corners, subtle shadows, and lots of breathing room. The page never feels crammed. Density is achieved through hierarchy, not by shrinking everything.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">3 · One clear action per screen</div><div class="fdesc">Each page has a single obvious next step — "View details", "Book now", "Pay token". Secondary actions are visually quieter. The sticky booking panel (desktop) / sticky bottom bar (mobile) is always there, Airbnb-style.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">4 · Honest, human microcopy</div><div class="fdesc">"Reserve your room — the ₹3,000 token adjusts against your first month's rent." Plain, reassuring, no jargon. Trust is built through clarity, exactly like Airbnb's booking copy.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">5 · Quiet, purposeful motion</div><div class="fdesc">Gentle fade/slide on scroll, smooth lightbox open, heart-fill animation on wishlist, skeleton loaders instead of blank screens. Motion confirms actions — it never shows off.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+  </div>
+
+  <h3 class="block">Visual tokens (hand these to the designer &amp; front-end dev)</h3>
+  <table class="ftable">
+    <thead><tr><th>Token</th><th>Value / Direction</th></tr></thead>
+    <tbody>
+      <tr><td>Primary accent</td><td>Roomadda coral <code>#d14f2a</code> — primary CTAs, active states, price highlights</td></tr>
+      <tr><td>Secondary accent</td><td>Warm amber <code>#e8971e</code> — badges, ratings, highlights</td></tr>
+      <tr><td>Trust green</td><td><code>#1e7a4f</code> — verified, available, success states</td></tr>
+      <tr><td>Ink / text</td><td><code>#0f0e0c</code> headings · <code>#6b6356</code> body — high contrast, easy to read</td></tr>
+      <tr><td>Surfaces</td><td>Warm off-white <code>#f7f4ef</code> background · white cards — soft, not clinical pure-white</td></tr>
+      <tr><td>Display font</td><td>A strong geometric display face (e.g. Syne / similar) for headings &amp; prices</td></tr>
+      <tr><td>Body font</td><td>A clean humanist sans (e.g. Instrument Sans / Inter) for everything else</td></tr>
+      <tr><td>Corner radius</td><td>Cards 12–16px · buttons 8px · pills/chips full-round</td></tr>
+      <tr><td>Grid</td><td>4-column property grid on desktop · 2-column tablet · 1-column / swipe carousel on mobile</td></tr>
+      <tr><td>Dark mode</td><td>Phase 2 — design tokens chosen so a dark theme can be added without re-architecting</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <div class="c-icon">📐</div>
+    <div>
+      <div class="c-title">Reference designs to keep open while building</div>
+      <div class="c-body">Listing &amp; property layout: <strong>airbnb.com</strong> (cards, photo grid, sticky booking panel) and <strong>makemystay.ai/pg/…</strong> (PG-specific info density). Merchandising &amp; badges: <strong>oyorooms.com</strong>. Filters &amp; urgency: <strong>makemytrip.com</strong> hotel results. Adapt all of these to Roomadda's coral/warm palette — don't copy their colours, copy their <em>clarity</em>.</div>
+    </div>
+  </div>
+
+  <h3 class="block">Accessibility &amp; responsiveness (built in, not bolted on)</h3>
+  <p class="body">WCAG AA contrast on all text; every interactive element keyboard-reachable and screen-reader labelled; tap targets ≥44px; the entire site is mobile-first because the majority of PG-seekers browse on phones. The same components scale from a 360px phone to a 1440px desktop.</p>
+</div>
+
+<!-- ─── 04 SITEMAP ─── -->
+<div id="sitemap" class="section">
+  <div class="sticky"><span>04 — Sitemap</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 04</div>
+  <h2 class="section-title">Sitemap &amp; Page<br>Architecture</h2>
+  <p class="section-sub">Every page the website needs, grouped by who it serves. Public pages are SEO-rendered for Google; authenticated pages sit behind login and share the app's account.</p>
+
+  <div class="page-layout">
+    <div class="layout-box">
+      <h4>🌐 Public / SEO pages</h4>
+      <ul>
+        <li>Homepage (booking funnel)</li>
+        <li>Search / Listing results (+ map)</li>
+        <li>Individual property page</li>
+        <li>City landing pages (Bangalore, Pune…)</li>
+        <li>Area landing pages (Koramangala, SG Palya…)</li>
+        <li>Intent pages (Girls PG, PG with food, Luxury PG…)</li>
+        <li>"Near [College/Tech Park]" pages</li>
+        <li>For Hosts (list your PG)</li>
+        <li>About · Blog · FAQ · Careers · Contact</li>
+        <li>Sitemap · Privacy · T&amp;C · House Rules</li>
+      </ul>
+    </div>
+    <div class="layout-box">
+      <h4>🔐 Authenticated user pages</h4>
+      <ul>
+        <li>Login / Register (OTP + Google)</li>
+        <li>Profile &amp; KYC upload</li>
+        <li>My Wishlist (named collections)</li>
+        <li>My Bookings + booking detail / receipt</li>
+        <li>Tenant Dashboard (post move-in)</li>
+        <li>Pay Rent portal</li>
+        <li>Service Requests</li>
+        <li>Meal Menu viewer</li>
+        <li>Chat with Host (web)</li>
+        <li>Notifications centre</li>
+      </ul>
+    </div>
+    <div class="layout-box">
+      <h4>🏠 Host portal (web)</h4>
+      <ul>
+        <li>Host login &amp; dashboard</li>
+        <li>List new property (multi-step)</li>
+        <li>Manage / edit / pause listings</li>
+        <li>Booking requests &amp; inventory</li>
+        <li>Tenant roster</li>
+        <li>Revenue overview</li>
+        <li>Meal menu management</li>
+        <li>Walk-in booking entry</li>
+      </ul>
+    </div>
+    <div class="layout-box">
+      <h4>🛡️ Admin dashboard (web)</h4>
+      <ul>
+        <li>Admin login (2FA) &amp; overview</li>
+        <li>Listing approvals queue</li>
+        <li>User / Host / Agent management</li>
+        <li>KYC review</li>
+        <li>Bookings &amp; payments</li>
+        <li>Revenue analytics</li>
+        <li>CMS (blog, landing pages, SEO meta)</li>
+        <li>Trust-tag &amp; featured control</li>
+        <li>Notifications / WhatsApp broadcast</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="block">URL architecture (this is also SEO — see Section 16)</h3>
+  <div class="code"><span class="c"># Human-readable, keyword-rich, permanent URLs</span>
+roomadda.com/bangalore/pg/                      <span class="c">→ city landing</span>
+roomadda.com/bangalore/koramangala/pg/          <span class="c">→ area landing</span>
+roomadda.com/bangalore/girls-pg/                <span class="c">→ intent landing</span>
+roomadda.com/bangalore/pg-near-christ-university/<span class="c">→ near-landmark</span>
+roomadda.com/bangalore/koramangala/warmth-house-pg <span class="c">→ a property</span>
+
+<span class="c"># Old PHP URLs 301-redirect to these. Same URL is the app's universal link.</span></div>
+</div>
+
+<!-- ─── 05 HOMEPAGE ─── -->
+<div id="homepage" class="section">
+  <div class="sticky"><span>05 — Homepage</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 05</div>
+  <h2 class="section-title">Homepage</h2>
+  <p class="section-sub">The highest-traffic, highest-stakes page. Top to bottom it should move a first-time visitor from "what is this" to "I want to book this one" — and it should load fast and rank on Google.</p>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🦸</div><div><div class="module-title">Hero — above the fold</div><div class="module-sub">Convert or lose them in 3 seconds</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">Immersive hero with a real search bar</div>
+        <div class="fdesc">Full-width hero — auto-rotating gallery (or muted video reel) of real Roomadda PG interiors with a dark gradient overlay. Headline: "Find your perfect PG — verified, zero brokerage." Three trust chips directly below (100% Verified · Zero Brokerage · 1,000+ Residents). Centred on the hero sits the smart search bar.</div>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+      <div class="fitem p0"><div>
+        <div class="fname">Smart search bar (Google Places + "Use my location")</div>
+        <div class="fdesc">Airbnb-style segmented search: Location (Google Places autocomplete — area, landmark, college, metro, company), PG type (Male / Female / Co-live), Budget range, Move-in date. A 📍 "Use my current location" button GPS-fills the location and shows PGs within 1 km. Submitting routes to the listing page with filters pre-applied and the URL encoded for sharing/SEO. Recent searches remembered.</div>
+        <ul class="ac-list"><li>Autocomplete responds in &lt;300ms, India-restricted</li><li>Search state is written to the URL so it's shareable &amp; indexable</li><li>Sticky on scroll (desktop) so search is never lost</li></ul>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+      <div class="fitem p0"><div>
+        <div class="fname">Live stats bar (fixed from old site)</div>
+        <div class="fdesc">Real numbers that count up on scroll using IntersectionObserver — "200+ Verified Listings · 1,000+ Residents · ₹0 Brokerage · 4.7★". Never the broken "0%/0+" of the old site.</div>
+      </div><div class="ftags"><span class="b b-fix">FIX</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🏷️</div><div><div class="module-title">Browse-by-category tabs</div><div class="module-sub">OYO-style quick intents with live counts</div></div></div>
+    <div class="flist">
+      <div class="fitem p1"><div>
+        <div class="fname">Horizontal category strip with real-time counts</div>
+        <div class="fdesc">Scrollable tabs, each showing a live count from the API: All · Near Christ University · Near Koramangala · Girls Only · Boys Only · Budget (under ₹10K) · Luxury (₹20K+) · Food Included · Immediate Move-in · Co-living. Tapping any tab opens the listing page with that filter applied. These tabs double as internal links to the SEO landing pages.</div>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">⭐</div><div><div class="module-title">Featured &amp; trending properties</div><div class="module-sub">Best listings, full visual impact</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">Premium property cards with badges &amp; live proof</div>
+        <div class="fdesc">Rich cards (see Section 06 for full anatomy): big hero photo, name + area, starting price <em>and</em> premium/private price when present, 2–3 key amenity icons, gender tag, rating, trust badges (Section 08), wishlist heart, and a live-proof line ("12 viewing now" / "booked 4× this week"). 4-up grid on desktop, swipe carousel on mobile.</div>
+        <ul class="ac-list"><li>Premium pricing always visible when available</li><li>Badges &amp; live counters render here exactly as on listing cards</li><li>Lazy-loaded below the fold for speed</li></ul>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🗺️</div><div><div class="module-title">Map preview · App-download · Social proof</div><div class="module-sub">Trust &amp; cross-platform</div></div></div>
+    <div class="flist">
+      <div class="fitem p1"><div><div class="fname">Interactive coverage map</div><div class="fdesc">A Google Map on the homepage showing all active PG pins across the city. Clicking a pin shows a mini-card (photo, name, price, "View details"). "Explore full map" opens the listing page in map mode.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">App-download band with QR &amp; app-only perks</div><div class="fdesc">"Take Roomadda everywhere." Phone mockup, Play / App Store badges with deep links, device-aware QR. Calls out app-only features (real-time push, SOS, daily meal menu, in-app chat). Tracked as <code>app_download_clicked</code>.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Reviews, Instagram feed &amp; FAQ</div><div class="fdesc">Resident testimonials with photos, a live @roomadda Instagram embed for social proof, and a homepage FAQ accordion (which doubles as FAQ schema for SEO/AEO — Section 16). Footer links to all city/area/intent landing pages for crawlability.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 06 LISTING ─── -->
+<div id="listing" class="section">
+  <div class="sticky"><span>06 — Search &amp; Listing Page</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 06</div>
+  <h2 class="section-title">Search &amp; Listing<br>Results Page</h2>
+  <p class="section-sub">Where discovery happens. A split list-and-map view (Airbnb/MakeMyTrip pattern), power filters, and cards that show just enough to earn the click — with the trust badges and live proof that make Roomadda feel safe.</p>
+
+  <div class="flist">
+    <div class="fitem p0"><div>
+      <div class="fname">Split view — list + live map</div>
+      <div class="fdesc">Desktop: left 60% property cards, right 40% Google Map with price-labelled pins for visible results. Hovering a card highlights its pin and vice-versa. Pins cluster when zoomed out. A "Search this area" button appears when the user pans the map. Mobile: toggle between list and full-screen map; the user's location shows as a blue dot.</div>
+      <ul class="ac-list"><li>Map ⇄ list stay in sync both directions</li><li>"Search this area" re-runs the query on the visible bounds</li><li>Results update via AJAX — no full page reload</li></ul>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+
+    <div class="fitem p0"><div>
+      <div class="fname">Listing card anatomy (the most-rendered component on the site)</div>
+      <div class="fdesc">Swipeable photo carousel (hover arrows desktop / swipe mobile) → trust badges overlaid top-left (Verified, Luxury, RA Choice…) → wishlist heart top-right → property name → area + distance from searched point ("1.2 km · 6 min walk") → <strong>starting price prominently, premium/private price beside it</strong> → 2–3 key amenity icons + "+4 more" → gender tag → rating (stars + count) → availability chip ("3 rooms left" green / "Full" red) → <strong>live-proof line</strong> ("18 viewing now" or "booked 5× this week") → "View details" CTA. Never show every amenity; never show a broken placeholder.</div>
+      <ul class="ac-list"><li>Premium pricing MUST appear on the card (old-site bug fixed)</li><li>"+N more amenities" expands inline</li><li>Styled fallback (property initials) when no photo — never placeholder.png</li></ul>
+    </div><div class="ftags"><span class="b b-fix">FIX + CORE</span></div></div>
+
+    <div class="fitem p0"><div>
+      <div class="fname">Sticky filter bar + sort</div>
+      <div class="fdesc">A sticky bar above results holds the full filter set (Section 07) plus Sort By (Relevance · Price ↑ · Price ↓ · Distance · Rating · Newest). Active filters show as removable chips; a count badge sits on the "Filters" button; "Clear all" appears when anything is active. Featured listings pin to the top two slots, clearly labelled.</div>
+      <ul class="ac-list"><li>Every filter change updates the URL params (shareable + indexable)</li><li>Skeleton loaders during fetch — never a blank screen</li><li>"No results" suggests expanding the radius or relaxing a filter</li></ul>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+
+    <div class="fitem p1"><div>
+      <div class="fname">SEO-rendered, paginated, crawlable</div>
+      <div class="fdesc">The listing page and every landing variant (city / area / intent) is server-rendered with a unique H1, intro copy, meta description and breadcrumb. Pagination uses real crawlable links. This is what makes "PG in Koramangala" rank — covered fully in Section 16.</div>
+    </div><div class="ftags"><span class="b b-seo">SEO</span></div></div>
+  </div>
+</div>
+
+<!-- ─── 07 FILTERS ─── -->
+<div id="filters" class="section">
+  <div class="sticky"><span>07 — Filter System</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 07</div>
+  <h2 class="section-title">The Complete<br>Filter System</h2>
+  <p class="section-sub">You asked for "all kinds of filters." Here is the full set — every filter a PG-seeker could want, organised into groups, with the control type and behaviour for each. The website's filter set is a superset of the app's, and both read the same API.</p>
+
+  <div class="callout info">
+    <div class="c-icon">⚙️</div>
+    <div>
+      <div class="c-title">How filters behave</div>
+      <div class="c-body">Filters apply live (AJAX, no reload), write to the URL for sharing &amp; SEO, persist across the session, show a match count on the apply button, and render as removable chips. On desktop they sit in a sticky bar with a "More filters" panel; on mobile they open as a full-screen sheet with an "Apply (N results)" button.</div>
+    </div>
+  </div>
+
+  <h3 class="block">Group A — Location &amp; proximity</h3>
+  <table class="ftable">
+    <thead><tr><th>Filter</th><th>Control</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Location / area</td><td>Google Places autocomplete</td><td>Area, landmark, college, metro, tech park, company name</td></tr>
+      <tr><td>Use my location</td><td>Button (GPS)</td><td>Finds PGs within an adjustable radius (default 1–3 km)</td></tr>
+      <tr><td>Distance radius</td><td>Slider (0.5–10 km)</td><td>From the searched point or current location</td></tr>
+      <tr><td>Near a college / office</td><td>Quick chips</td><td>Pre-built for top campuses &amp; tech parks; powers landing pages</td></tr>
+      <tr><td>Metro proximity</td><td>Toggle</td><td>"Within 1 km of a metro station" (via Distance Matrix)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Group B — Price &amp; room</h3>
+  <table class="ftable">
+    <thead><tr><th>Filter</th><th>Control</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Monthly rent range</td><td>Dual slider (₹3K–₹50K)</td><td>Live histogram of price distribution above the slider (MakeMyTrip style)</td></tr>
+      <tr><td>Room / sharing type</td><td>Multi-select</td><td>Private/Single · Double · Triple · Dormitory</td></tr>
+      <tr><td>Security deposit</td><td>Slider / buckets</td><td>"≤1 month", "≤2 months", "Zero deposit"</td></tr>
+      <tr><td>Premium / private rooms</td><td>Toggle</td><td>Show only listings offering a premium private room</td></tr>
+      <tr><td>Bathroom</td><td>Multi-select</td><td>Attached · Shared</td></tr>
+      <tr><td>Furnishing</td><td>Multi-select</td><td>Fully furnished · Semi · Unfurnished</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Group C — Who it's for</h3>
+  <table class="ftable">
+    <thead><tr><th>Filter</th><th>Control</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Gender</td><td>Segmented</td><td>Boys · Girls · Co-living. Auto-set from profile, manually changeable</td></tr>
+      <tr><td>Tenant type</td><td>Multi-select</td><td>Students · Working professionals · Both</td></tr>
+      <tr><td>Move-in date</td><td>Date picker</td><td>Shows only PGs with availability on/after that date</td></tr>
+      <tr><td>Suitable for couples</td><td>Toggle</td><td>Where the host allows it (house-rule driven)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Group D — Food &amp; amenities</h3>
+  <table class="ftable">
+    <thead><tr><th>Filter</th><th>Control</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Meals included</td><td>Toggle + sub-options</td><td>Veg · Non-veg · Both · Breakfast/Lunch/Dinner specific</td></tr>
+      <tr><td>Amenities</td><td>Multi-select grid</td><td>WiFi, AC, Geyser, Laundry, Parking, CCTV, Power Backup, Gym, Study Table, TV, Housekeeping, Lift, Recreation, Fridge, Hot water</td></tr>
+      <tr><td>Safety</td><td>Multi-select</td><td>CCTV · Security guard · Biometric/gated entry · Female-only floor</td></tr>
+      <tr><td>Parking</td><td>Multi-select</td><td>Two-wheeler · Four-wheeler</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Group E — Trust, badges &amp; booking</h3>
+  <table class="ftable">
+    <thead><tr><th>Filter</th><th>Control</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Verified only</td><td>Toggle</td><td>RA agent-inspected listings only</td></tr>
+      <tr><td>Badge filters</td><td>Multi-select</td><td>Luxury · RA-Assured · RA Choice · Wizard · Trending (Section 08)</td></tr>
+      <tr><td>Rating</td><td>Buckets</td><td>4.5★+ · 4★+ · 3.5★+</td></tr>
+      <tr><td>Instant book</td><td>Toggle</td><td>Confirms on payment, no host approval wait</td></tr>
+      <tr><td>Availability</td><td>Toggle</td><td>"Available now" / hide fully-occupied</td></tr>
+      <tr><td>Offers / deals</td><td>Toggle</td><td>Listings with an active coupon or discount</td></tr>
+      <tr><td>Newly added</td><td>Toggle</td><td>Listed in the last 30 days</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout ok">
+    <div class="c-icon">💡</div>
+    <div>
+      <div class="c-title">Two filters that differentiate Roomadda</div>
+      <div class="c-body"><strong>"Calculate my commute"</strong> — the user enters their office/college once and every card shows commute time &amp; estimated cab fare, and they can sort by it. <strong>"Near my saved searches"</strong> for logged-in users — personalised default filters drawn from past behaviour. Both are recommended; flag if you want them in Phase 1 or Phase 2.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 08 TRUST TAGS ─── -->
+<div id="tags" class="section">
+  <div class="sticky"><span>08 — Trust Tags &amp; Badges</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 08</div>
+  <h2 class="section-title">Trust Tags &amp;<br>Badge System</h2>
+  <p class="section-sub">You wanted OYO's "Wizard"-style tags, Flipkart "Assured", and Amazon's "Choice" — labels that instantly tell a nervous user "this one is safe / premium / popular." Below is the full Roomadda badge system: every badge, exactly how a listing earns it, and where it shows. Badges are <strong>earned by rules, never sold</strong> — that's what keeps them trustworthy.</p>
+
+  <div class="callout red">
+    <div class="c-icon">🛡️</div>
+    <div>
+      <div class="c-title">The principle that makes badges worth anything</div>
+      <div class="c-body">A badge is a <strong>promise</strong>. If hosts could buy "RA-Assured," it would mean nothing and users would learn to ignore it. So every badge here is awarded automatically by the backend from real data (inspections, ratings, response times, booking volume) and re-evaluated on a schedule. "Featured" is the <em>only</em> paid/curated placement, and it is visually distinct from trust badges so the two are never confused.</div>
+    </div>
+  </div>
+
+  <h3 class="block">The eight badges</h3>
+  <div class="tag-grid">
+    <div class="tag-card" style="border-top-color:#1e7a4f">
+      <span class="tag-pill" style="background:#e2f0e8;color:#1e7a4f">✓ RA Verified</span>
+      <div class="tag-name">RA Verified</div>
+      <div class="tag-rule">The baseline trust mark. <b>Earned when:</b> a Roomadda field agent has physically inspected the PG, the inspection report is approved by admin, and host KYC is verified. Without this, a listing cannot show any higher badge.</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#1a4a8a">
+      <span class="tag-pill" style="background:#e8eef8;color:#1a4a8a">🛡️ RA-Assured</span>
+      <div class="tag-name">RA-Assured <span style="font-weight:400;font-size:11px;color:var(--muted)">(your "Flipkart Assured")</span></div>
+      <div class="tag-rule">A quality guarantee. <b>Earned when:</b> Verified <b>+</b> photos pass the quality bar (≥8 real, bright images) <b>+</b> amenities matched reality on inspection <b>+</b> host response rate ≥90% <b>+</b> zero unresolved escalations in 90 days. Signals "what you see is what you get."</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#e8971e">
+      <span class="tag-pill" style="background:#fff3dd;color:#8a5a00">⭐ RA Choice</span>
+      <div class="tag-name">RA Choice <span style="font-weight:400;font-size:11px;color:var(--muted)">(your "Amazon's Choice")</span></div>
+      <div class="tag-rule">The algorithm's top pick for a given search. <b>Earned when:</b> RA-Assured <b>+</b> rating ≥4.5 <b>+</b> high booking-conversion <b>+</b> fast response <b>+</b> good value for its area. Awarded <b>per query context</b> (e.g. "RA Choice for PG in Koramangala under ₹12K") — exactly like Amazon's Choice is keyword-specific.</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#5a1a6a">
+      <span class="tag-pill" style="background:#f0e8f8;color:#5a1a6a">💎 Luxury</span>
+      <div class="tag-name">Luxury</div>
+      <div class="tag-rule">Premium-segment marker. <b>Earned when:</b> price in the top quartile for its area <b>+</b> premium amenities (AC, attached bath, housekeeping, etc.) <b>+</b> RA-Assured <b>+</b> rating ≥4.5. Drives the "Luxury PGs" category and intent landing page.</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#d14f2a">
+      <span class="tag-pill" style="background:#fce8e4;color:#d14f2a">🧙 Wizard</span>
+      <div class="tag-name">Wizard <span style="font-weight:400;font-size:11px;color:var(--muted)">(your OYO "Wizard")</span></div>
+      <div class="tag-rule">A loyalty/elite tier for the very best hosts. <b>Earned when:</b> RA-Assured for ≥6 months <b>+</b> ≥20 completed stays <b>+</b> rating ≥4.6 <b>+</b> &lt;5% cancellation <b>+</b> on-time meal-menu &amp; service SLAs. Wizard hosts get priority ranking and a distinct gold-tinted badge.</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#1a6a6a">
+      <span class="tag-pill" style="background:#e2f5f5;color:#1a6a6a">🔥 Trending</span>
+      <div class="tag-name">Trending</div>
+      <div class="tag-rule">Real-time popularity. <b>Earned when:</b> views &amp; wishlist-adds in the last 7 days are in the top 10% for its area, or it was booked ≥3× this week. Time-boxed — drops off automatically when momentum fades. Pure honesty, recomputed hourly.</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#1e7a4f">
+      <span class="tag-pill" style="background:#e2f0e8;color:#1e7a4f">⚡ Instant Book</span>
+      <div class="tag-name">Instant Book</div>
+      <div class="tag-rule">Convenience signal. <b>Earned when:</b> the host has enabled instant booking <b>and</b> has live availability — confirms on payment with no 24-hour approval wait. Filterable.</div>
+    </div>
+    <div class="tag-card" style="border-top-color:#8a6a1a">
+      <span class="tag-pill" style="background:#fbf3dd;color:#8a6a1a">📣 Featured</span>
+      <div class="tag-name">Featured <span style="font-weight:400;font-size:11px;color:var(--muted)">(paid / curated — NOT a trust badge)</span></div>
+      <div class="tag-rule">The only purchasable placement. <b>Set by:</b> admin, with a start/end date. Always labelled "Featured" or "Ad" and styled differently from trust badges, so users are never misled. Featured listings still must be at least RA Verified to appear.</div>
+    </div>
+  </div>
+
+  <h3 class="block">How badges are computed &amp; governed</h3>
+  <table class="ftable">
+    <thead><tr><th>Concern</th><th>How it works</th></tr></thead>
+    <tbody>
+      <tr><td>Where stored</td><td>A <code>listing_badges</code> table links each listing to the badges it currently holds, with an <code>earned_at</code> and <code>expires_at</code>. The same record is read by web cards, app cards and admin.</td></tr>
+      <tr><td>When recomputed</td><td>A scheduled job (cron) re-evaluates eligibility — Trending hourly, RA Choice on each search, the rest nightly. Badges can be <em>lost</em>, not just gained — this is what keeps them honest.</td></tr>
+      <tr><td>Admin override</td><td>Admin can suspend a badge (e.g. after a complaint) with a logged reason. Admin can grant "Featured." Admin can never fake "RA-Assured" — it's rule-driven.</td></tr>
+      <tr><td>On cards &amp; pages</td><td>Max 2–3 badges shown on a card (priority order: Wizard &gt; Luxury &gt; RA Choice &gt; RA-Assured &gt; Verified &gt; Trending) to avoid clutter; the full set shows on the property page.</td></tr>
+      <tr><td>Filterable &amp; SEO</td><td>Each badge is a filter (Section 07) and feeds intent landing pages ("Luxury PG in Bangalore"). Badge + AggregateRating data also enriches Google rich snippets (Section 16).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── 09 SOCIAL PROOF ─── -->
+<div id="social" class="section">
+  <div class="sticky"><span>09 — Live Social Proof</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 09</div>
+  <h2 class="section-title">Live Social Proof<br>&amp; Urgency Engine</h2>
+  <p class="section-sub">You asked for live numbers — how many people are watching a property right now, how many booked it in the last 5 days / week / month. This is one of the strongest conversion levers OYO and MakeMyTrip use. Here is the full engine, plus the rules that keep every number <strong>true</strong> — fake urgency destroys trust the moment a user catches it.</p>
+
+  <div class="callout warn">
+    <div class="c-icon">⚠️</div>
+    <div>
+      <div class="c-title">Honesty rule — every number must be real</div>
+      <div class="c-body">No invented "27 people are looking!" counters. Each figure below is computed from actual events in our own analytics. If a property genuinely has low activity, we simply <strong>don't show that widget</strong> for it rather than faking a number. A counter that's caught lying once poisons trust in the whole site.</div>
+    </div>
+  </div>
+
+  <h3 class="block">The live-proof widgets</h3>
+  <div class="flist">
+    <div class="fitem p0"><div>
+      <div class="fname">"👁 X people viewing now"</div>
+      <div class="fdesc">A live count of distinct sessions currently on this property page (web + app combined). <b>Computed from:</b> active sessions tracked in Redis with a short TTL (e.g. a session counts as "viewing" for ~2–3 minutes after its last heartbeat). Shown on the property page and, as a compact "X viewing", on hot cards. Only displayed when the real count ≥ a floor (e.g. ≥3) so it never looks pathetic or fake.</div>
+      <ul class="ac-list"><li>Updates live via WebSocket / short polling</li><li>Counts unique sessions, not page refreshes</li><li>Hidden when below the floor — never padded</li></ul>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+
+    <div class="fitem p0"><div>
+      <div class="fname">"🗓 Booked Y times in the last 5 days / week / month"</div>
+      <div class="fdesc">Real booking-recency proof at the exact granularities you asked for. <b>Computed from:</b> a count of <code>confirmed</code> bookings for this property in rolling windows (5 days, 7 days, 30 days) from the bookings table. The property page can show all three ("4 in 5 days · 7 this week · 22 this month"); cards show the most impressive true one. Only confirmed, paid bookings count — never abandoned carts.</div>
+      <ul class="ac-list"><li>Pulls from real confirmed bookings only</li><li>Rolling windows recomputed on a short cron (e.g. every 15 min) and cached</li><li>Walk-in &amp; agent bookings included so the number reflects total demand</li></ul>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+
+    <div class="fitem p1"><div>
+      <div class="fname">"🔖 Z people have this on their wishlist"</div>
+      <div class="fdesc">Soft-demand proof. <b>Computed from:</b> count of wishlist rows referencing this listing. Encourages "save it before someone books it." Shown when ≥ a floor.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+
+    <div class="fitem p1"><div>
+      <div class="fname">"⏳ Only N rooms left" scarcity chip</div>
+      <div class="fdesc">Genuine scarcity from live inventory. <b>Computed from:</b> the real available-room count for the selected room type. Turns amber at ≤2 and red at "Full." Because inventory is the same record web and app read, this can never disagree between platforms.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+
+    <div class="fitem p1"><div>
+      <div class="fname">"🕑 Last booked 2 hours ago" recency line</div>
+      <div class="fdesc">A gentle recency cue from the timestamp of the most recent confirmed booking. Only shown if recent enough to be meaningful (e.g. within 7 days). Adds liveliness without pressure.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+
+    <div class="fitem p1"><div>
+      <div class="fname">"💸 Price dropped ₹1,000 this week" badge</div>
+      <div class="fdesc">For listings whose rent fell recently (from price-history), and a push/WhatsApp alert to anyone who wishlisted it. MakeMyTrip-style "price drop" — a strong reason to come back and book.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+  </div>
+
+  <h3 class="block">Where each signal appears</h3>
+  <table class="ftable">
+    <thead><tr><th>Surface</th><th>What shows</th></tr></thead>
+    <tbody>
+      <tr><td>Listing / search card</td><td>One best true signal — "18 viewing now" <em>or</em> "booked 5× this week" <em>or</em> "Only 2 left". Kept to one line so cards stay clean (Airbnb principle).</td></tr>
+      <tr><td>Property detail page</td><td>The full stack: viewers now, all three booking windows, wishlist count, rooms left, last-booked, price-drop — woven into the hero &amp; sticky booking panel.</td></tr>
+      <tr><td>Wishlist page</td><td>Price-drop and new-availability alerts on each saved PG — the reason notifications drive users back.</td></tr>
+      <tr><td>Homepage "Trending" rail</td><td>Cards carrying the Trending badge (Section 08), which is itself derived from these same view/booking signals.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">The data pipeline (for the developers)</h3>
+  <div class="flow">
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Capture events.</b> <code>property_viewed</code>, <code>session_heartbeat</code>, <code>wishlist_added</code>, <code>booking_confirmed</code> are emitted from web &amp; app to the backend (and mirrored to GA4 for marketing).</div></div>
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Live counts in Redis.</b> "Viewers now" lives in Redis with TTLs (fast, ephemeral). No need to hit PostgreSQL for every heartbeat.</div></div>
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Rolling aggregates via cron.</b> A scheduled job rolls up "booked in 5d/7d/30d" and wishlist counts per listing, caches them, and stamps the result on the listing payload the cards read.</div></div>
+    <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Floors &amp; honesty gates.</b> A small config sets the minimum real value before a widget is shown, and the staleness window. All thresholds are server-side config, tunable without a deploy.</div></div>
+  </div>
+</div>
+
+<!-- ─── 10 PROPERTY PAGE ─── -->
+<div id="property" class="section">
+  <div class="sticky"><span>10 — Property Detail Page</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 10</div>
+  <h2 class="section-title">Property Detail<br>Page — Full Spec</h2>
+  <p class="section-sub">The conversion page — the single most valuable screen on the site. Layout follows Airbnb (photo grid + sticky booking panel) with MakeMyStay's PG-specific information density. Everything a tenant needs to decide, without leaving the page.</p>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🖼️</div><div><div class="module-title">Section A — Hero (above the fold)</div><div class="module-sub">First impression + the booking decision</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">Airbnb-style photo grid + full-screen lightbox</div>
+        <div class="fdesc">Desktop: one large hero photo (left 60%) + a 2×2 grid of four photos (right 40%), with a "Show all photos" button opening a full-screen gallery. Mobile: swipeable full-width gallery with dot indicators and a photo count ("24 photos"). WebP at 85% quality, lazy-loaded below the first five.</div>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+      <div class="fitem p0"><div>
+        <div class="fname">Header — name, badges, rating, live proof</div>
+        <div class="fdesc">H1 property name · trust badges (Section 08) · area + city + map pin · star rating with review count ("4.6★ · 32 reviews") · availability chip · and the live-proof row (Section 09 — viewers now, booked Y times, only N left). Then the pricing block: starting rent prominently, a compact room-type table (type · sharing · rent/mo · deposit · status), with premium/private price clearly labelled.</div>
+        <ul class="ac-list"><li>Premium pricing shown distinctly with a "Premium" label</li><li>Deposit shown beside rent · availability live</li><li>Pricing identical to the app — same record (Section 02)</li></ul>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+      <div class="fitem p0"><div>
+        <div class="fname">Sticky booking panel (Airbnb pattern)</div>
+        <div class="fdesc">Desktop: a sticky right-column card that follows scroll — room-type selector, move-in date picker, meal-plan choice, the live "Only N rooms left" chip, a primary "Book now — pay ₹3,000 token" button, "Add to wishlist," and "Share." A reassuring line: "Token adjusts against your first month's rent." A secondary "Continue in app" deep-link nudge sits below. Mobile: the same as a sticky bottom bar.</div>
+        <ul class="ac-list"><li>"Book now" opens the login modal if not authenticated</li><li>Share → WhatsApp (pre-filled), Copy link, Maps link, native share sheet on mobile</li><li>Wishlist heart fills &amp; saves to the shared account instantly</li></ul>
+      </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">📋</div><div><div class="module-title">Section B — Details (on scroll)</div><div class="module-sub">Progressive disclosure with sticky tab nav</div></div></div>
+    <div class="flist">
+      <div class="fitem p1"><div><div class="fname">Sticky tab navigation</div><div class="fdesc">As the user scrolls past the hero, a sticky tab bar appears: Overview · Amenities · Food · Location · Rules · Reviews · Nearby. Clicking smooth-scrolls; the active tab tracks scroll position.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Full amenities, grouped</div><div class="fdesc">All amenities with icons in a grid, grouped into Basics · Safety · Food &amp; Kitchen · Recreation. (Cards show only 2–3; the page shows everything.)</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Food &amp; weekly meal menu</div><div class="fdesc">If meals are included: a weekly plan table (Mon–Sun × Breakfast/Lunch/Dinner) with veg/non-veg markers and "updated by host on [date]." A key differentiator — shown prominently.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Rules &amp; regulations</div><div class="fdesc">Scannable list: guest policy, curfew, noise, smoking/alcohol, cooking, pets, notice period. Clear, not a wall of text.</div></div><div class="ftags"><span class="b b-keep">ENHANCE</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Location + Google Maps + nearby + commute</div><div class="fdesc">Full-width map at the exact lat/lng, "Get directions," a nearby-landmarks table with walk/drive times (metro, colleges, tech parks, hospitals, supermarkets via Distance Matrix), and the optional "Calculate my commute" widget where the user enters their workplace.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Reviews &amp; ratings</div><div class="fdesc">Aggregate rating with a star-breakdown bar chart, then individual reviews (tenant first name, tenure, date, rating, text, host response). "Write a review" only for verified past/current tenants. Reviews come from both web and app accounts. This also powers AggregateRating schema for rich snippets.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🔄</div><div><div class="module-title">Section C — Never a dead end</div><div class="module-sub">Keep the user on Roomadda</div></div></div>
+    <div class="flist">
+      <div class="fitem p1"><div><div class="fname">"Similar PGs you might like" carousel</div><div class="fdesc">6–8 cards at the bottom: same area first, then same price band (±20%), then same gender, then amenity similarity. Same card component as the listing page. "See all similar" links to a filtered listing page. Ensures no user hits a dead end and bounces.</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 11 BOOKING ─── -->
+<div id="booking" class="section">
+  <div class="sticky"><span>11 — Booking &amp; Payment</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 11</div>
+  <h2 class="section-title">Booking, Payment<br>&amp; Pricing Parity</h2>
+  <p class="section-sub">The website takes real bookings end-to-end with the ₹3,000 token via Razorpay — the same flow, gateway and rules as the app — and nudges the app at the finish line. Because both clients hit one backend, the price a user pays on the web is the exact price the app would have charged.</p>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">📅</div><div><div class="module-title">Booking flow — step by step</div><div class="module-sub">The most critical flow on the site</div></div></div>
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Book now.</b> If not logged in, a login modal appears (OTP / Google) — no full-page redirect.</div></div>
+      <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Booking sheet.</b> Select room type, move-in date (past &amp; booked dates blocked), meal plan. Summary shows token now (₹3,000), monthly rent, deposit, and the cancellation policy in plain words.</div></div>
+      <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>KYC gate.</b> If the user's KYC isn't verified, prompt upload (Aadhaar + ID, drag-and-drop on web). Booking can start before approval, but <b>payment is blocked until KYC is Verified</b> — enforced server-side.</div></div>
+      <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Razorpay.</b> Modal opens — UPI, card, net-banking, wallets. 10-minute timeout; failure returns to the summary with one-tap retry (no re-entry). Webhook (not the redirect) is the source of truth for success.</div></div>
+      <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Success.</b> Booking ID, property + room, move-in date, token paid, monthly rent, host first name + property WhatsApp (post-confirmation only), downloadable PDF receipt, "Add to calendar," and an <b>app-download nudge</b> (QR + deep link) framed around app-only perks.</div></div>
+      <div class="flow-step"><div class="flow-num"></div><div class="flow-txt"><b>Notifications fire.</b> WhatsApp + email confirmation to the tenant; push + WhatsApp to the host — all from the shared backend, so a web booking notifies exactly like an app booking.</div></div>
+    </div>
+    <ul class="ac-list">
+      <li>Token defaults to ₹3,000, admin-adjustable per property; adjusts against first month's rent</li>
+      <li>Double-booking prevented at the database (room count decremented in a transaction)</li>
+      <li>PCI-DSS handled by Razorpay — no card data ever touches Roomadda servers</li>
+    </ul>
+  </div>
+
+  <div class="callout purp">
+    <div class="c-icon">🟰</div>
+    <div>
+      <div class="c-title">Pricing parity — the guarantee you asked for</div>
+      <div class="c-body">There is no separate "web price." When the booking sheet shows ₹3,000 token + ₹12,000 rent + ₹12,000 deposit, those four numbers are read live from the one price object on the listing (Section 02). If a host changes them, the next web view and the next app view both show the new figures — there is physically no way for web and app to disagree, because there's only one stored value. The same is true of any coupon: a discount is applied by the backend, so it lands identically on both.</div>
+    </div>
+  </div>
+
+  <div class="flist">
+    <div class="fitem p0"><div>
+      <div class="fname">Razorpay integration (web = app)</div>
+      <div class="fdesc">UPI (PhonePe/GPay/Paytm/BHIM/any VPA), cards (Visa/Mastercard/RuPay), net-banking (50+), wallets. Test mode on staging, live on production. Webhooks update booking status server-side. Auto-generated receipt (Booking ID, amount, timestamp), downloadable as PDF from "My bookings" anytime.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span><span class="b b-pay">RAZORPAY</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">Monthly rent payment on web</div>
+      <div class="fdesc">Active tenants pay rent from the web Tenant Dashboard → "Pay rent" → exact amount pre-filled → Razorpay. Rent history kept; automated WhatsApp reminder 5 days before due; late-payment flag visible to admin. Same ledger as the app.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span><span class="b b-pay">PAYMENT</span></div></div>
+  </div>
+
+  <div class="rule-box">
+    <h3>Payment &amp; refund rules (server-enforced, identical on web &amp; app)</h3>
+    <div class="rule-item">Token is ₹3,000 by default; admin can set a custom token per property.</div>
+    <div class="rule-item">Full refund if the host declines or the PG is unavailable. Full refund if the user cancels &gt;7 days before move-in; 50% if 3–7 days before; no refund within 3 days of move-in.</div>
+    <div class="rule-item">Platform commission is deducted before host payout (manual in MVP → Razorpay Route automation in Phase 2 — DB modelled for it now).</div>
+    <div class="rule-item">A booking can only confirm when KYC is Verified, the Razorpay webhook confirms capture, and available rooms &gt; 0 — all checked server-side.</div>
+  </div>
+</div>
+
+<!-- ─── 12 ACCOUNT ─── -->
+<div id="account" class="section">
+  <div class="sticky"><span>12 — User Account &amp; Tenant Portal</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 12</div>
+  <h2 class="section-title">User Account,<br>Wishlist &amp; Tenant Portal</h2>
+  <p class="section-sub">Full web authentication sharing the app's account. Log in on the app, you're logged into the same account on the web — same wishlist, same bookings, same KYC, same tenant dashboard.</p>
+
+  <div class="flist">
+    <div class="fitem p0"><div>
+      <div class="fname">Login / register modal (shared identity)</div>
+      <div class="fdesc">Non-blocking modal — Mobile OTP (same MSG91 as app) or Google Sign-In (one-tap, Firebase). New users prompted for name + gender (for PG matching). Session persists 30 days; "Remember me" via secure cookie. Same mobile number = same account across web &amp; app (accounts merge, never duplicate).</div>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div>
+      <div class="fname">Wishlist with named collections</div>
+      <div class="fdesc">Heart on every card &amp; page, synced web ⇄ app in real time. A /wishlist page shows saved PGs with live availability, live rent, "Book now" and "Remove." Users create named collections ("Near my college"). Price-drop &amp; new-availability alerts via push, WhatsApp and email.</div>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div>
+      <div class="fname">My Bookings &amp; receipts</div>
+      <div class="fdesc">All bookings — active, pending, past, cancelled — with status tracking (Pending approval → Payment pending → Confirmed → Active stay → Completed / Cancelled). Each opens a detail view with payment history and downloadable PDF receipt. Identical to the app's booking history (same data).</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">Tenant Dashboard (web)</div>
+      <div class="fdesc">Post move-in, /dashboard shows current PG &amp; room, next rent due with "Pay now," service-request form, meal-menu viewer, chat-with-host (web), documents (agreement, receipts), and leave-notice submission (with notice period). Same API as the app dashboard.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">KYC upload &amp; profile</div>
+      <div class="fdesc">Drag-and-drop Aadhaar (front/back) + Student/Work ID, max 5MB, with status tracking (Not submitted / Pending / Verified / Rejected + reason + re-upload). Documents stored encrypted; only admin can view. Profile completion progress bar.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">Notifications centre</div>
+      <div class="fdesc">A web inbox mirroring app notifications: booking updates, KYC status, price drops, wishlist availability, rent reminders, host messages. Web push via Firebase Cloud Messaging for users who opt in on desktop.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+  </div>
+</div>
+
+<!-- ─── 13 HOST ─── -->
+<div id="host" class="section">
+  <div class="sticky"><span>13 — Host Portal</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 13</div>
+  <h2 class="section-title">Host Portal<br>(Web)</h2>
+  <p class="section-sub">PG owners can run their entire business from the web — many prefer a laptop for listing creation and revenue review. Everything here writes to the same backend the host app uses, so a change made on web shows in the app instantly.</p>
+
+  <div class="flist">
+    <div class="fitem p0"><div>
+      <div class="fname">Host dashboard</div>
+      <div class="fdesc">At host.roomadda.com: all listings with live/draft/pending status, bookings this month, revenue collected (net of commission), pending booking requests needing action, plus occupancy rate, rooms available and active-tenant count.</div>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div>
+      <div class="fname">List a property — 8-step guided form</div>
+      <div class="fdesc">Basics + Google Maps pin → property details → room types &amp; pricing (rent, deposit, availability) → amenities → rules → photos (drag-drop, reorder, min 5 / max 30) → meal plan → preview &amp; submit for admin approval. Draft auto-saved every 30s; address validated against Google Maps; submissions go to the admin queue, never live immediately.</div>
+    </div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">Manage listings &amp; inventory</div>
+      <div class="fdesc">Edit any field (minor edits live immediately; rent changes &gt;20% or address changes re-queue for approval), pause/unpause a listing, and adjust real-time room availability per type. Inventory auto-updates on every confirmed booking and check-out.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">Bookings, tenants &amp; walk-ins</div>
+      <div class="fdesc">Accept/decline "request to book" within 24h; tenant roster (name, room, move-in, rent status — no KYC docs); walk-in booking entry that sends the tenant an app-download SMS invite. Overdue tenants flagged red.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    <div class="fitem p1"><div>
+      <div class="fname">Meal menu, service queue, revenue</div>
+      <div class="fdesc">Update daily/weekly meal menus (with saved templates), work the service-request queue, and view a basic revenue dashboard (expected vs collected vs overdue, last-3-months chart). All mirrored from / to the host app.</div>
+    </div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+  </div>
+</div>
+
+<!-- ─── 14 ADMIN ─── -->
+<div id="admin" class="section">
+  <div class="sticky"><span>14 — Admin Dashboard</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 14</div>
+  <h2 class="section-title">Admin Dashboard<br>(Web)</h2>
+  <p class="section-sub">The nerve centre, at admin.roomadda.com behind 2FA. It governs listings, users, hosts, agents, KYC, bookings, payments, trust badges, content and SEO — for both web and app, because there's one backend.</p>
+
+  <div class="callout red">
+    <div class="c-icon">🚫</div>
+    <div>
+      <div class="c-title">Hard rule — admins cannot book</div>
+      <div class="c-body">Admin accounts can never initiate, approve or make a booking for anyone. Enforced at the API: any admin-role token hitting the booking-create endpoint gets a 403. Every admin action on sensitive data is written to an immutable audit log (admin ID, action, target, timestamp, reason).</div>
+    </div>
+  </div>
+
+  <div class="flist">
+    <div class="fitem p0"><div><div class="fname">Overview dashboard</div><div class="fdesc">Real-time: active listings, registered users, bookings &amp; revenue this month, pending KYC, pending approvals, active tenants, escalations. Live activity feed; click any number to drill in; connected to GA4 &amp; the Razorpay dashboard.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">Listing approvals queue</div><div class="fdesc">Every submission with photos, details, map pin, host KYC status and the agent inspection report. Approve / Approve-with-edits / Reject-with-reason / Request-info / Mark-Featured. SLA 48h; older items flagged. Cannot approve without verified host KYC.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">User · Host · Agent management</div><div class="fdesc">Search/filter all accounts; per-account profile, bookings, payments, KYC. Verify/reject KYC, suspend/ban with reason, issue manual credits, internal notes. Create agents (no self-registration), assign visits &amp; territories. Approve/suspend hosts &amp; listings.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">Bookings &amp; payments</div><div class="fdesc">All bookings in one table with filters; full detail incl. Razorpay payment ID; manual confirm/cancel, issue refund (Razorpay refund API), send WhatsApp reminder. Revenue summary: gross, commission earned, host payouts.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p0"><div><div class="fname">Revenue analytics</div><div class="fdesc">Booking volume (day/week/month), revenue trend, commission by property, top performers, the conversion funnel (search → detail → initiated → paid → confirmed), cancellation rate, tenant retention. Export to Excel/CSV; GA4-attributed.</div></div><div class="ftags"><span class="b b-new">CORE</span></div></div>
+    <div class="fitem p1"><div><div class="fname">Trust-tag &amp; Featured control</div><div class="fdesc">View which badges each listing holds and why; suspend a badge with a logged reason; grant/schedule "Featured." Cannot fake rule-based trust badges (Section 08).</div></div><div class="ftags"><span class="b b-new">NEW</span></div></div>
+    <div class="fitem p1"><div><div class="fname">CMS + SEO tools</div><div class="fdesc">Manage homepage featured order, blog (with SEO title + meta), FAQs, testimonials, careers, and city/area/intent landing-page copy. Edit meta title, description, OG image and keywords for any page <em>without a developer</em>. Compose push &amp; WhatsApp broadcasts (segmented by city/behaviour).</div></div><div class="ftags"><span class="b b-new">NEW</span><span class="b b-seo">SEO</span></div></div>
+  </div>
+</div>
+
+<!-- ─── 15 INTEGRATIONS ─── -->
+<div id="integrations" class="section">
+  <div class="sticky"><span>15 — Integrations</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 15</div>
+  <h2 class="section-title">Integrations —<br>Everything That Plugs In</h2>
+  <p class="section-sub">You asked specifically about WhatsApp API, Google Maps and payment gateway integration — and whether there are others. Yes, there are several. Here is the complete integration map: what each one does, why it's needed, and roughly what it costs.</p>
+
+  <h3 class="block">The three you named</h3>
+  <div class="flist">
+    <div class="fitem p0"><div>
+      <div class="fname">💬 WhatsApp Business API (Gupshup / Interakt / Wati)</div>
+      <div class="fdesc">India's highest open-rate channel (95%+). Powers: booking confirmations (instant, with Booking ID + details), rent reminders (5 days &amp; 1 day before), wishlist price-drop &amp; availability alerts, new-PG-match alerts (opt-in), KYC &amp; booking-status updates, and segmented marketing broadcasts ("new PG in Koramangala" to people who searched Koramangala). All transactional messages use pre-approved templates; marketing is opt-in with "STOP" to unsubscribe. Two-way capable.</div>
+      <ul class="ac-list"><li>Same API serves web bookings and app bookings</li><li>Templates registered &amp; approved before launch</li><li>Cost ≈ ₹3K–10K/month + per-message fees</li></ul>
+    </div><div class="ftags"><span class="b b-new">P0</span></div></div>
+
+    <div class="fitem p0"><div>
+      <div class="fname">🗺️ Google Maps Platform (the full suite)</div>
+      <div class="fdesc">Not one API but six, each doing a specific job: <b>Places Autocomplete</b> (the search bar — areas, colleges, metros), <b>Maps JavaScript API</b> (interactive split-view &amp; property maps with price pins + clustering), <b>Geolocation</b> ("use my location"), <b>Distance Matrix</b> (walk/drive times on cards &amp; commute widget), <b>Static Maps</b> (map images in emails &amp; PDF receipts), <b>Geocoding</b> (address → lat/lng for host listings). Nearby results cached in the DB and refreshed weekly to control cost.</div>
+      <ul class="ac-list"><li>Restrict the API key by domain &amp; set a GCP budget alert</li><li>Cache aggressively — Maps billing is per-call</li><li>Cost ≈ ₹5K–15K/month at early scale</li></ul>
+    </div><div class="ftags"><span class="b b-new">P0</span></div></div>
+
+    <div class="fitem p0"><div>
+      <div class="fname">💳 Razorpay (payment gateway)</div>
+      <div class="fdesc">One integration covering UPI, cards, net-banking, wallets, payment links, QR codes, refunds and webhooks. Powers token payments, monthly rent, refunds, and (Phase 2) automated host payouts via Razorpay Route. Webhooks — not redirect callbacks — are the source of truth for payment success. No card data ever stored on Roomadda servers (PCI-DSS handled by Razorpay).</div>
+      <ul class="ac-list"><li>Same gateway &amp; rules on web and app</li><li>Test mode on staging, live on production</li><li>Cost ≈ 2% per transaction</li></ul>
+    </div><div class="ftags"><span class="b b-new">P0</span><span class="b b-pay">PAY</span></div></div>
+  </div>
+
+  <h3 class="block">The others you'll also need (grouped by purpose)</h3>
+  <table class="ftable">
+    <thead><tr><th>Integration</th><th>What it does</th><th>Priority / Cost</th></tr></thead>
+    <tbody>
+      <tr><td>MSG91 (SMS)</td><td>OTP login, walk-in invite SMS, fallback for SOS. DLT template registration required (2–3 days).</td><td>P0 · low per-SMS</td></tr>
+      <tr><td>Firebase Auth</td><td>Google Sign-In + one shared identity across web &amp; app.</td><td>P0 · free tier</td></tr>
+      <tr><td>Firebase Cloud Messaging</td><td>Web &amp; app push notifications.</td><td>P0 · free</td></tr>
+      <tr><td>Firebase Dynamic Links / Branch</td><td>Deferred deep links — "redirect to app" landing on the exact property (Section 02).</td><td>P0 · free / low</td></tr>
+      <tr><td>Google Analytics 4</td><td>Full funnel &amp; conversion tracking (search → view → book).</td><td>P0 · free</td></tr>
+      <tr><td>Google Tag Manager</td><td>Already installed — manages all tags/events without code deploys.</td><td>P0 · free</td></tr>
+      <tr><td>Google Search Console</td><td>SEO performance, indexing, sitemap submission.</td><td>P0 · free</td></tr>
+      <tr><td>AWS S3 + CloudFront (CDN)</td><td>Photo &amp; KYC storage; fast WebP image delivery (Core Web Vitals).</td><td>P0 · usage-based</td></tr>
+      <tr><td>Cloudflare</td><td>CDN, caching, DDoS protection, edge speed.</td><td>P1 · free tier</td></tr>
+      <tr><td>Razorpay Route</td><td>Automated split payouts to hosts (Phase 2 — DB modelled now).</td><td>P2</td></tr>
+      <tr><td>Microsoft Clarity</td><td>Free heatmaps + session recordings to find drop-offs (CRO — Section 16).</td><td>P1 · free</td></tr>
+      <tr><td>Meta Pixel</td><td>Instagram/Facebook ad retargeting &amp; lookalikes (via GTM).</td><td>P1 · free</td></tr>
+      <tr><td>Google Ads</td><td>Paid search on high-intent keywords → landing pages.</td><td>P1 · ad budget</td></tr>
+      <tr><td>SendGrid / Mailchimp</td><td>Transactional email (receipts) + drip campaigns.</td><td>P1 · free tier</td></tr>
+      <tr><td>Sentry</td><td>Error tracking on web &amp; backend.</td><td>P1 · free tier</td></tr>
+      <tr><td>Instagram Basic Display / Elfsight</td><td>Live @roomadda feed embed on homepage (social proof).</td><td>P2 · free/low</td></tr>
+      <tr><td>OpenAI / Anthropic API</td><td>AI natural-language search &amp; PG-finder chat (Section 17).</td><td>Phase 2 · usage-based</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rule-box">
+    <h3>Integration security &amp; cost discipline</h3>
+    <div class="rule-item">All API keys server-side or domain-restricted — never exposed in client JS where avoidable. Maps key locked to roomadda.com.</div>
+    <div class="rule-item">Budget alerts on Google Cloud, Razorpay and AWS so a runaway bill is caught early. Cache Maps &amp; Distance Matrix results aggressively.</div>
+    <div class="rule-item">All credentials shared via a secure secret manager — never email or WhatsApp. Separate keys for staging vs production.</div>
+    <div class="rule-item">Every integration must degrade gracefully — if WhatsApp is down, fall back to SMS/email; if Maps fails to load, show a static map and a list view.</div>
+  </div>
+</div>
+
+<!-- ─── 16 SEARCH 5 ─── -->
+<div id="search5" class="section">
+  <div class="sticky"><span>16 — SEO · GEO · AEO · AIO · CRO</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 16 — Read this carefully</div>
+  <h2 class="section-title">SEO · GEO · AEO ·<br>AIO · CRO — Explained</h2>
+  <p class="section-sub">This section is written for your developers, who are skilled engineers but may not have met these acronyms. They are five different "optimisation" disciplines about being <em>found</em> and <em>chosen</em>. Below: what each one is, in plain language, why it matters for a PG platform, and exactly what to build for it. Read in order — they build on each other.</p>
+
+  <div class="callout info">
+    <div class="c-icon">🧭</div>
+    <div>
+      <div class="c-title">The one-paragraph map (so the rest makes sense)</div>
+      <div class="c-body">For 20 years there was only <strong>SEO</strong> — getting your <em>links</em> to rank on Google's blue-link results. Now people also ask AI (ChatGPT, Gemini, Perplexity, Google's AI Overviews) and voice assistants. Getting <em>recommended inside those AI answers</em> is the new game, and it has spawned <strong>GEO, AEO and AIO</strong> — three overlapping flavours of "optimise for AI/answer engines." Finally, <strong>CRO</strong> (the discipline you called "OXS") is different: once a visitor arrives, CRO makes sure they actually <em>book</em> instead of leaving. SEO/GEO/AEO/AIO bring people <em>in</em>; CRO turns them into <em>bookings</em>.</div>
+    </div>
+  </div>
+
+  <!-- SEO -->
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🔍</div><div><div class="module-title">1 · SEO — Search Engine Optimisation</div><div class="module-sub">Rank our pages on Google's classic results</div></div></div>
+    <p class="body"><strong>What it is, plainly:</strong> making Roomadda's web pages show up high on Google when someone types "PG in Koramangala" or "girls PG near Christ University." This is the highest-ROI channel for a PG business because the searcher already wants exactly what we sell.</p>
+    <p class="body"><strong>Why our old site failed at it:</strong> no meta descriptions, no structured data, ugly <code>propertylist.php?id=123</code> URLs, blurry/placeholder images, slow pages. Google had almost nothing to rank.</p>
+    <h4 class="block">What the developers must build for SEO</h4>
+    <table class="ftable">
+      <thead><tr><th>Task</th><th>Exactly what to do</th></tr></thead>
+      <tbody>
+        <tr><td>Server-side rendering</td><td>Build the public site in <b>Next.js with SSR/SSG</b> so Google receives fully-rendered HTML, not an empty JS shell. This single decision underpins all SEO.</td></tr>
+        <tr><td>Clean URLs</td><td><code>/bangalore/koramangala/warmth-house-pg</code> — readable, keyword-rich, permanent. 301-redirect every old PHP URL to its new slug.</td></tr>
+        <tr><td>Unique title + meta per page</td><td>Every page (home, each property, each city/area/intent landing, blog) gets a unique &lt;title&gt; and meta description containing its primary keyword — editable from the CMS (Section 14).</td></tr>
+        <tr><td>Structured data (JSON-LD)</td><td>Property → <code>LodgingBusiness</code> (name, address, priceRange, amenityFeature, aggregateRating); home → <code>Organization</code> + <code>LocalBusiness</code>; blog → <code>Article</code>; FAQ → <code>FAQPage</code>; breadcrumbs → <code>BreadcrumbList</code>. This is what produces star ratings &amp; price directly in Google results.</td></tr>
+        <tr><td>City / area / intent landing pages</td><td>Dedicated, indexable pages for "PG in Bangalore," "PG in Koramangala," "girls PG Bangalore," "PG near Christ University" — each with a unique H1, 200+ words of real local copy, filtered listings, and an FAQ. These are the organic-traffic engines.</td></tr>
+        <tr><td>Core Web Vitals</td><td>WebP images with explicit width/height (no layout shift), lazy-loading, CDN delivery. Targets: LCP &lt;2.5s, CLS &lt;0.1, INP &lt;200ms. Google ranks fast pages higher.</td></tr>
+        <tr><td>Sitemap, robots, breadcrumbs, canonicals</td><td>Auto-updating XML sitemap submitted to Search Console; robots.txt allowing public pages &amp; blocking account/admin; visible + schema breadcrumbs; canonical tags on every page to avoid duplicate-content penalties.</td></tr>
+      </tbody>
+    </table>
+    <div class="code"><span class="c">// Example JSON-LD a property page must output (LodgingBusiness)</span>
+{
+  <span class="s">"@context"</span>: <span class="s">"https://schema.org"</span>,
+  <span class="s">"@type"</span>: <span class="s">"LodgingBusiness"</span>,
+  <span class="s">"name"</span>: <span class="s">"Warmth House PG"</span>,
+  <span class="s">"address"</span>: { <span class="s">"@type"</span>:<span class="s">"PostalAddress"</span>, <span class="s">"addressLocality"</span>:<span class="s">"Koramangala"</span>, <span class="s">"addressRegion"</span>:<span class="s">"Bangalore"</span> },
+  <span class="s">"priceRange"</span>: <span class="s">"₹8,000–₹18,000/mo"</span>,
+  <span class="s">"amenityFeature"</span>: [ <span class="s">"WiFi"</span>, <span class="s">"AC"</span>, <span class="s">"Meals"</span> ],
+  <span class="s">"aggregateRating"</span>: { <span class="s">"@type"</span>:<span class="s">"AggregateRating"</span>, <span class="s">"ratingValue"</span>:<span class="s">"4.6"</span>, <span class="s">"reviewCount"</span>:<span class="s">"32"</span> }
+}</div>
+  </div>
+
+  <!-- GEO -->
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🤖</div><div><div class="module-title">2 · GEO — Generative Engine Optimisation</div><div class="module-sub">Get recommended inside AI answers</div></div></div>
+    <p class="body"><strong>What it is, plainly:</strong> people increasingly ask <em>generative AI</em> — ChatGPT, Google's AI Overviews, Perplexity, Gemini — questions like "What's a good verified PG near Manyata Tech Park under ₹15,000?" GEO is the work of making those AI engines mention <strong>Roomadda</strong> (and our listings) in their generated answer. It's "SEO for AI chatbots."</p>
+    <p class="body"><strong>Why it matters now:</strong> a growing share of users never scroll Google's blue links — they read the AI summary at the top and act on it. If Roomadda isn't in that summary, we're invisible to them, no matter how well we rank traditionally.</p>
+    <h4 class="block">What to build for GEO</h4>
+    <table class="ftable">
+      <thead><tr><th>Task</th><th>Exactly what to do</th></tr></thead>
+      <tbody>
+        <tr><td>Write content AI can quote</td><td>Clear, factual, well-structured copy with definitive statements ("Roomadda lists 200+ verified zero-brokerage PGs across Bangalore"). AI engines lift confident, specific, well-organised facts — not vague marketing fluff.</td></tr>
+        <tr><td>Let AI crawlers in</td><td>In robots.txt, allow reputable AI crawlers (e.g. GPTBot, Google-Extended, PerplexityBot) on public pages so our content can be ingested. This is a deliberate policy decision — confirm it with the team.</td></tr>
+        <tr><td>Heavy structured data</td><td>The same JSON-LD that helps SEO also feeds AI engines clean, machine-readable facts (price, amenities, location, ratings) — so they cite us accurately.</td></tr>
+        <tr><td>Build citable authority</td><td>Genuinely useful guides ("Cost of living near Christ University," "PG vs flat for students in Bangalore"). AI engines preferentially cite sources that read as authoritative and are referenced elsewhere.</td></tr>
+        <tr><td>Get mentioned off-site</td><td>Presence on Google Business Profile, Justdial, student forums, Reddit, local blogs. GEO is influenced by what the wider web says about us, not just our own pages.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- AEO -->
+  <div class="module">
+    <div class="module-h"><div class="module-icon">💬</div><div><div class="module-title">3 · AEO — Answer Engine Optimisation</div><div class="module-sub">Win the direct-answer &amp; voice box</div></div></div>
+    <p class="body"><strong>What it is, plainly:</strong> AEO is about being the <em>single direct answer</em> to a specific question — the featured snippet at the top of Google, the "People also ask" boxes, and what Alexa/Google Assistant read aloud when someone asks by voice. Where GEO targets long generative paragraphs, AEO targets short, precise Q&amp;A answers.</p>
+    <p class="body"><strong>Why it matters for us:</strong> PG-seekers ask very answerable questions — "Is there a curfew in Roomadda PGs?", "What's the cheapest girls PG in Koramangala?", "Does Roomadda charge brokerage?". Owning those answers captures high-intent users at the exact moment of doubt.</p>
+    <h4 class="block">What to build for AEO</h4>
+    <table class="ftable">
+      <thead><tr><th>Task</th><th>Exactly what to do</th></tr></thead>
+      <tbody>
+        <tr><td>FAQ schema everywhere</td><td>Add <code>FAQPage</code> JSON-LD on the homepage, property pages and landing pages. Each property page answers "What's the rent? Is food included? What are the rules? How far is the metro?" in a Q&amp;A block — eligible for rich results &amp; voice.</td></tr>
+        <tr><td>Question-shaped headings</td><td>Use real questions as H2/H3 ("Does this PG allow guests?") with a concise 40–60 word answer immediately below — the format answer engines extract.</td></tr>
+        <tr><td>Concise, lead-with-the-answer copy</td><td>Answer first, elaborate after. "Yes — all Roomadda PGs are zero-brokerage. Here's how it works…"</td></tr>
+        <tr><td>HowTo schema for processes</td><td>"How to book a PG on Roomadda" as <code>HowTo</code> structured data — steps an answer engine can read out.</td></tr>
+        <tr><td>Speakable hints</td><td>Optionally mark key answer text with <code>speakable</code> schema for voice assistants.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- AIO -->
+  <div class="module">
+    <div class="module-h"><div class="module-icon">✨</div><div><div class="module-title">4 · AIO — AI Optimisation / AI Overviews</div><div class="module-sub">The umbrella + Google's AI Overviews specifically</div></div></div>
+    <p class="body"><strong>What it is, plainly:</strong> AIO is used two ways, and your team should know both. (a) As an <em>umbrella term</em> for "optimising for all AI-driven discovery" — essentially GEO + AEO together. (b) More specifically, optimising for <strong>Google AI Overviews</strong> — the AI-generated summary box now sitting at the very top of many Google searches, above the blue links. Being cited there is the single most valuable spot in modern search.</p>
+    <p class="body"><strong>Why it matters:</strong> when someone searches "best PG in HSR Layout," Google increasingly shows an AI Overview that names a few options before any links. If Roomadda's listings are the cited source, we win the click before competitors are even seen.</p>
+    <h4 class="block">What to build for AIO</h4>
+    <table class="ftable">
+      <thead><tr><th>Task</th><th>Exactly what to do</th></tr></thead>
+      <tbody>
+        <tr><td>Do SEO + GEO + AEO well</td><td>AI Overviews are assembled from pages that already rank, have clean structured data, and answer questions directly. There's no separate trick — strong SEO/GEO/AEO <em>is</em> the foundation of AIO.</td></tr>
+        <tr><td>Comparison &amp; "best of" content</td><td>Pages like "Best verified PGs in Koramangala (2026)" with clear, factual, comparable data (price, amenities, rating) — the exact shape AI Overviews synthesise.</td></tr>
+        <tr><td>Fresh, accurate, consistent data</td><td>AI engines distrust stale or contradictory info. Because web &amp; app share one backend (Section 02), our prices &amp; availability are always consistent — a real AIO advantage.</td></tr>
+        <tr><td>Strong entity presence</td><td>A complete, consistent Google Business Profile, consistent NAP (name/address/phone) everywhere, and Organization schema so Google confidently understands "Roomadda" as a trusted entity to cite.</td></tr>
+        <tr><td>Monitor &amp; measure</td><td>Track AI-Overview/assistant referral traffic in GA4 and watch Search Console for impression shifts as these surfaces grow.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CRO / OXS -->
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🎯</div><div><div class="module-title">5 · CRO — Conversion &amp; Experience Optimisation <span style="font-size:12px;color:var(--muted);font-weight:400">(the "OXS" you meant)</span></div><div class="module-sub">Turn visitors into bookings</div></div></div>
+    <p class="body"><strong>What it is, plainly:</strong> the first four disciplines get people <em>onto</em> the site. CRO makes sure those visitors actually <em>book</em> instead of leaving. It's the science of improving the booking funnel — measuring where people drop off and fixing it. (Also called Conversion Rate Optimisation, or Search Experience Optimisation when tied to on-page experience.) This is where SEO and conversion meet, and it directly grows revenue without spending more on traffic.</p>
+    <p class="body"><strong>Why it matters most for the bottom line:</strong> doubling conversion is the same as doubling traffic — but far cheaper. A 1%→2% booking rate is a 100% revenue increase from the <em>same</em> visitors.</p>
+    <h4 class="block">What to build &amp; do for CRO</h4>
+    <table class="ftable">
+      <thead><tr><th>Task</th><th>Exactly what to do</th></tr></thead>
+      <tbody>
+        <tr><td>Instrument the funnel</td><td>Track every step in GA4: search → property view → booking initiated → KYC → payment → confirmed. You can't optimise what you don't measure. Define <code>booking_confirmed</code> as the primary conversion.</td></tr>
+        <tr><td>Watch real sessions</td><td>Microsoft Clarity (free) for heatmaps + session recordings. Review weekly: where do users rage-click, hesitate, or abandon? Fix those specific spots.</td></tr>
+        <tr><td>Reduce friction</td><td>Fewer form fields, modal login (no full-page redirect), guest browsing before forcing sign-up, one-tap retry on payment failure, autofill, clear errors. Every removed step lifts conversion.</td></tr>
+        <tr><td>Build trust at the decision point</td><td>This is why Sections 08 &amp; 09 exist — badges, reviews, "verified," and honest live social proof are CRO levers that calm a nervous booker right where they decide.</td></tr>
+        <tr><td>A/B test deliberately</td><td>Test CTA wording, button colour, photo order, urgency copy. Change one thing, measure, keep the winner. Never redesign on opinion alone.</td></tr>
+        <tr><td>Speed &amp; mobile polish</td><td>A slow or janky mobile experience kills conversion silently. Fast pages (the same Core Web Vitals as SEO) and flawless mobile booking are CRO essentials.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout ok">
+    <div class="c-icon">🧩</div>
+    <div>
+      <div class="c-title">How the five fit together — the takeaway for the team</div>
+      <div class="c-body"><strong>SEO</strong> ranks our links. <strong>GEO</strong> gets us into AI chatbot answers. <strong>AEO</strong> wins the direct-answer &amp; voice box. <strong>AIO</strong> gets us cited in Google's AI Overview at the very top. All four are powered by the same foundations — server-side rendering, clean URLs, rich structured data, fast pages, and genuinely useful factual content — so building them well is mostly <em>one</em> disciplined effort, not four separate projects. Then <strong>CRO</strong> converts everyone those four bring in. Build the foundation once; all five benefit.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 17 AI ─── -->
+<div id="ai" class="section">
+  <div class="sticky"><span>17 — AI &amp; Future Roadmap</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 17</div>
+  <h2 class="section-title">AI Features &amp;<br>Future Roadmap</h2>
+  <p class="section-sub">Build the booking platform first, validate it, then layer in these differentiators. Each is mapped to a phase so the build team knows what's core vs. later.</p>
+
+  <div class="flist">
+    <div class="fitem p2"><div>
+      <div class="fname">AI natural-language search</div>
+      <div class="fdesc">A search bar where a user types plain English — "PG near IIMB with AC, food included, under ₹12,000, girls only." An LLM (OpenAI/Anthropic) parses it into structured filters (location, amenities, budget, gender) and applies them automatically. Huge differentiation; pairs naturally with GEO/AEO content.</div>
+    </div><div class="ftags"><span class="b b-ai">AI · PHASE 2</span></div></div>
+    <div class="fitem p2"><div>
+      <div class="fname">AI PG-finder chat widget</div>
+      <div class="fdesc">A floating assistant trained on Roomadda's live property data: "I'm moving to Bangalore, work at Manyata, budget ₹15K, need food." It returns 3–5 matching PGs with links — replacing the phone-call consultation model and scaling infinitely.</div>
+    </div><div class="ftags"><span class="b b-ai">AI · PHASE 2</span></div></div>
+    <div class="fitem p2"><div>
+      <div class="fname">Personalised homepage</div>
+      <div class="fdesc">For returning logged-in users: "PGs near your saved searches," "Recently viewed," "Price dropped on your wishlist." New visitors see the default homepage. Drives repeat conversion, Airbnb-style.</div>
+    </div><div class="ftags"><span class="b b-ai">PHASE 2</span></div></div>
+    <div class="fitem p2"><div>
+      <div class="fname">Dynamic pricing tips for hosts</div>
+      <div class="fdesc">In the host portal, an AI card suggesting optimal rent from occupancy, area demand (search volume), competitor pricing and season (admission peaks). Host accepts or ignores. Lifts occupancy → lifts our commission.</div>
+    </div><div class="ftags"><span class="b b-ai">PHASE 3</span></div></div>
+    <div class="fitem p2"><div>
+      <div class="fname">Roommate finder</div>
+      <div class="fdesc">Compatibility matching (schedule, cleanliness, habits, occupation) for tenants in the same PG/area. Strong community lock-in. Complex — evaluate after Phase 2 on real demand.</div>
+    </div><div class="ftags"><span class="b b-ai">PHASE 3</span></div></div>
+  </div>
+</div>
+
+<!-- ─── 18 TECH + OPEN ─── -->
+<div id="tech" class="section">
+  <div class="sticky"><span>18 — Tech Stack &amp; Open Items</span><span>Roomadda · Website Blueprint v2.0</span></div><br>
+  <div class="eyebrow">Section 18</div>
+  <h2 class="section-title">Tech Stack &amp;<br>Open Items</h2>
+  <p class="section-sub">Recommended stack for the website, aligned with the app/admin stack so they truly share one backend, plus the non-functional requirements and the decisions still open for your confirmation.</p>
+
+  <div class="tech-grid">
+    <div class="tech-card"><div class="tech-icon">🌐</div><div class="tech-name">Website</div><div class="tech-body"><strong>Next.js</strong> — SSR/SSG for SEO/GEO/AEO/AIO, image optimisation, fast loads. Deployed on Vercel or AWS. Shares a component library &amp; design tokens with the admin panel.</div></div>
+    <div class="tech-card"><div class="tech-icon">🖥️</div><div class="tech-name">Admin panel</div><div class="tech-body"><strong>React + Tailwind</strong>, desktop-optimised, at admin.roomadda.com with 2FA &amp; role-based auth.</div></div>
+    <div class="tech-card"><div class="tech-icon">📱</div><div class="tech-name">Mobile app</div><div class="tech-body"><strong>React Native (Expo)</strong> — one codebase, role-based routing for user/host/agent. Universal links shared with the website.</div></div>
+    <div class="tech-card"><div class="tech-icon">⚙️</div><div class="tech-name">Backend API</div><div class="tech-body"><strong>Node.js + Express</strong> — the single API all four clients call. JWT + refresh, role claims, all business rules server-side.</div></div>
+    <div class="tech-card"><div class="tech-icon">🗄️</div><div class="tech-name">Database</div><div class="tech-body"><strong>PostgreSQL</strong> — the single source of truth for listings, pricing, bookings, payments. AWS RDS / Supabase, daily backups.</div></div>
+    <div class="tech-card"><div class="tech-icon">⚡</div><div class="tech-name">Cache &amp; live</div><div class="tech-body"><strong>Redis</strong> — price-cache invalidation, "viewers now" counters, rolling social-proof aggregates. WebSockets for live updates.</div></div>
+    <div class="tech-card"><div class="tech-icon">💬</div><div class="tech-name">Chat &amp; push</div><div class="tech-body"><strong>Firebase</strong> Firestore (chat) + FCM (web &amp; app push). Chat mirrored to PostgreSQL for admin audit.</div></div>
+    <div class="tech-card"><div class="tech-icon">📁</div><div class="tech-name">Storage &amp; CDN</div><div class="tech-body"><strong>AWS S3 + CloudFront</strong> — photos public, KYC in a private bucket (signed URLs, AES-256). Cloudflare in front for speed.</div></div>
+    <div class="tech-card"><div class="tech-icon">🔌</div><div class="tech-name">External</div><div class="tech-body">Razorpay · Google Maps Platform · MSG91 · WhatsApp BSP · GA4/GTM · Sentry — all per Section 15.</div></div>
+  </div>
+
+  <h3 class="block">Non-functional requirements</h3>
+  <table class="ftable">
+    <thead><tr><th>Area</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td>Performance</td><td>LCP &lt;2.5s · CLS &lt;0.1 · INP &lt;200ms on mobile; listing results &lt;1.5s; autocomplete &lt;300ms.</td></tr>
+      <tr><td>Security</td><td>HTTPS everywhere; KYC AES-256 at rest + 30-min signed URLs; bcrypt (cost ≥12) for admin; OWASP Top 10 closed; parameterised queries only; file-type validation at server.</td></tr>
+      <tr><td>Privacy</td><td>No tenant sees another tenant's data; hosts never see KYC docs; admins can't book; immutable audit log on sensitive actions. Same rules as the app, enforced in the shared backend.</td></tr>
+      <tr><td>Reliability</td><td>Payment via webhooks not redirects; double-booking prevented in DB transactions; graceful degradation of every integration; UptimeRobot alerts.</td></tr>
+      <tr><td>SEO/AI readiness</td><td>SSR, clean URLs, JSON-LD, sitemap, robots (incl. AI crawler policy), canonical tags — built in from day one, not retrofitted.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="c-icon">❓</div>
+    <div>
+      <div class="c-title">Open items — please confirm so the spec is final</div>
+      <div class="c-body">A few choices need your call before the build team locks scope:
+      <br>1. <strong>Launch cities</strong> for the new site (Bangalore only, or Bangalore + Pune from day one?).
+      <br>2. <strong>Commute calculator &amp; "near my saved searches"</strong> — Phase 1 or Phase 2?
+      <br>3. <strong>AI crawler policy</strong> for GEO — do we allow GPTBot / Google-Extended / PerplexityBot to ingest our pages? (Recommended: yes.)
+      <br>4. <strong>Reviews at launch</strong> — show "new, no reviews yet" or hold review display until we have real completed stays?
+      <br>5. <strong>Commission transparency</strong> — do we publish host commission on the "For Hosts" page or keep it in onboarding?
+      <br>6. <strong>Domain</strong> — final site on roomadda.com vs roomadda.co.in (and 301 strategy from the old one).</div>
+    </div>
+  </div>
+
+  <div class="callout ok">
+    <div class="c-icon">✅</div>
+    <div>
+      <div class="c-title">What's already decided (from our kickoff)</div>
+      <div class="c-body">Booking model = <strong>web books fully + pushes the app</strong>; the fifth optimisation term = <strong>CRO/conversion</strong>; trust tags use a <strong>full earned-by-rules system</strong>; design DNA = <strong>Airbnb</strong> with OYO/MakeMyTrip merchandising; web &amp; app share <strong>one backend with live pricing parity</strong>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ PART II BANNER ═══════════ -->
+<div class="part-banner">
+  <div class="pk">Part II — Added in v3.0</div>
+  <h2>Audits, New Features<br>&amp; the Delivery Tracker</h2>
+  <p>Part I (Sections 01–18) is the product specification. Part II is the accountability layer: a fresh audit of the live site, a competitor benchmark, the new "mind" features you asked for, the Roomie AI agent, and a feature-by-feature + animation-by-animation tracker your team ticks off as the agency delivers.</p>
+</div>
+
+<!-- ─── 19 LIVE AUDIT ─── -->
+<div id="audit-live" class="section">
+  <div class="sticky"><span>19 — Live Site Audit</span><span>Roomadda · Website Blueprint v3.0</span></div><br>
+  <div class="eyebrow">Section 19</div>
+  <h2 class="section-title">Live Audit —<br>roomadda.co.in</h2>
+  <p class="section-sub">A fresh inspection of the current live website (reviewed June 2026), so the build team can see exactly what they're replacing and which problems must not survive into the new site. Findings below are observed on the live homepage and structure, not assumptions.</p>
+
+  <div class="callout red">
+    <div class="c-icon">🔍</div>
+    <div>
+      <div class="c-title">Audit summary</div>
+      <div class="c-body">The current site is a good-looking <strong>brochure</strong>, not a platform. It cannot take a booking, has no login/account, no map, and is built on legacy <code>.php</code> pages. Critically, it is shipping with <strong>visibly broken counters</strong> ("0% Verified Listings", "0+ Happy Residents"), <strong>completely empty meta descriptions</strong>, and a <strong>budget filter that maxes out at ₹20,000</strong> — so its own ₹36,000 "Lemon House" listing can't even be filtered to. Every one of these must be fixed in the rebuild.</div>
+    </div>
+  </div>
+
+  <div class="audit-grid">
+    <div class="audit-cell good">
+      <h5>✓ What's working today</h5>
+      <ul>
+        <li>Clean, warm hero with a search form</li>
+        <li>"Browse by" category strip already exists (Girls Only, Luxury, Food Included…)</li>
+        <li>Featured properties with real photos &amp; ratings</li>
+        <li>Strong testimonials (Hindi + English, parents, students, professionals)</li>
+        <li>3-step "journey" explainer &amp; amenities section</li>
+        <li>GTM installed (GTM-NDNS4G24); canonical tag present</li>
+        <li>Floating WhatsApp button + "Call Now" on every page</li>
+        <li>Blog, FAQ, Careers, Contact, T&amp;C, Sitemap pages exist</li>
+        <li>Instagram / Facebook / LinkedIn linked; 4.7★ Google reviews referenced</li>
+        <li>Mobile-responsive</li>
+      </ul>
+    </div>
+    <div class="audit-cell bad">
+      <h5>✗ Confirmed problems (observed live)</h5>
+      <ul>
+        <li>Stat counters render literally as "0%", "0+", "0+", "₹9999" — broken JS, looks unfinished</li>
+        <li>meta-description, meta-keywords, og:description, twitter:description ALL blank</li>
+        <li>Budget filter is fixed buckets capped at ₹15–20K — can't reach ₹28K/₹36K listings</li>
+        <li>Search has only 4 fields — no move-in date, no amenities, no room type</li>
+        <li>Category tabs show no live counts</li>
+        <li>Cards show only photo+name+area+price+rating — no premium pricing, no amenity icons, no availability, no wishlist</li>
+        <li>Hand-typed inconsistent badges ("Best Premium PG", "Best Student Stay") — not a system</li>
+        <li>"Coming soon" placeholder cards shown publicly</li>
+        <li>No booking or payment — model is "Schedule a Visit" + phone/WhatsApp</li>
+        <li>No login / account / wishlist / map / app links</li>
+        <li>Legacy <code>propertylist.php?id=</code> URLs — poor for SEO</li>
+        <li>No structured data, breadcrumbs, or per-page meta</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="block">Issue → impact → where it's fixed in this blueprint</h3>
+  <table class="ftable">
+    <thead><tr><th>Issue (live)</th><th>Business impact</th><th>Fixed in</th></tr></thead>
+    <tbody>
+      <tr><td>Broken "0%/0+" counters</td><td>Looks unfinished to every visitor — kills first-impression trust</td><td>§05 (count-up on scroll)</td></tr>
+      <tr><td>Empty meta descriptions</td><td>Weak Google snippets → ~30% lower click-through</td><td>§16 SEO</td></tr>
+      <tr><td>Budget filter caps at ₹20K</td><td>Premium/luxury demand can't find premium listings — lost high-value bookings</td><td>§07 (₹3K–50K slider)</td></tr>
+      <tr><td>No booking / payment</td><td>Every booking needs a call — massive friction, no conversion tracking</td><td>§11 (web booking + Razorpay)</td></tr>
+      <tr><td>No premium pricing on cards</td><td>₹36K listings under-represented — revenue left on the table</td><td>§06 card anatomy</td></tr>
+      <tr><td>Ad-hoc "Best…" badges</td><td>Inconsistent, unearned — users can't trust them</td><td>§08 trust-tag system</td></tr>
+      <tr><td>No map / no login / no wishlist</td><td>Can't judge location, can't save, can't return — high bounce</td><td>§06, §12</td></tr>
+      <tr><td>Legacy .php URLs, no schema</td><td>Invisible to "PG in Koramangala" searches &amp; AI engines</td><td>§04, §16</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── 20 COVERAGE + COMPETITOR ─── -->
+<div id="audit-cross" class="section">
+  <div class="sticky"><span>20 — Coverage &amp; Competitor Audit</span><span>Roomadda · Website Blueprint v3.0</span></div><br>
+  <div class="eyebrow">Section 20</div>
+  <h2 class="section-title">Coverage &amp;<br>Competitor Audit</h2>
+  <p class="section-sub">Two checks. First: does this website blueprint actually carry every feature the business model needs from the app MVP plan and the earlier redesign doc? Second: how does it stack up against MakeMyStay.AI, Gharpayy, OYO and MakeMyTrip — and what should we borrow.</p>
+
+  <h3 class="block">A · Business-model coverage check (app plan + redesign doc → website)</h3>
+  <p class="body">Every business-critical capability from the shared documents is mapped to a website home below. Nothing essential is missing; a few app-only safety features intentionally stay app-first.</p>
+  <table class="ftable">
+    <thead><tr><th>Business-critical capability</th><th>From</th><th>On the website?</th></tr></thead>
+    <tbody>
+      <tr><td>OTP + Google login, shared account</td><td>App MVP</td><td>Yes — §12 (same backend)</td></tr>
+      <tr><td>Search, filters, map discovery</td><td>App + Redesign</td><td>Yes — §06, §07</td></tr>
+      <tr><td>Token booking + Razorpay</td><td>App MVP</td><td>Yes — §11 (web books fully)</td></tr>
+      <tr><td>KYC upload &amp; gating</td><td>App MVP</td><td>Yes — §11, §12</td></tr>
+      <tr><td>Wishlist (synced)</td><td>App MVP</td><td>Yes — §12 + richer card §21</td></tr>
+      <tr><td>Tenant dashboard, rent, service, meal menu, chat</td><td>App MVP</td><td>Yes — web versions §12</td></tr>
+      <tr><td>Host listing, inventory, bookings, walk-in, revenue</td><td>App MVP</td><td>Yes — §13</td></tr>
+      <tr><td>Admin approvals, KYC, users, payments, analytics, CMS</td><td>App MVP</td><td>Yes — §14</td></tr>
+      <tr><td>Reviews &amp; ratings</td><td>Redesign</td><td>Yes — §10 (post-launch data)</td></tr>
+      <tr><td>WhatsApp / Maps / payments / analytics integrations</td><td>Both</td><td>Yes — §15</td></tr>
+      <tr><td>SEO + city/area/intent landing pages</td><td>Redesign</td><td>Yes — §04, §16</td></tr>
+      <tr><td>Trusted contacts / SOS</td><td>App MVP</td><td>App-first (GPS/SMS) — web shows emergency contact only. Correct call.</td></tr>
+      <tr><td>Agent field app (GPS check-in, inspection)</td><td>App MVP</td><td>App-first; web = admin oversight only. Correct call.</td></tr>
+      <tr><td>Push notifications</td><td>App MVP</td><td>Web push via FCM for opted-in desktop users — §12</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok"><div class="c-icon">✅</div><div><div class="c-title">Verdict</div><div class="c-body">Full business-model coverage. The only capabilities deliberately kept app-first are the ones that genuinely need a phone — SOS (GPS + SMS) and the field-agent flow (on-site GPS check-in, geotagged photos). Everything a tenant or host needs to discover, book, pay and manage is on the web.</div></div></div>
+
+  <h3 class="block">B · Competitor benchmark — what each does, and our move</h3>
+  <p class="body">Grounded in a live review of each platform. "Roomadda" = the target state in this blueprint.</p>
+  <table class="ftable">
+    <thead><tr><th>Capability</th><th>OYO</th><th>MakeMyTrip</th><th>MakeMyStay.AI</th><th>Gharpayy</th><th>Roomadda (target)</th></tr></thead>
+    <tbody>
+      <tr><td>Earned trust badges</td><td>Wizard</td><td>Assured/value+</td><td>Verified</td><td>"Guarantee"</td><td>Full 8-badge system §08</td></tr>
+      <tr><td>Live social proof</td><td>"booked X times"</td><td>"N looking / left"</td><td>Limited</td><td>"Rooms change daily"</td><td>Honest live engine §09</td></tr>
+      <tr><td>Powerful filters + map</td><td>Strong</td><td>Strong</td><td>AI-led</td><td>Weak (area pages only)</td><td>25+ filters + split map §06/07</td></tr>
+      <tr><td>Online booking + pay</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Token via cal.com/WA</td><td>Full web token + rent §11</td></tr>
+      <tr><td>Tiered pricing bands</td><td>Classic/Townhouse</td><td>Star tiers</td><td>—</td><td>Basic/Classics/Prive/Luxe</td><td>Price tiers + Luxury tag §21/08</td></tr>
+      <tr><td>Area landing-page SEO</td><td>Strong</td><td>Strong</td><td>Medium</td><td>Very strong</td><td>City/area/intent pages §04/16</td></tr>
+      <tr><td>AI search / assistant</td><td>Chatbot</td><td>"Myra"</td><td>Core AI</td><td>WhatsApp only</td><td>Roomie agent §22</td></tr>
+      <tr><td>Compare properties</td><td>No</td><td>Yes (hotels)</td><td>No</td><td>No</td><td>Yes — §21 (differentiator)</td></tr>
+      <tr><td>Cost-of-living / area insight</td><td>No</td><td>Destination info</td><td>No</td><td>Landmark vibes</td><td>Yes — §21 (differentiator)</td></tr>
+      <tr><td>Virtual tour</td><td>Photos/3D</td><td>Photos</td><td>Photos</td><td>Video tour</td><td>Gallery + optional tour §21</td></tr>
+      <tr><td>Mobile app</td><td>Yes</td><td>Yes</td><td>—</td><td>Yes (Super PG)</td><td>Yes — synced §02</td></tr>
+    </tbody>
+  </table>
+
+  <div class="split">
+    <div class="split-cell a">
+      <h5>Borrow from Gharpayy</h5>
+      <ul>
+        <li>Branded price tiers (Basic / Classics / Prive / Luxe-style)</li>
+        <li>A "Roomadda Guarantee" block (clean room, working WiFi, fresh mattress, good food, transparent pricing)</li>
+        <li>Per-area landing pages with nearby landmarks &amp; vibe tags</li>
+        <li>"Prebook before landing in Bangalore" offer hook for relocators</li>
+        <li>Virtual room tour for out-of-city users</li>
+      </ul>
+    </div>
+    <div class="split-cell b">
+      <h5>Borrow from OYO / MakeMyTrip / MakeMyStay.AI</h5>
+      <ul>
+        <li>OYO: Wizard tier + "booked X times" proof (we do honestly — §08/09)</li>
+        <li>MakeMyTrip: price histogram on the slider, coupon engine, compare, urgency</li>
+        <li>MakeMyTrip "Myra"-style assistant → our Roomie agent</li>
+        <li>MakeMyStay.AI: AI-first natural-language search &amp; rich PG pages</li>
+        <li>All of them: instant-book confidence &amp; sticky persuasive CTA</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="c-icon">🧭</div>
+    <div>
+      <div class="c-title">Where Roomadda wins</div>
+      <div class="c-body">Gharpayy and the old Roomadda both still funnel users into WhatsApp/phone to actually book. OYO/MMT book online but aren't PG-specialised or zero-brokerage. The winning position: <strong>Airbnb-clean design + real online PG booking + honest trust system + an AI agent that actually finds your PG</strong> — none of the four competitors has all of that at once.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 21 MIND FEATURES ─── -->
+<div id="mind" class="section">
+  <div class="sticky"><span>21 — New "Mind" Features</span><span>Roomadda · Website Blueprint v3.0</span></div><br>
+  <div class="eyebrow">Section 21</div>
+  <h2 class="section-title">New "Mind" Features<br>(Your Additions)</h2>
+  <p class="section-sub">The features you asked to add — compare properties, cost of living, "what's best in this area," price ranges — plus a few on-brand extras drawn from the competitor audit. Every one is specified to add capability <em>without</em> adding clutter.</p>
+
+  <div class="callout purp">
+    <div class="c-icon">🎚️</div>
+    <div>
+      <div class="c-title">The anti-clutter rule — "feature-rich, Airbnb-calm"</div>
+      <div class="c-body">You want OYO/MakeMyTrip feature depth but Airbnb minimalism. The way to have both is <strong>progressive disclosure</strong>: the default view stays clean and shows only what helps the decision; power features live one tap away (a tab, an accordion, a "Compare" tray, an "Area insights" panel). A card never shows everything; the page reveals more only when the user asks. Default = calm. On demand = powerful.</div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">⚖️</div><div><div class="module-title">Compare properties</div><div class="module-sub">MakeMyTrip-style, PG-specific</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">"Add to compare" + side-by-side compare tray</div>
+        <div class="fdesc">A small "⚖ Compare" checkbox appears on each card (and the property page). Selecting 2–4 PGs docks a slim "Compare (3)" tray at the bottom; opening it shows a clean side-by-side table: photo, price (starting + premium), deposit, gender, distance/commute, key amenities, meals, rating, trust badges, availability, and live proof. Differences are subtly highlighted so the choice is obvious. Stays minimal — it's a deliberate mode the user opens, never on by default.</div>
+        <ul class="ac-list"><li>Compare 2–4 listings; tray is dismissible</li><li>Highlights what differs (price, amenities, distance)</li><li>"Book" / "Wishlist" directly from the compare view</li><li>Compare set persists across the session &amp; is shareable via URL</li></ul>
+      </div><div class="ftags"><span class="b b-ai">NEW · DIFFERENTIATOR</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🧮</div><div><div class="module-title">Cost of living in this area</div><div class="module-sub">Answer the question behind the question</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">"Cost of living" panel on property &amp; area pages</div>
+        <div class="fdesc">A collapsible panel estimating a realistic monthly budget for living in that area: PG rent (from real listings), typical food cost (if meals not included), transport to common hubs (cab/metro estimates via Distance Matrix), and a rough "extras" line. Shown as a clean little breakdown with a total range ("≈ ₹16,000–22,000/mo all-in near Koramangala"). Helps relocators &amp; parents budget honestly — a question every PG-seeker has and no competitor answers well.</div>
+        <ul class="ac-list"><li>Rent figures pulled from live Roomadda data for that area</li><li>Transport from Google Distance Matrix; food/extras from configurable area baselines</li><li>Clearly labelled "estimate" — never presented as exact</li></ul>
+      </div><div class="ftags"><span class="b b-ai">NEW · DIFFERENTIATOR</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">📊</div><div><div class="module-title">Area insights &amp; price ranges</div><div class="module-sub">"What's best here" + "what does it cost here"</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">"Price range in this area" intelligence</div>
+        <div class="fdesc">On every area/landing page and in the filter slider: a small histogram + plain-English summary computed from live listings — "PGs in Koramangala range ₹8K–₹36K; most are ₹12K–₹18K; girls PGs average ₹14K." Sets expectations instantly and makes the budget slider smart (it knows where the listings actually are). Mirrors Gharpayy's tier idea but data-driven, not hard-coded.</div>
+        <ul class="ac-list"><li>Min / typical / max bands per area, gender and room type</li><li>Drives the filter histogram and "good value" signals</li><li>Feeds SEO/AEO copy ("How much is a PG in Koramangala?")</li></ul>
+      </div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+      <div class="fitem p0"><div>
+        <div class="fname">"What's best in this area" — Area Guide</div>
+        <div class="fdesc">A tidy area panel: top-rated PGs here, nearest colleges &amp; tech parks with commute times, metro access, safety note, food scene, and a one-line vibe ("student-heavy, lively, great cafes"). Doubles as rich SEO/GEO/AEO content for "best PG in HSR Layout" queries and as raw material the Roomie agent (§22) cites. Curated in the CMS + auto-enriched from Google Places.</div>
+        <ul class="ac-list"><li>Top-rated &amp; best-value picks per area (from badges + ratings)</li><li>Nearby landmarks, commute, safety, lifestyle</li><li>Editable in CMS; powers landing-page SEO</li></ul>
+      </div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">🔖</div><div><div class="module-title">Richer wishlist card &amp; booking actions</div><div class="module-sub">The wishlist becomes a decision tool</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">Enhanced wishlist card</div>
+        <div class="fdesc">Beyond a saved photo: each wishlist card shows live availability, live rent with a "▼ ₹1,000 since you saved" price-drop flag, a "2 rooms left" scarcity chip, the trust badges, a quick "Compare" toggle, "Book now," "Schedule visit," and "Remove." Named collections ("Near my college," "Backup options"). This turns the wishlist from a bookmark list into the place decisions actually happen — and price-drop/availability alerts pull the user back via WhatsApp, push &amp; email.</div>
+        <ul class="ac-list"><li>Live rent &amp; availability, price-drop badge, scarcity chip</li><li>Compare + Book + Schedule-visit straight from the card</li><li>Named collections; alerts on drop / new availability</li></ul>
+      </div><div class="ftags"><span class="b b-ai">ENHANCED</span></div></div>
+      <div class="fitem p1"><div>
+        <div class="fname">"Book" vs "Schedule a visit" — both paths</div>
+        <div class="fdesc">Keep the strength of the current site (free property visit) but add real booking. Each property offers two CTAs: <b>Book now</b> (pay ₹3,000 token — §11) and <b>Schedule a free visit</b> (pick a slot; confirmation via WhatsApp; reminder before). Visit-bookings are tracked in the funnel and can convert to a token booking in one tap afterwards.</div>
+      </div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">✨</div><div><div class="module-title">On-brand extras (from the competitor audit)</div><div class="module-sub">High value, low clutter</div></div></div>
+    <div class="flist">
+      <div class="fitem p1"><div><div class="fname">The Roomadda Guarantee block</div><div class="fdesc">A simple promise strip (clean room on arrival · working WiFi · fresh mattress · home-style food · transparent pricing · help whenever needed). Borrowed from Gharpayy, it builds trust at low design cost. Shown on property pages &amp; the "For tenants" page.</div></div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Price-tier labels (Smart · Comfort · Prime · Luxe)</div><div class="fdesc">Lightweight tier chips derived from the area price bands, so users instantly grok where a PG sits. Ties into the Luxury trust badge (§08) without hard-coding prices.</div></div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">Virtual / video tour</div><div class="fdesc">An optional video or 360° tour on the gallery for out-of-city relocators — the "see it live before you land" hook Gharpayy leans on. Falls back gracefully to photos when absent.</div></div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+      <div class="fitem p1"><div><div class="fname">"Prebook before you land" relocator mode</div><div class="fdesc">A gentle banner for users searching from another city (detected by IP/geo) highlighting remote booking, virtual tours, and WhatsApp support — capturing the high-intent relocator the way Gharpayy does, but with real online booking behind it.</div></div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 22 ROOMIE ─── -->
+<div id="roomie" class="section">
+  <div class="sticky"><span>22 — Roomie AI Agent</span><span>Roomadda · Website Blueprint v3.0</span></div><br>
+  <div class="eyebrow">Section 22</div>
+  <h2 class="section-title">Meet "Roomie" —<br>Your AI PG Finder</h2>
+  <p class="section-sub">You asked for an AI agent widget that suggests PGs — sitting where the WhatsApp button sits today — with a Roomadda-flavoured name. Here it is: <strong>Roomie</strong>, a floating assistant that chats with a visitor, understands what they want in plain language, and surfaces real matching PGs with links — replacing the phone-call consultation model and scaling infinitely.</p>
+
+  <div class="callout info">
+    <div class="c-icon">🏷️</div>
+    <div>
+      <div class="c-title">The name</div>
+      <div class="c-body">Primary recommendation: <strong>Roomie</strong> — friendly, instantly says "roommate / room-finder," and pairs naturally with Roomadda. Alternatives if you prefer: <strong>Adda</strong> ("Ask Adda" — leans on your brand word), <strong>Maddy</strong>, or <strong>RIA — the Roomadda Intelligent Assistant</strong>. Easy to swap; the spec below works for any of them.</div>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-h"><div class="module-icon">💬</div><div><div class="module-title">What Roomie is &amp; how it behaves</div><div class="module-sub">A concierge, not a chatbot maze</div></div></div>
+    <div class="flist">
+      <div class="fitem p0"><div>
+        <div class="fname">Floating launcher (where WhatsApp is now)</div>
+        <div class="fdesc">A small coral pill in the bottom-right — "💬 Ask Roomie" — present on every page, exactly where the current WhatsApp button lives. Tapping it opens a clean chat panel (Airbnb-calm, not a noisy widget). The WhatsApp option stays available as a secondary choice inside the panel, so we add an AI front door without removing the human one.</div>
+      </div><div class="ftags"><span class="b b-ai">NEW · FLAGSHIP</span></div></div>
+      <div class="fitem p0"><div>
+        <div class="fname">Natural-language understanding → real listings</div>
+        <div class="fdesc">A user types like they'd text a friend: "Girls PG near Christ University, food included, under ₹14k, moving July 1." Roomie extracts location, gender, amenities, budget, move-in date, parses it into the same filters as §07, queries the live database, and replies with 3–5 real matching PG cards (photo, price, badges, live proof) plus links that open the property page or deep-link into the app. It can refine ("show cheaper," "only AC," "closer to the metro") in conversation.</div>
+        <ul class="ac-list"><li>Returns only real, in-stock listings — never invented PGs</li><li>Each suggestion links to the live property page / app deep link</li><li>Conversational refinement; remembers context within the chat</li></ul>
+      </div><div class="ftags"><span class="b b-ai">NEW · FLAGSHIP</span></div></div>
+      <div class="fitem p1"><div>
+        <div class="fname">Answers questions + hands off gracefully</div>
+        <div class="fdesc">Roomie also answers the FAQ-style questions (brokerage, deposit, rules, cost of living, "what's best in HSR?") using the area-insight data from §21. If it can't help or the user wants a human, it offers a one-tap handoff to WhatsApp or a callback — and can capture the lead (name + number) into the CRM/admin for follow-up.</div>
+      </div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+      <div class="fitem p1"><div>
+        <div class="fname">Proactive but polite</div>
+        <div class="fdesc">After ~20–30 seconds of browsing, Roomie can gently surface ("Want me to shortlist a few for you?") — once per session, dismissible, never nagging. Respects the calm-by-default principle.</div>
+      </div><div class="ftags"><span class="b b-ai">NEW</span></div></div>
+    </div>
+  </div>
+
+  <h3 class="block">How Roomie is built (for the developers)</h3>
+  <table class="ftable">
+    <thead><tr><th>Piece</th><th>Approach</th></tr></thead>
+    <tbody>
+      <tr><td>LLM</td><td>OpenAI or Anthropic API for understanding + reply generation. Model choice configurable.</td></tr>
+      <tr><td>Grounding (RAG)</td><td>Roomie is grounded on Roomadda's <em>live</em> data — it calls the same listings/search API and the area-insight data, then phrases results. It must <b>only</b> recommend real listings returned by the API (no hallucinated PGs, prices or availability).</td></tr>
+      <tr><td>Intent → filters</td><td>A function-calling layer maps the parsed request to the §07 filter params, runs the search, and returns structured cards the chat renders.</td></tr>
+      <tr><td>Identity &amp; memory</td><td>For logged-in users, Roomie can use wishlist &amp; past searches for better suggestions (§17 personalisation). Guests get a clean session.</td></tr>
+      <tr><td>Lead capture</td><td>If a guest wants follow-up, Roomie collects name + number (consented) into HubSpot/CRM &amp; admin — feeding the call-list workflow.</td></tr>
+      <tr><td>Analytics</td><td>Track <code>roomie_opened</code>, <code>roomie_query</code>, <code>roomie_suggested</code>, <code>roomie_to_property</code>, <code>roomie_to_whatsapp</code> in GA4 to measure assist-to-booking.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rule-box">
+    <h3>Roomie guardrails — non-negotiable</h3>
+    <div class="rule-item"><strong>No hallucinated inventory.</strong> Every PG, price and availability Roomie states must come from a live API response. If nothing matches, it says so and relaxes a filter — it never invents.</div>
+    <div class="rule-item"><strong>Honest about being AI.</strong> Roomie introduces itself as Roomadda's AI assistant and offers a human handoff at any time.</div>
+    <div class="rule-item"><strong>Pricing parity.</strong> Prices Roomie quotes are the same single source as web &amp; app (§02) — never a stale or separate number.</div>
+    <div class="rule-item"><strong>Privacy.</strong> Lead data is captured only with consent; no KYC or payment handled inside the chat.</div>
+    <div class="rule-item"><strong>Cost control.</strong> Rate-limit per session; cache common answers (area facts, FAQs) to keep LLM spend predictable.</div>
+  </div>
+
+  <div class="callout ok"><div class="c-icon">📍</div><div><div class="c-title">Phasing</div><div class="c-body">Ship the website with the "Ask Roomie" launcher present from day one wired to a strong rules-based + FAQ assistant, then enable the full LLM natural-language search in Phase 2 (it shares the §17 AI-search backend). This gets the brand surface live early without blocking launch on the AI build.</div></div></div>
+</div>
+
+<!-- ─── 23 TRACKER ─── -->
+<div id="tracker" class="section">
+  <div class="sticky"><span>23 — Master Feature Tracker</span><span>Roomadda · Website Blueprint v3.0</span></div><br>
+  <div class="eyebrow">Section 23</div>
+  <h2 class="section-title">Master Feature<br>Delivery Tracker</h2>
+  <p class="section-sub">The single checklist to run against the agency's deliverable. Every feature in this blueprint, grouped by area, with where it's specified and its build status. Print this section and tick the ☐ as each item is delivered, tested and signed off.</p>
+
+  <div class="legend">
+    <span><span class="st st-have">HAVE</span> on current site — keep/port</span>
+    <span><span class="st st-part">ENHANCE</span> exists, must upgrade</span>
+    <span><span class="st st-build">BUILD</span> brand-new</span>
+    <span><span class="st st-new">PHASE 2</span> later</span>
+    <span>☐ = tick when delivered &amp; QA-passed</span>
+  </div>
+
+  <h3 class="block">A · Global, design &amp; architecture</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Single shared backend (web/app/admin), no second DB</td><td>02</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Live pricing parity web ⇄ app (one price object)</td><td>02</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Universal/app links + deferred deep links</td><td>02</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Smart app banner + device-aware QR</td><td>02/05</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Airbnb-grade design system &amp; tokens</td><td>03</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ WCAG AA accessibility, ≥44px tap targets</td><td>03</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Mobile-first responsive (360→1440px)</td><td>03</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Full sitemap &amp; clean URL architecture</td><td>04</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ 301 redirects from legacy .php URLs</td><td>04/16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Dark mode</td><td>03</td><td><span class="st st-new">PHASE 2</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">B · Homepage</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Immersive hero (rotating gallery / video)</td><td>05</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Smart search bar (Places autocomplete)</td><td>05</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ "Use my location" GPS search</td><td>05</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Move-in date in search</td><td>05</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Live stats bar (count-up — fix 0%/0+ bug)</td><td>05/19</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Category tabs WITH live counts</td><td>05</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Featured/trending cards w/ badges + live proof</td><td>05</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Homepage coverage map</td><td>05</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ App-download band + QR + app-only perks</td><td>05</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Testimonials (keep)</td><td>05</td><td><span class="st st-have">HAVE</span></td></tr>
+      <tr><td>☐ Live Instagram feed embed</td><td>05</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Homepage FAQ accordion (+FAQ schema)</td><td>05/16</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">C · Search, listing &amp; filters</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Split list + live map view</td><td>06</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Map ⇄ list hover sync + pin clustering</td><td>06</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "Search this area" on map pan</td><td>06</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Rich listing card (photo carousel, badges, premium price, live proof)</td><td>06</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Premium pricing on cards (fix)</td><td>06/19</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Styled photo fallback (no placeholder.png)</td><td>06</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Sticky filter bar + sort + chips + clear-all</td><td>06/07</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Filters write to URL (shareable/SEO)</td><td>07</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Location/proximity filters (radius, near college/office, metro)</td><td>07</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Price slider ₹3K–50K + histogram (fix ₹20K cap)</td><td>07/19</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Room/sharing, deposit, furnishing, bathroom filters</td><td>07</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Gender, tenant-type, move-in-date filters</td><td>07</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Meals + amenities + safety multi-select</td><td>07</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Verified-only, badge, rating, instant-book, offers, new filters</td><td>07</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Commute filter / "near my saved searches"</td><td>07</td><td><span class="st st-new">PHASE 2</span></td></tr>
+      <tr><td>☐ Skeleton loaders &amp; "no results" guidance</td><td>06</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">D · Property detail page</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Airbnb photo grid + full-screen lightbox (WebP)</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Header: name, badges, rating, live-proof row</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Room-type pricing table + premium label</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Sticky booking panel (Book / Wishlist / Share)</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Sticky tab nav (Overview…Nearby)</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Grouped amenities</td><td>10</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Weekly meal menu</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Rules section</td><td>10</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Location map + nearby landmarks + commute</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Reviews &amp; ratings + write-review</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Similar-PG carousel (no dead ends)</td><td>10</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Share (WhatsApp/copy/maps/native)</td><td>10/12</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">E · Trust tags &amp; live social proof</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ RA Verified badge (inspection-driven)</td><td>08</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ RA-Assured, RA Choice, Luxury, Wizard, Trending, Instant-Book badges</td><td>08</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Featured (paid, visually distinct)</td><td>08</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Badge engine (earn rules, cron, expiry, admin override)</td><td>08</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "X viewing now" (Redis live)</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "Booked Y× in 5d / week / month"</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Wishlist-count proof</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "Only N rooms left" scarcity (live inventory)</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "Last booked N ago" recency</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "Price dropped" badge + alerts</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Honesty floors/config (no fake numbers)</td><td>09</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">F · Booking, payment &amp; account</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Full web booking flow + login modal</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ ₹3,000 token via Razorpay (UPI/card/NB/wallet)</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ KYC gate before payment</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Webhook-confirmed status + double-booking lock</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Success page + PDF receipt + app nudge</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Schedule-a-visit path (keep + track)</td><td>21</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ Monthly rent payment on web</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Refund rules engine</td><td>11</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ OTP + Google login, shared account</td><td>12</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Wishlist + named collections + alerts</td><td>12/21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ My Bookings + receipts</td><td>12</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Tenant dashboard (rent/service/menu/chat/docs/leave)</td><td>12</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ KYC upload + profile + notifications centre</td><td>12</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">G · Host portal &amp; admin</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Host dashboard</td><td>13</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ 8-step list-a-property form (draft autosave)</td><td>13</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Manage/edit/pause listings + inventory</td><td>13</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Booking requests, tenant roster, walk-ins</td><td>13</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Meal menu, service queue, revenue view</td><td>13</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Admin overview dashboard (real-time)</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Listing approvals queue (SLA)</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ User/host/agent management + KYC review</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Bookings &amp; payments + refunds</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Revenue analytics + export</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Trust-tag &amp; Featured control</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ CMS + per-page SEO meta editor</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Admin 2FA + immutable audit log + no-booking rule</td><td>14</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">H · New "mind" features &amp; Roomie</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Compare properties (tray + side-by-side)</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Cost-of-living panel</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "Price range in this area" intelligence</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ "What's best in this area" area guide</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Enhanced wishlist card (live rent/scarcity/compare/book)</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Roomadda Guarantee block</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Price-tier labels (Smart/Comfort/Prime/Luxe)</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Virtual/video tour</td><td>21</td><td><span class="st st-new">PHASE 2</span></td></tr>
+      <tr><td>☐ "Prebook before you land" relocator mode</td><td>21</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Roomie launcher (where WhatsApp is)</td><td>22</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Roomie rules/FAQ assistant (launch)</td><td>22</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Roomie LLM natural-language PG search</td><td>22</td><td><span class="st st-new">PHASE 2</span></td></tr>
+      <tr><td>☐ Roomie lead capture → CRM + guardrails</td><td>22</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">I · SEO/AI search, marketing &amp; integrations</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Feature</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ SSR + per-page title/meta (fix empty meta)</td><td>16/19</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ JSON-LD (LodgingBusiness, FAQ, Breadcrumb, AggregateRating)</td><td>16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ City/area/intent/near-landmark landing pages</td><td>04/16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Core Web Vitals (WebP/CDN/lazy)</td><td>16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Sitemap, robots (incl. AI-crawler policy), canonicals, breadcrumbs</td><td>16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ GEO/AEO/AIO content &amp; structured answers</td><td>16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ CRO instrumentation (GA4 funnel) + Clarity</td><td>16</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ WhatsApp Business API</td><td>15</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Google Maps suite (6 APIs)</td><td>15</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Razorpay (+ Route Phase 2)</td><td>15</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ MSG91, Firebase (auth/FCM/links)</td><td>15</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ GA4 / GTM / Search Console</td><td>15</td><td><span class="st st-part">ENHANCE</span></td></tr>
+      <tr><td>☐ S3+CloudFront / Cloudflare / Sentry</td><td>15</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Meta Pixel, SendGrid/Mailchimp, Instagram</td><td>15</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">J · Non-functional / launch gates</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Requirement</th><th>§</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ LCP&lt;2.5s · CLS&lt;0.1 · INP&lt;200ms</td><td>18</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ HTTPS, KYC AES-256, signed URLs, bcrypt, OWASP</td><td>18</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Privacy rules (tenant isolation, host limits, admin no-book)</td><td>18</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ Webhook reliability + graceful integration fallback</td><td>18</td><td><span class="st st-build">BUILD</span></td></tr>
+      <tr><td>☐ 3+ end-to-end test bookings on staging</td><td>18</td><td><span class="st st-build">BUILD</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── 24 ANIMATION INVENTORY ─── -->
+<div id="anim" class="section">
+  <div class="sticky"><span>24 — Animation Inventory</span><span>Roomadda · Website Blueprint v3.0</span></div><br>
+  <div class="eyebrow">Section 24</div>
+  <h2 class="section-title">Animation &amp; Micro-<br>interaction Inventory</h2>
+  <p class="section-sub">Every animation and micro-interaction the website should have, with its trigger and behaviour, so you can verify each is present in the deliverable. The guiding rule (from §03): motion <strong>confirms actions and guides attention</strong> — it is quiet, fast (150–300ms), and never decorative for its own sake. Airbnb-calm, not flashy.</p>
+
+  <div class="callout info">
+    <div class="c-icon">🎬</div>
+    <div>
+      <div class="c-title">Global motion rules</div>
+      <div class="c-body">Durations 150–300ms, easing <code>ease-out</code> / spring for the playful ones; respect <code>prefers-reduced-motion</code> (disable non-essential motion for users who ask); never block interaction behind an animation; 60fps — animate <code>transform</code> &amp; <code>opacity</code>, not layout properties.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="st st-build">CORE</span> ship at launch</span>
+    <span><span class="st st-new">DELIGHT</span> nice-to-have / Phase 2</span>
+    <span>☐ = tick when delivered</span>
+  </div>
+
+  <h3 class="block">Navigation &amp; page-level</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Animation</th><th>Trigger &amp; behaviour</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Scroll progress bar</td><td>Thin coral bar fills across the top as the page scrolls</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Sticky header blur-in</td><td>Header gains a subtle blur/shadow once scrolled past hero</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Section reveal on scroll</td><td>Content fades + rises ~12px as it enters viewport (IntersectionObserver)</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Stat counters count-up</td><td>Numbers animate 0→value on scroll-into-view (replaces broken 0%/0+)</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Smooth anchor scroll</td><td>Tab/TOC clicks smooth-scroll to section</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Page/route transition</td><td>Gentle cross-fade between pages</td><td><span class="st st-new">DELIGHT</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Cards, search &amp; lists</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Animation</th><th>Trigger &amp; behaviour</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Card hover lift</td><td>Card raises with soft shadow; image subtly zooms on hover</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Card photo carousel</td><td>Swipe (mobile) / arrow-slide (desktop) through card photos</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Skeleton shimmer loaders</td><td>Animated placeholders while results/images load — never blank</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Staggered results entrance</td><td>Cards fade-in in quick sequence as results load</td><td><span class="st st-new">DELIGHT</span></td></tr>
+      <tr><td>☐ Card ⇄ map pin sync</td><td>Hover a card → its map pin bounces/enlarges, and vice-versa</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Map pin cluster expand</td><td>Clusters animate apart on zoom-in</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Filter chip add/remove</td><td>Chips pop in / slide out; result count ticks to new value</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Price slider + live histogram</td><td>Histogram bars + count update live as the slider drags</td><td><span class="st st-build">CORE</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Property page &amp; booking</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Animation</th><th>Trigger &amp; behaviour</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Photo lightbox open/close</td><td>Gallery scales up into full-screen with backdrop fade</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Sticky tab underline glide</td><td>Active-tab underline slides as you scroll/click sections</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Sticky booking panel follow</td><td>Panel smoothly stays in view while content scrolls</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Booking sheet slide-up</td><td>Bottom sheet / modal slides up with backdrop dim</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Live "viewing now" pulse</td><td>Soft pulsing dot next to the live count</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Scarcity chip attention</td><td>"Only 2 left" gently pulses amber/red</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Payment success animation</td><td>Checkmark draw-in on the confirmation screen</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Similar-PG carousel scroll</td><td>Momentum/snap scroll through suggestions</td><td><span class="st st-build">CORE</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="block">Micro-interactions &amp; Roomie</h3>
+  <table class="ftable trk">
+    <thead><tr><th>Animation</th><th>Trigger &amp; behaviour</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>☐ Wishlist heart fill</td><td>Heart scales + fills coral with a tiny burst on tap</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Button press feedback</td><td>Subtle scale-down on press, ripple/settle on release</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Toast notifications</td><td>"Link copied!" / "Saved" slide in &amp; auto-dismiss</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Compare tray slide-in</td><td>Bottom tray slides up as items are added; badge count animates</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Accordion expand/collapse</td><td>FAQ / cost-of-living / area panels smoothly open</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Form validation shake/inline</td><td>Invalid field gives a small shake + inline message</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Login modal fade+scale</td><td>Modal fades in &amp; scales from 96%→100% with backdrop</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Roomie launcher attention</td><td>Subtle one-time bob/breathe to invite a first click</td><td><span class="st st-new">DELIGHT</span></td></tr>
+      <tr><td>☐ Roomie open + typing indicator</td><td>Chat panel slides up; animated "Roomie is typing…" dots</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Roomie suggestion cards reveal</td><td>Suggested PG cards fade/slide into the chat one by one</td><td><span class="st st-build">CORE</span></td></tr>
+      <tr><td>☐ Price-drop badge ping</td><td>Brief highlight when a wishlisted price drops</td><td><span class="st st-new">DELIGHT</span></td></tr>
+      <tr><td>☐ App-banner slide-down</td><td>"Open in app" banner eases in on mobile, dismissible</td><td><span class="st st-build">CORE</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout ok">
+    <div class="c-icon">🏁</div>
+    <div>
+      <div class="c-title">How to use Sections 23 &amp; 24 in delivery</div>
+      <div class="c-body">Treat these two tables as the acceptance checklist. For each milestone, the agency demos the items in scope; your team ticks the ☐ only when it's built, on staging, QA-passed and matches the spec section referenced. Anything still open stays unticked — that's your single, honest view of "are all the features and animations actually there."</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .page -->
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-brand">Roomadda</div>
+  <div class="footer-r">
+    Website Master Blueprint · v3.0<br>
+    Prepared June 2026 · Confidential
+  </div>
+</div>
+
+<script>
+window.addEventListener('scroll',function(){
+  var h=document.documentElement,b=document.body;
+  var st=h.scrollTop||b.scrollTop;
+  var sh=(h.scrollHeight||b.scrollHeight)-h.clientHeight;
+  document.getElementById('prog').style.width=(st/sh*100)+'%';
+});
+</script>
+</body>
+</html>
