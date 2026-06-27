@@ -1,5 +1,20 @@
 import { randomInt } from "node:crypto";
+import type { AppAudience } from "@roomadda/shared";
 import { hashOtpCode, safeHashEqual } from "../../lib/tokens.js";
+
+/** Role names as the app gate cares about them (matches Prisma's UserRole). */
+type GateRole = "TENANT" | "HOST" | "AGENT" | "ADMIN";
+
+/**
+ * Whether an app audience may serve a given role. The tenant app serves only
+ * TENANT; the host_agent app serves HOST and AGENT. ADMIN belongs to neither
+ * (admins use the web console). Pure so the per-app gate is unit-tested without
+ * a database — the service resolves the role, this decides allow/deny.
+ */
+export function audienceAllowsRole(audience: AppAudience, role: GateRole): boolean {
+  if (audience === "tenant") return role === "TENANT";
+  return role === "HOST" || role === "AGENT";
+}
 
 /**
  * Pure auth decisions — no I/O — so the security-critical rules are unit-tested

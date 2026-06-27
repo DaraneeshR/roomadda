@@ -57,6 +57,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       phone: body.phone,
       code: body.code,
       ip: request.ip,
+      appAudience: body.appAudience,
     });
     return sendSession(reply, body.client, session);
   });

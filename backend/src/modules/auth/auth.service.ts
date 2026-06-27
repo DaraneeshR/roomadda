@@ -13,7 +13,13 @@ import {
   signAccessToken,
 } from "../../lib/tokens.js";
 import { acquireCooldown, hitFixedWindow } from "../../lib/rate-limit.js";
-import { evaluateRefresh, generateOtpCode, verifyOtpAttempt } from "./auth.logic.js";
+import type { AppAudience } from "@roomadda/shared";
+import {
+  audienceAllowsRole,
+  evaluateRefresh,
+  generateOtpCode,
+  verifyOtpAttempt,
+} from "./auth.logic.js";
 
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const ONE_HOUR_SECONDS = 60 * 60;
@@ -127,10 +133,12 @@ export const authService = {
     phone,
     code,
     ip,
+    appAudience,
   }: {
     phone: string;
     code: string;
     ip?: string;
+    appAudience?: AppAudience;
   }): Promise<IssuedSession> {
     const now = new Date();
     const record = await prisma.otpRequest.findFirst({
@@ -170,6 +178,32 @@ export const authService = {
         metadata: { phoneSuffix: suffix(phone), reason: decision.status },
       });
       throw decision.status === "locked" ? otpLocked() : otpInvalid();
+    }
+
+    // App gate: a number whose role this app doesn't serve is turned away BEFORE
+    // the code is consumed or a session issued — no tokens ever reach the wrong
+    // app, and the user can retry in the correct app with the same code. New
+    // numbers resolve to TENANT (the upsert default below). Server-side mirror of
+    // the client gate (see /CLAUDE.md: default-deny authorization).
+    if (appAudience) {
+      const existing = await prisma.user.findUnique({
+        where: { phone },
+        select: { role: true },
+      });
+      const resolvedRole = existing?.role ?? UserRole.TENANT;
+      if (!audienceAllowsRole(appAudience, resolvedRole)) {
+        await writeAudit({
+          action: "auth.otp.wrong_app",
+          ip,
+          metadata: { phoneSuffix: suffix(phone), audience: appAudience, role: resolvedRole },
+        });
+        throw new AppError({
+          statusCode: 403,
+          code: "WRONG_APP",
+          message: "This number is registered for a different RoomAdda app.",
+          details: { role: resolvedRole },
+        });
+      }
     }
 
     // Success: consume the code, upsert the user, issue a fresh session — atomically.

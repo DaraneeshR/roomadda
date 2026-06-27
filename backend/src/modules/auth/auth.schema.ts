@@ -12,4 +12,10 @@ export {
   uuidParamSchema as userIdParamSchema,
 } from "@roomadda/shared";
 
-export type { ClientType, OtpRequestInput, OtpVerifyInput, RefreshInput } from "@roomadda/shared";
+export type {
+  AppAudience,
+  ClientType,
+  OtpRequestInput,
+  OtpVerifyInput,
+  RefreshInput,
+} from "@roomadda/shared";

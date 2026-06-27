@@ -43,6 +43,15 @@ export const reasonBodySchema = z.object({ reason: z.string().min(1).max(500) })
 export const clientTypeSchema = z.enum(["web", "mobile"]);
 export type ClientType = z.infer<typeof clientTypeSchema>;
 
+/**
+ * Which RoomAdda app a sign-in is coming from. The server uses it to reject a
+ * login whose role the app doesn't serve (tenant app = TENANT; host_agent app =
+ * HOST/AGENT). Optional for backward compatibility; when omitted, no app gate is
+ * applied server-side.
+ */
+export const appAudienceSchema = z.enum(["tenant", "host_agent"]);
+export type AppAudience = z.infer<typeof appAudienceSchema>;
+
 export const otpRequestSchema = z.object({ phone: e164Schema }).strict();
 
 export const otpVerifySchema = z
@@ -50,6 +59,7 @@ export const otpVerifySchema = z
     phone: e164Schema,
     code: z.string().regex(/^\d{6}$/, "code must be 6 digits"),
     client: clientTypeSchema,
+    appAudience: appAudienceSchema.optional(),
   })
   .strict();
 

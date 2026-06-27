@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { evaluateRefresh, verifyOtpAttempt, type OtpRecordView } from "./auth.logic.js";
+import {
+  audienceAllowsRole,
+  evaluateRefresh,
+  verifyOtpAttempt,
+  type OtpRecordView,
+} from "./auth.logic.js";
 
 // Identity hash so we can assert decisions without the real HMAC.
 const identity = (code: string) => code;
@@ -44,6 +49,24 @@ describe("verifyOtpAttempt (attempt lockout)", () => {
       lockNow: true,
       attemptsRemaining: 0,
     });
+  });
+});
+
+describe("audienceAllowsRole (per-app role gate)", () => {
+  it("tenant app serves only TENANT", () => {
+    expect(audienceAllowsRole("tenant", "TENANT")).toBe(true);
+    // Mismatch direction 1: a host/agent signing into the tenant app is rejected.
+    expect(audienceAllowsRole("tenant", "HOST")).toBe(false);
+    expect(audienceAllowsRole("tenant", "AGENT")).toBe(false);
+    expect(audienceAllowsRole("tenant", "ADMIN")).toBe(false);
+  });
+
+  it("host_agent app serves HOST and AGENT, not TENANT/ADMIN", () => {
+    expect(audienceAllowsRole("host_agent", "HOST")).toBe(true);
+    expect(audienceAllowsRole("host_agent", "AGENT")).toBe(true);
+    // Mismatch direction 2: a tenant signing into the host_agent app is rejected.
+    expect(audienceAllowsRole("host_agent", "TENANT")).toBe(false);
+    expect(audienceAllowsRole("host_agent", "ADMIN")).toBe(false);
   });
 });
 
