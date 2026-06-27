@@ -40,6 +40,14 @@ const envSchema = z.object({
   MSG91_OTP_TEMPLATE_ID: z.string().optional(),
   MSG91_SENDER_ID: z.string().optional(),
 
+  // KYC document storage (private S3 bucket, SSE AES-256). Required for the live
+  // S3 storage in prod; optional locally where the dev storage stub is used.
+  // AWS credentials are read from the standard AWS_* env by the SDK directly.
+  KYC_S3_BUCKET: z.string().optional(),
+  AWS_REGION: z.string().optional(),
+  // TTL for the presigned upload URLs handed to the client.
+  KYC_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(3600).default(300),
+
   // OTP policy
   OTP_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),

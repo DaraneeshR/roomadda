@@ -5,6 +5,7 @@ import { AppError } from "../../lib/errors.js";
 import { getAuthUser } from "../../plugins/auth.js";
 import { authService } from "../auth/auth.service.js";
 import { roleChangeBodySchema, userIdParamSchema } from "../auth/auth.schema.js";
+import { updateProfileSchema } from "./users.schema.js";
 import { serializeUserSelf } from "./users.serializer.js";
 
 export const userRoutes: FastifyPluginAsync = async (app) => {
@@ -16,6 +17,16 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       throw new AppError({ statusCode: 401, code: "UNAUTHENTICATED", message: "User not found" });
     }
     return { user: serializeUserSelf(user) };
+  });
+
+  // Update the caller's OWN profile. Self-scoped by construction — it writes to
+  // request.user.id and takes no :id, so a user can never edit another's row.
+  // Identity fields (phone, email, role) are NOT editable here.
+  app.patch("/me", { preHandler: [app.authenticate] }, async (request) => {
+    const auth = getAuthUser(request);
+    const body = updateProfileSchema.parse(request.body);
+    const updated = await prisma.user.update({ where: { id: auth.id }, data: body });
+    return { user: serializeUserSelf(updated) };
   });
 
   // Admin-only: change a user's role. Default-deny via requireRole(ADMIN).

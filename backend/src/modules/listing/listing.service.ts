@@ -206,6 +206,9 @@ export const listingService = {
         ...(filters.maxRentPaise !== undefined ? { lte: filters.maxRentPaise } : {}),
       };
     }
+    // Move-in date -> availability proxy: the matching room must have a free bed.
+    // (No date-aware inventory yet; see the schema note in @roomadda/shared.)
+    if (filters.moveInDate) roomFilter.beds = { some: { status: "AVAILABLE" } };
     if (Object.keys(roomFilter).length > 0) where.rooms = { some: roomFilter };
 
     const rows = await prisma.pgListing.findMany({

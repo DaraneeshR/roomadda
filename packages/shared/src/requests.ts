@@ -6,7 +6,9 @@ import {
   genderPolicySchema,
   kycStatusSchema,
   listingStatusSchema,
+  occupationTypeSchema,
   paymentStatusSchema,
+  userGenderSchema,
   userRoleSchema,
 } from "./contracts.js";
 
@@ -156,6 +158,10 @@ export const listFiltersSchema = z
     sharingType: z.coerce.number().int().min(1).max(20).optional(),
     minRentPaise: z.coerce.number().int().nonnegative().optional(),
     maxRentPaise: z.coerce.number().int().nonnegative().optional(),
+    // Move-in date: restricts to listings that currently have availability (>=1
+    // AVAILABLE bed). True date-aware availability needs move-out scheduling,
+    // which isn't modelled yet — this is the closest serviceable behaviour.
+    moveInDate: z.coerce.date().optional(),
     amenities: z
       .string()
       .optional()
@@ -228,6 +234,62 @@ export const createPaymentSchema = z
     }
   });
 export type CreatePaymentBody = z.infer<typeof createPaymentSchema>;
+
+// ---------------------------------------------------------------------------
+// KYC (just-in-time identity verification). The tenant uploads three documents
+// to a PRIVATE bucket via short-lived presigned URLs, then submits the object
+// keys here — only keys (never files) reach the API/DB. Content type is
+// constrained to images + PDF and validated server-side.
+// ---------------------------------------------------------------------------
+export const kycMimeSchema = z.enum(["image/jpeg", "image/png", "application/pdf"]);
+export type KycMime = z.infer<typeof kycMimeSchema>;
+
+export const kycSlotSchema = z.enum(["aadhaar_front", "aadhaar_back", "supporting"]);
+export type KycSlot = z.infer<typeof kycSlotSchema>;
+
+export const kycSupportingDocTypeSchema = z.enum(["STUDENT_ID", "OFFICE_ID", "OFFER_LETTER"]);
+export type KycSupportingDocType = z.infer<typeof kycSupportingDocTypeSchema>;
+
+/** Request a short-lived presigned PUT URL for one document slot. */
+export const kycUploadUrlSchema = z.object({ slot: kycSlotSchema, contentType: kycMimeSchema }).strict();
+export type KycUploadUrlInput = z.infer<typeof kycUploadUrlSchema>;
+
+/** One uploaded document: the private object key + its declared content type. */
+const kycDocRefShape = { key: z.string().min(1).max(512), contentType: kycMimeSchema };
+
+/** Submit the three uploaded documents for review (Aadhaar front/back + one ID). */
+export const kycSubmitSchema = z
+  .object({
+    aadhaarFront: z.object(kycDocRefShape).strict(),
+    aadhaarBack: z.object(kycDocRefShape).strict(),
+    supporting: z.object({ ...kycDocRefShape, docType: kycSupportingDocTypeSchema }).strict(),
+  })
+  .strict();
+export type KycSubmitInput = z.infer<typeof kycSubmitSchema>;
+
+// ---------------------------------------------------------------------------
+// User profile (self-service). PATCH /v1/me edits ONLY the caller's own row —
+// never an :id. `college`/`company` are nullable so they can be cleared.
+// ---------------------------------------------------------------------------
+export const updateProfileSchema = z
+  .object({
+    fullName: z.string().min(1).max(120).optional(),
+    gender: userGenderSchema.optional(),
+    dateOfBirth: z.coerce.date().optional(),
+    occupationType: occupationTypeSchema.optional(),
+    college: z.string().min(1).max(200).nullable().optional(),
+    company: z.string().min(1).max(200).nullable().optional(),
+  })
+  .strict()
+  .refine((obj) => Object.keys(obj).length > 0, { message: "no fields to update" });
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+// ---------------------------------------------------------------------------
+// Wishlist (per-user saved listings; shared across the app + web account).
+// ---------------------------------------------------------------------------
+export const wishlistParamSchema = z.object({ listingId: z.string().uuid() }).strict();
+export const wishlistQuerySchema = z.object({ cursor: cursorParam, limit: limitSchema }).strict();
+export type WishlistQuery = z.infer<typeof wishlistQuerySchema>;
 
 // ---------------------------------------------------------------------------
 // Advertising (ad slots)

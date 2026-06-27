@@ -76,6 +76,15 @@ export const genderPolicySchema = z.enum(["MALE", "FEMALE", "COED"]);
 export type GenderPolicy = z.infer<typeof genderPolicySchema>;
 export const GENDER_POLICIES = genderPolicySchema.options;
 
+/** A person's gender (distinct from a listing's GenderPolicy). UNDISCLOSED = "prefer not to say". */
+export const userGenderSchema = z.enum(["MALE", "FEMALE", "UNDISCLOSED"]);
+export type UserGender = z.infer<typeof userGenderSchema>;
+export const USER_GENDERS = userGenderSchema.options;
+
+export const occupationTypeSchema = z.enum(["STUDENT", "WORKING_PROFESSIONAL"]);
+export type OccupationType = z.infer<typeof occupationTypeSchema>;
+export const OCCUPATION_TYPES = occupationTypeSchema.options;
+
 // ---------------------------------------------------------------------------
 // Listing DTOs. These mirror the backend listing serializer (see /CLAUDE.md
 // domain rule #4 on masking). The PUBLIC shape NEVER carries actualName,
@@ -191,6 +200,42 @@ export const bookingListResponseSchema = z.object({
 export type BookingListResponse = z.infer<typeof bookingListResponseSchema>;
 
 // ---------------------------------------------------------------------------
+// KYC view DTOs. The mobile app reads its own status to drive the booking gate
+// (NOT_SUBMITTED / PENDING / VERIFIED / REJECTED) — this GET is also how the
+// tenant learns an admin's decision. Documents themselves are never returned.
+// ---------------------------------------------------------------------------
+
+/** Caller-facing status; NOT_SUBMITTED extends the stored statuses for "no record yet". */
+export const kycViewStatusSchema = z.enum(["NOT_SUBMITTED", "PENDING", "VERIFIED", "REJECTED"]);
+export type KycViewStatus = z.infer<typeof kycViewStatusSchema>;
+
+/** GET /v1/kyc/me response. */
+export const kycMeResponseSchema = z.object({
+  status: kycViewStatusSchema,
+  /** Present only when status is REJECTED. */
+  rejectReason: z.string().nullable(),
+  submittedAt: z.string().nullable(),
+  /** When an admin last verified/rejected, if ever. */
+  reviewedAt: z.string().nullable(),
+});
+export type KycMeResponse = z.infer<typeof kycMeResponseSchema>;
+
+/** POST /v1/kyc/upload-url response — a short-lived presigned PUT URL + its key. */
+export const kycUploadUrlResponseSchema = z.object({
+  key: z.string(),
+  uploadUrl: z.string(),
+  expiresInSeconds: z.number().int().positive(),
+});
+export type KycUploadUrlResponse = z.infer<typeof kycUploadUrlResponseSchema>;
+
+/** POST /v1/kyc response — the record is (re)submitted and back in PENDING. */
+export const kycSubmitResponseSchema = z.object({
+  status: z.literal("PENDING"),
+  submittedAt: z.string(),
+});
+export type KycSubmitResponse = z.infer<typeof kycSubmitResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
 export const selfUserSchema = z.object({
@@ -200,6 +245,13 @@ export const selfUserSchema = z.object({
   fullName: z.string(),
   isPhoneVerified: z.boolean(),
   createdAt: z.string(),
+  // Self-managed profile (null until set via PATCH /v1/me). Returned ONLY to the
+  // user themselves — `gender` is NEVER exposed to hosts (see /CLAUDE.md privacy).
+  gender: userGenderSchema.nullable(),
+  dateOfBirth: z.string().nullable(),
+  occupationType: occupationTypeSchema.nullable(),
+  college: z.string().nullable(),
+  company: z.string().nullable(),
 });
 export type SelfUser = z.infer<typeof selfUserSchema>;
 

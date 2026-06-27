@@ -14,5 +14,12 @@ export function serializeUserSelf(user: User): SelfUser {
     fullName: user.fullName,
     isPhoneVerified: user.isPhoneVerified,
     createdAt: user.createdAt.toISOString(),
+    // Self-only profile. `gender` is returned ONLY here (to the user themselves);
+    // no host-facing serializer ever includes it (see /CLAUDE.md privacy rules).
+    gender: user.gender,
+    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString() : null,
+    occupationType: user.occupationType,
+    college: user.college,
+    company: user.company,
   };
 }

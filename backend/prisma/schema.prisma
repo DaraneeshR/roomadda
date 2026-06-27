@@ -55,6 +55,17 @@ enum GenderPolicy {
   COED
 }
 
+enum UserGender {
+  MALE
+  FEMALE
+  UNDISCLOSED
+}
+
+enum OccupationType {
+  STUDENT
+  WORKING_PROFESSIONAL
+}
+
 enum BedStatus {
   AVAILABLE
   HELD
@@ -150,6 +161,14 @@ model User {
   email           String?  @unique
   fullName        String
   isPhoneVerified Boolean  @default(false)
+  // Optional self-managed profile (PATCH /v1/me, self only). `gender` is used
+  // ONLY for discovery filter matching and is NEVER returned to hosts
+  // (see /CLAUDE.md domain rules + privacy rules).
+  gender          UserGender?
+  dateOfBirth     DateTime?
+  occupationType  OccupationType?
+  college         String?
+  company         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -160,6 +179,7 @@ model User {
   cashCollections CashCollection[] @relation("AgentCashCollections")
   grantedTrust    TrustTag[]       @relation("TrustGrantedBy")
   refreshTokens   RefreshToken[]   @relation("UserRefreshTokens")
+  wishlist        Wishlist[]       @relation("UserWishlist")
 
   @@index([role])
   @@map("users")
@@ -170,8 +190,17 @@ model KycRecord {
   userId      String     @unique @db.Uuid
   status      KycStatus  @default(PENDING)
   docType     KycDocType
-  // Reference token to the doc held by the KYC vendor — NEVER the raw number.
-  docRef      String
+  // Legacy single vendor-doc reference (pre-self-serve intake). Nullable now
+  // that the tenant uploads documents and we store per-document S3 keys below.
+  docRef      String?
+  // Private S3 object keys for the uploaded documents (Aadhaar front/back + one
+  // supporting ID). The bucket is PRIVATE + SSE (AES-256); only the key — never
+  // the file or any raw number — is stored. Null until the tenant submits.
+  aadhaarFrontKey   String?
+  aadhaarBackKey    String?
+  supportingDocKey  String?
+  // What the supporting ID is: STUDENT_ID / OFFICE_ID / OFFER_LETTER.
+  supportingDocType String?
   verifiedAt  DateTime?
   rejectedAt  DateTime?
   rejectReason String?
@@ -219,6 +248,7 @@ model PgListing {
   trustTags   TrustTag[]
   adSlots     AdSlot[]
   agentVisits AgentVisit[]
+  wishlists   Wishlist[]
 
   @@index([hostId])
   @@index([status])
@@ -444,6 +474,25 @@ model ListingPhoto {
 
   @@index([listingId])
   @@map("listing_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Wishlist — a tenant's saved listings, shared across the app + web account.
+// ---------------------------------------------------------------------------
+
+model Wishlist {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  listingId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user    User      @relation("UserWishlist", fields: [userId], references: [id], onDelete: Cascade)
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // One row per (user, listing): saving twice is idempotent.
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@map("wishlists")
 }
 
 // ---------------------------------------------------------------------------

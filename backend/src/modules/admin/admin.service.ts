@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAudit } from "../../lib/audit.js";
+import { notifyKycDecision } from "../../lib/notify.js";
 import { AppError } from "../../lib/errors.js";
 import { toPage, type Page } from "../../lib/pagination.js";
 import { invalidateFeaturedCache } from "../ad/ad.service.js";
@@ -59,6 +60,7 @@ export const adminService = {
       ip,
       metadata: { userId: kyc.userId, before: { status: kyc.status }, after: { status: "VERIFIED" } },
     });
+    await notifyKycDecision({ userId: kyc.userId, status: "VERIFIED" });
     return { id: updated.id, status: updated.status };
   },
 
@@ -76,6 +78,7 @@ export const adminService = {
       ip,
       metadata: { userId: kyc.userId, before: { status: kyc.status }, after: { status: "REJECTED" }, reason },
     });
+    await notifyKycDecision({ userId: kyc.userId, status: "REJECTED", reason });
     return { id: updated.id, status: updated.status };
   },
 

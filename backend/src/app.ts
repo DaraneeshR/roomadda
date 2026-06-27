@@ -10,6 +10,8 @@ import { authRoutes } from "./modules/auth/auth.route.js";
 import { userRoutes } from "./modules/users/users.route.js";
 import { listingRoutes } from "./modules/listing/listing.route.js";
 import { bookingRoutes } from "./modules/booking/booking.route.js";
+import { kycRoutes } from "./modules/kyc/kyc.route.js";
+import { wishlistRoutes } from "./modules/wishlist/wishlist.route.js";
 import { webhookRoutes } from "./modules/booking/webhook.route.js";
 import { cashRoutes } from "./modules/booking/cash.route.js";
 import { adRoutes } from "./modules/ad/ad.route.js";
@@ -56,6 +58,8 @@ export async function buildApp() {
       await v1.register(userRoutes);
       await v1.register(listingRoutes);
       await v1.register(bookingRoutes);
+      await v1.register(kycRoutes);
+      await v1.register(wishlistRoutes);
       await v1.register(cashRoutes);
       await v1.register(adRoutes);
       await v1.register(adminRoutes);
