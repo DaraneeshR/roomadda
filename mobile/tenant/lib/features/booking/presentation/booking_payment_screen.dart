@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import 'package:roomadda_core/roomadda_core.dart';
 import '../application/booking_poller.dart';
 import '../data/booking_repository.dart';
 import '../domain/booking.dart';
+import '../../kyc/application/kyc_controller.dart';
+import '../../kyc/domain/kyc.dart';
 
 /// Local UI stage for the synchronous part of the flow (hold + open Razorpay).
 /// Once payment is SUBMITTED, confirmation is owned by [bookingPollerProvider] —
@@ -118,11 +121,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
 
   Widget _buildBody() {
     return switch (_stage) {
-      _Stage.idle => _ActionView(
-          message: 'Pay the token online to secure this bed.',
-          buttonLabel: 'Pay token online',
-          onPressed: _start,
-        ),
+      // Payment is blocked server-side until KYC is VERIFIED; gate it here so the
+      // user completes KYC instead of hitting a 403 at pay time.
+      _Stage.idle => _KycGate(onProceed: _start),
       _Stage.preparing => const _BusyView(message: 'Setting up your payment…'),
       _Stage.paying => const _BusyView(message: 'Waiting for the payment to complete…'),
       _Stage.paymentFailed => _ActionView(
@@ -276,6 +277,52 @@ class _ActionView extends StatelessWidget {
           FilledButton(onPressed: onPressed, child: Text(buttonLabel!)),
         ],
       ],
+    );
+  }
+}
+
+/// Pre-payment KYC gate. The server blocks payment until KYC is VERIFIED; this
+/// reads the caller's status and routes them to complete KYC (or wait for review)
+/// rather than letting them hit a 403 at pay time. It never decides verification.
+class _KycGate extends ConsumerWidget {
+  const _KycGate({required this.onProceed});
+
+  final VoidCallback onProceed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(kycStatusProvider);
+    return status.when(
+      loading: () => const _BusyView(message: 'Checking your KYC status…'),
+      error: (e, _) => _ActionView(
+        icon: Icons.error_outline,
+        iconColor: Colors.red,
+        message: apiExceptionFrom(e).message,
+        buttonLabel: 'Retry',
+        onPressed: () => ref.invalidate(kycStatusProvider),
+      ),
+      data: (kyc) {
+        if (kyc.isVerified) {
+          return _ActionView(
+            message: 'Pay the token online to secure this bed.',
+            buttonLabel: 'Pay token online',
+            onPressed: onProceed,
+          );
+        }
+        final pending = kyc.status == KycStatus.pending;
+        return _ActionView(
+          icon: Icons.verified_user_outlined,
+          iconColor: Colors.orange,
+          message: pending
+              ? 'Your KYC is under review. Payment unlocks once it is verified.'
+              : 'KYC verification is required before you can pay the token.',
+          buttonLabel: pending ? 'Refresh status' : 'Complete KYC',
+          onPressed: () async {
+            if (!pending) await context.push('/tenant/kyc');
+            ref.invalidate(kycStatusProvider);
+          },
+        );
+      },
     );
   }
 }

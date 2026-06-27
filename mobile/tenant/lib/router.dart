@@ -4,6 +4,7 @@ import 'package:roomadda_core/roomadda_core.dart';
 
 import 'features/booking/presentation/booking_payment_screen.dart';
 import 'features/booking/presentation/my_bookings_screen.dart';
+import 'features/kyc/presentation/kyc_screen.dart';
 import 'features/tenant/presentation/tenant_shell.dart';
 
 /// Tenant router. Serves only the TENANT role; the shared gate sends any other
@@ -22,6 +23,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'bookings',
             builder: (_, __) => const MyBookingsScreen(),
+          ),
+          GoRoute(
+            path: 'kyc',
+            builder: (_, __) => const KycScreen(),
           ),
           GoRoute(
             path: 'booking/:bedId/pay',

@@ -26,6 +26,9 @@ dependencies:
   # Payments (online token leg only; the server webhook confirms) — tenant-only
   razorpay_flutter: ^1.4.0
 
+  # KYC document capture (camera/gallery) with on-capture compression.
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

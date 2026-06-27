@@ -50,6 +50,12 @@ class _TenantShellState extends ConsumerState<TenantShell> {
               },
               child: const Text('Proceed to token payment'),
             ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/tenant/kyc'),
+              icon: const Icon(Icons.verified_user_outlined),
+              label: const Text('Verify your identity (KYC)'),
+            ),
           ],
         ),
       ),
