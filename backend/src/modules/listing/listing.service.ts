@@ -1,4 +1,4 @@
-import { Prisma, type Bed, type ListingPhoto, type Room } from "@prisma/client";
+import { Prisma, type Bed, type KycStatus, type ListingPhoto, type Room } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { assertPaise } from "../../lib/money.js";
 import { AppError } from "../../lib/errors.js";
@@ -27,6 +27,65 @@ export interface NearbyItem {
 
 const notFound = (): AppError =>
   new AppError({ statusCode: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" });
+
+/** Minimum photos a listing needs before it can go live (PRD §9.2). */
+export const MIN_PUBLISH_PHOTOS = 5;
+
+/** Which §9.2 go-live conditions failed; machine-readable for the client. */
+export type PublishGateFailure = "photos" | "kyc" | "rooms";
+
+/** Snapshot of a passing gate evaluation, recorded in the publish audit entry. */
+export interface PublishGateSnapshot {
+  status: ListingWithRelations["status"];
+  photoCount: number;
+  /** Always VERIFIED on a passing gate (the gate throws otherwise). */
+  kycStatus: KycStatus;
+  hasPricedRoom: boolean;
+}
+
+/**
+ * Enforce the PRD §9.2 go-live gate: a listing may transition to PUBLISHED ONLY
+ * if it has at least {@link MIN_PUBLISH_PHOTOS} photos, the host's KYC is
+ * VERIFIED, and at least one room has a rent > 0 paise. All three are evaluated
+ * in ONE query set; on failure it throws a typed 422 carrying
+ * `{ failed: [...] }` so the caller knows exactly which conditions to fix.
+ * Returns the passing snapshot (for the audit trail) when the listing is
+ * eligible. This is the single guard every publish path MUST call.
+ */
+export async function assertListingPublishable(listingId: string): Promise<PublishGateSnapshot> {
+  const listing = await prisma.pgListing.findUnique({
+    where: { id: listingId },
+    select: {
+      status: true,
+      host: { select: { kyc: { select: { status: true } } } },
+      _count: { select: { photos: true } },
+      // One priced room is enough to satisfy the condition — take(1) keeps it cheap.
+      rooms: { where: { monthlyRentPaise: { gt: 0 } }, select: { id: true }, take: 1 },
+    },
+  });
+  if (!listing) throw notFound();
+
+  const photoCount = listing._count.photos;
+  const kycStatus = listing.host.kyc?.status ?? null;
+  const hasPricedRoom = listing.rooms.length > 0;
+
+  const failed: PublishGateFailure[] = [];
+  if (photoCount < MIN_PUBLISH_PHOTOS) failed.push("photos");
+  if (kycStatus !== "VERIFIED") failed.push("kyc");
+  if (!hasPricedRoom) failed.push("rooms");
+
+  if (failed.length > 0) {
+    throw new AppError({
+      statusCode: 422,
+      code: "LISTING_NOT_PUBLISHABLE",
+      message: "Listing does not meet the go-live requirements",
+      details: { failed },
+    });
+  }
+
+  // failed is empty, so kycStatus is necessarily VERIFIED here.
+  return { status: listing.status, photoCount, kycStatus: "VERIFIED", hasPricedRoom };
+}
 
 // --- nearby cursor (keyset on distance,id) ---------------------------------
 function encodeNearbyCursor(distanceM: number, id: string): string {
@@ -73,6 +132,11 @@ export const listingService = {
   },
 
   async updateListing(id: string, input: UpdateListingInput): Promise<ListingWithRelations> {
+    // The §9.2 go-live gate applies to EVERY path that can publish a listing —
+    // a status edit to PUBLISHED here is gated exactly like admin publish.
+    if (input.status === "PUBLISHED") {
+      await assertListingPublishable(id);
+    }
     return prisma.pgListing.update({ where: { id }, data: input, include: listingInclude });
   },
 

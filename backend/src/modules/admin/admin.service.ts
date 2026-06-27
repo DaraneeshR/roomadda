@@ -4,6 +4,7 @@ import { writeAudit } from "../../lib/audit.js";
 import { AppError } from "../../lib/errors.js";
 import { toPage, type Page } from "../../lib/pagination.js";
 import { invalidateFeaturedCache } from "../ad/ad.service.js";
+import { assertListingPublishable } from "../listing/listing.service.js";
 import type {
   bookingSearchSchema,
   cashQuerySchema,
@@ -95,15 +96,21 @@ export const adminService = {
   },
 
   async publishListing(actor: Actor, id: string, ip?: string): Promise<{ id: string; status: string }> {
-    const listing = await prisma.pgListing.findUnique({ where: { id }, select: { id: true, status: true } });
-    if (!listing) throw listingNotFound();
+    // PRD §9.2 go-live gate: throws a typed 422 (with { failed: [...] }) unless
+    // photos >= 5, the host's KYC is VERIFIED, and a priced room exists. A
+    // missing listing surfaces as 404 from here. `gate` is the passing snapshot.
+    const gate = await assertListingPublishable(id);
     const updated = await prisma.pgListing.update({ where: { id }, data: { status: "PUBLISHED" } });
     await writeAudit({
       actorId: actor.id,
       action: "listing.published",
       targetId: id,
       ip,
-      metadata: { before: { status: listing.status }, after: { status: "PUBLISHED" } },
+      metadata: {
+        before: { status: gate.status },
+        after: { status: "PUBLISHED" },
+        gate: { photos: gate.photoCount, kyc: gate.kycStatus, hasPricedRoom: gate.hasPricedRoom },
+      },
     });
     await invalidateFeaturedCache();
     return { id: updated.id, status: updated.status };
