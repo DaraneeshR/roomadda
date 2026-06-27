@@ -13,7 +13,8 @@
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
     "db:sql": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/01_postgis.sql && prisma db execute --schema prisma/schema.prisma --file prisma/sql/02_booking_guard.sql",
     "db:setup": "prisma migrate deploy && pnpm db:sql && prisma generate",
     "clean": "rimraf dist .turbo *.tsbuildinfo"
