@@ -35,6 +35,8 @@ export const LISTING_STATUSES = listingStatusSchema.options;
 
 export const bookingStatusSchema = z.enum([
   "INITIATED",
+  // Request-to-Book: held, awaiting host acceptance before payment unlocks.
+  "PENDING_APPROVAL",
   "TOKEN_PENDING",
   "CONFIRMED",
   "CANCELLED",
@@ -121,6 +123,8 @@ const commonListingSchema = z.object({
   status: listingStatusSchema,
   amenities: z.array(z.string()),
   priceFromPaise: z.number().nullable(),
+  /** Instant Book confirms on payment; otherwise booking waits for host accept. */
+  instantBook: z.boolean(),
   photos: z.array(publicListingPhotoSchema),
   rooms: z.array(publicRoomSchema),
   createdAt: z.string(),
@@ -181,6 +185,10 @@ export const bookingDetailSchema = z.object({
   /** Set only when the booking has been CONFIRMED by settlement. */
   confirmedAt: z.string().nullable(),
   createdAt: z.string(),
+  /** Tenant's chosen meal plan label, if any. */
+  mealPlan: z.string().nullable(),
+  /** Host's name — revealed ONLY once the booking is CONFIRMED (else null). */
+  hostName: z.string().nullable(),
   /** Masked until CONFIRMED, then the unmasked private listing. */
   listing: z.union([publicListingSchema, privateListingSchema]),
   /** Null until a payment has been initiated for the booking. */

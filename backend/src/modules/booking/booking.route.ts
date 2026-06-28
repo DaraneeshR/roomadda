@@ -4,8 +4,10 @@ import { getAuthUser } from "../../plugins/auth.js";
 import { bookingService } from "./booking.service.js";
 import { paymentService } from "./payment.service.js";
 import { toBookingDetail } from "./booking.serializer.js";
+import { buildReceiptPdf } from "./receipt.service.js";
 import {
   bookingIdParamSchema,
+  cancelBookingSchema,
   createBookingSchema,
   createPaymentSchema,
   listBookingsQuerySchema,
@@ -55,18 +57,59 @@ export const bookingRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // Place a hold — TENANT with VERIFIED KYC only (just-in-time KYC gate).
+  // Place a hold — TENANT with VERIFIED KYC only (just-in-time KYC gate). Accepts
+  // a roomId (server picks a bed) or a bedId. Instant Book -> TOKEN_PENDING;
+  // Request-to-Book -> PENDING_APPROVAL (payment blocked until the host accepts).
   app.post(
     "/bookings",
     { preHandler: [app.authenticate, app.requireRole("TENANT"), app.requireKyc] },
     async (request, reply) => {
       const user = getAuthUser(request);
       const body = createBookingSchema.parse(request.body);
-      const booking = await bookingService.createBookingHold(user.id, {
-        bedId: body.bedId,
-        moveInDate: body.moveInDate,
-      });
+      const booking = await bookingService.createBookingHold(user.id, body);
       return reply.status(201).send({ booking: serializeBooking(booking) });
+    },
+  );
+
+  // Host (or admin) accepts a Request-to-Book hold, unlocking payment. NEVER
+  // confirms — confirmation still comes only from the verified webhook.
+  app.post(
+    "/bookings/:id/accept",
+    { preHandler: [app.authenticate, app.requireRole("HOST", "ADMIN")] },
+    async (request, reply) => {
+      const user = getAuthUser(request);
+      const { id } = bookingIdParamSchema.parse(request.params);
+      const booking = await bookingService.acceptBooking(user, id);
+      return reply.send({ booking: serializeBooking(booking) });
+    },
+  );
+
+  // Cancel a booking — TENANT (own). The refund is applied per policy server-side.
+  app.post(
+    "/bookings/:id/cancel",
+    { preHandler: [app.authenticate, app.requireRole("TENANT")] },
+    async (request, reply) => {
+      const user = getAuthUser(request);
+      const { id } = bookingIdParamSchema.parse(request.params);
+      const { reason } = cancelBookingSchema.parse(request.body ?? {});
+      const result = await bookingService.cancelBooking(user.id, id, reason);
+      return reply.send(result);
+    },
+  );
+
+  // Downloadable PDF receipt — TENANT (own), available once CONFIRMED.
+  app.get(
+    "/bookings/:id/receipt",
+    { preHandler: [app.authenticate, app.requireRole("TENANT")] },
+    async (request, reply) => {
+      const user = getAuthUser(request);
+      const { id } = bookingIdParamSchema.parse(request.params);
+      const data = await bookingService.getReceiptData(id, user.id);
+      const pdf = await buildReceiptPdf(data);
+      return reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Disposition", `attachment; filename="roomadda-receipt-${id}.pdf"`)
+        .send(Buffer.from(pdf));
     },
   );
 

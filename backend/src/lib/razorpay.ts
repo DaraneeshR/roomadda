@@ -16,6 +16,8 @@ export interface RazorpayOrder {
 
 export interface RazorpayClient {
   createOrder(amountPaise: number, receipt: string): Promise<RazorpayOrder>;
+  /** Refund a captured payment (full or partial). Best-effort; callers log failures. */
+  refund(razorpayPaymentId: string, amountPaise: number): Promise<{ id: string }>;
 }
 
 class LiveRazorpay implements RazorpayClient {
@@ -37,6 +39,21 @@ class LiveRazorpay implements RazorpayClient {
     const data = (await res.json()) as { id: string; amount: number; currency: string };
     return { id: data.id, amount: data.amount, currency: data.currency };
   }
+
+  async refund(razorpayPaymentId: string, amountPaise: number): Promise<{ id: string }> {
+    const auth = Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString("base64");
+    const res = await fetch(`https://api.razorpay.com/v1/payments/${razorpayPaymentId}/refund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Basic ${auth}` },
+      body: JSON.stringify({ amount: amountPaise }),
+    });
+    if (!res.ok) {
+      logger.error({ status: res.status }, "razorpay refund failed");
+      throw new AppError({ statusCode: 502, code: "REFUND_GATEWAY_ERROR", message: "Could not issue refund" });
+    }
+    const data = (await res.json()) as { id: string };
+    return { id: data.id };
+  }
 }
 
 class StubRazorpay implements RazorpayClient {
@@ -46,6 +63,10 @@ class StubRazorpay implements RazorpayClient {
       amount: amountPaise,
       currency: "INR",
     });
+  }
+
+  refund(): Promise<{ id: string }> {
+    return Promise.resolve({ id: `rfnd_stub_${randomUUID().replace(/-/g, "")}` });
   }
 }
 

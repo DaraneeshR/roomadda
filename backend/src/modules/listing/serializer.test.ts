@@ -27,6 +27,7 @@ function makeListing(overrides: Partial<ListingWithRelations> = {}): ListingWith
     longitude: EXACT_LNG,
     status: "PUBLISHED",
     gender: "COED",
+    instantBook: true,
     createdAt: now,
     updatedAt: now,
     photos: [],

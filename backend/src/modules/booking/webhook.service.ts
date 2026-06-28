@@ -5,6 +5,7 @@ import { verifyRazorpaySignature } from "../../lib/razorpay.js";
 import { writeAudit } from "../../lib/audit.js";
 import { AppError } from "../../lib/errors.js";
 import { settleBookingTx } from "./settlement.js";
+import { notifyBookingConfirmed } from "../../lib/notifications.js";
 import { markAdPaidByOrder } from "../ad/ad.payment.js";
 
 export interface WebhookResult {
@@ -71,6 +72,11 @@ export const webhookService = {
           targetId: processed.targetId,
           metadata: { ...processed.meta, eventId },
         });
+        // Notify ONLY when this capture actually flipped the booking to CONFIRMED
+        // (idempotent: a replay/no-op won't re-notify). Best-effort, post-commit.
+        if (processed.kind === "booking" && processed.meta.confirmed === true) {
+          await notifyBookingConfirmed(processed.targetId);
+        }
         return { status: "processed" };
       }
       return { status: "ignored" };
@@ -128,8 +134,8 @@ async function handlePaymentCaptured(
           webhookEventId: webhookEvent?.id ?? null,
         },
       });
-      await settleBookingTx(tx, payment.bookingId);
-      return { kind: "booking", targetId: payment.bookingId, meta: { paymentId: payment.id } };
+      const settled = await settleBookingTx(tx, payment.bookingId);
+      return { kind: "booking", targetId: payment.bookingId, meta: { paymentId: payment.id, confirmed: settled.confirmed } };
     }
 
     // Otherwise an ad-slot payment?

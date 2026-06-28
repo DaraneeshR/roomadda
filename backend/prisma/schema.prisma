@@ -75,6 +75,8 @@ enum BedStatus {
 
 enum BookingStatus {
   INITIATED
+  // Request-to-Book: held, awaiting host acceptance before payment unlocks.
+  PENDING_APPROVAL
   TOKEN_PENDING
   CONFIRMED
   CANCELLED
@@ -238,6 +240,9 @@ model PgListing {
   // relational and portable.
   status      ListingStatus @default(DRAFT)
   gender      GenderPolicy  @default(COED)
+  // Instant Book confirms on payment; otherwise a booking waits for host accept
+  // (Request-to-Book) before the payment link activates.
+  instantBook Boolean       @default(true)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -306,6 +311,8 @@ model Booking {
   monthlyRentPaise Int
   depositPaise     Int
   moveInDate      DateTime?
+  // Tenant's chosen meal plan label (free text; meals module is post-MVP).
+  mealPlan        String?
   confirmedAt     DateTime?
   cancelledAt     DateTime?
   // Hold expiry: TOKEN_PENDING beyond this is swept to EXPIRED by the job.

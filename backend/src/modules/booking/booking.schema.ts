@@ -6,9 +6,15 @@
 export {
   listBookingsQuerySchema,
   createBookingSchema,
+  cancelBookingSchema,
   createPaymentSchema,
   uuidParamSchema as bookingIdParamSchema,
   uuidParamSchema as cashCollectionParamSchema,
 } from "@roomadda/shared";
 
-export type { ListBookingsQuery, CreateBookingInput, CreatePaymentBody } from "@roomadda/shared";
+export type {
+  ListBookingsQuery,
+  CreateBookingInput,
+  CancelBookingInput,
+  CreatePaymentBody,
+} from "@roomadda/shared";

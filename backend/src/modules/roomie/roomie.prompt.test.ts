@@ -21,6 +21,7 @@ function publicListing(overrides: Partial<PublicListing> = {}): PublicListing {
     status: "PUBLISHED",
     amenities: ["WiFi", "Laundry"],
     priceFromPaise: 1_200_000,
+    instantBook: true,
     photos: [],
     rooms: [],
     createdAt: "2026-01-01T00:00:00.000Z",

@@ -15,7 +15,7 @@ import { listingInclude, toPrivateListing, toPublicListing } from "../listing/se
 export const bookingDetailInclude = {
   payment: { include: { transactions: true } },
   cashCollections: true,
-  listing: { include: listingInclude },
+  listing: { include: { ...listingInclude, host: { select: { id: true, fullName: true } } } },
 } satisfies Prisma.BookingInclude;
 
 export type BookingWithRelations = Prisma.BookingGetPayload<{ include: typeof bookingDetailInclude }>;
@@ -40,10 +40,10 @@ function toPaymentSummary(
 }
 
 export function toBookingDetail(booking: BookingWithRelations): BookingDetail {
-  // Masking: the tenant sees the unmasked listing ONLY once the booking is
-  // CONFIRMED; otherwise the public/masked shape.
-  const listing =
-    booking.status === "CONFIRMED" ? toPrivateListing(booking.listing) : toPublicListing(booking.listing);
+  // Masking: the tenant sees the unmasked listing AND the host's name ONLY once
+  // the booking is CONFIRMED; otherwise the public/masked shape and no host name.
+  const confirmed = booking.status === "CONFIRMED";
+  const listing = confirmed ? toPrivateListing(booking.listing) : toPublicListing(booking.listing);
 
   return {
     id: booking.id,
@@ -57,6 +57,8 @@ export function toBookingDetail(booking: BookingWithRelations): BookingDetail {
     holdExpiresAt: booking.holdExpiresAt?.toISOString() ?? null,
     confirmedAt: booking.confirmedAt?.toISOString() ?? null,
     createdAt: booking.createdAt.toISOString(),
+    mealPlan: booking.mealPlan ?? null,
+    hostName: confirmed ? booking.listing.host.fullName : null,
     listing,
     payment: toPaymentSummary(booking.payment, booking.cashCollections),
   };

@@ -27,10 +27,12 @@ function makeListing(): BookingWithRelations["listing"] {
     longitude: 77.6245,
     status: "PUBLISHED",
     gender: "COED",
+    instantBook: true,
     createdAt: NOW,
     updatedAt: NOW,
     photos: [],
     rooms: [],
+    host: { id: HOST_ID, fullName: "Mr. Rao" },
   };
 }
 
@@ -45,6 +47,7 @@ function makeBooking(overrides: Partial<BookingWithRelations> = {}): BookingWith
     monthlyRentPaise: 1_000_000,
     depositPaise: 500_000,
     moveInDate: null,
+    mealPlan: null,
     confirmedAt: null,
     cancelledAt: null,
     holdExpiresAt: new Date(NOW.getTime() + 15 * 60 * 1000),

@@ -52,6 +52,7 @@ interface CommonListing {
   status: ListingWithRelations["status"];
   amenities: string[];
   priceFromPaise: number | null;
+  instantBook: boolean;
   photos: PhotoView[];
   rooms: RoomView[];
   createdAt: string;
@@ -97,6 +98,7 @@ function commonFields(listing: ListingWithRelations): CommonListing {
     status: listing.status,
     amenities: listing.amenities,
     priceFromPaise: rents.length > 0 ? Math.min(...rents) : null,
+    instantBook: listing.instantBook,
     photos: listing.photos.map(toPhoto),
     rooms: listing.rooms.map(toRoom),
     createdAt: listing.createdAt.toISOString(),

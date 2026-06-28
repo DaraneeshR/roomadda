@@ -204,11 +204,22 @@ export type ListBookingsQuery = z.infer<typeof listBookingsQuerySchema>;
 
 export const createBookingSchema = z
   .object({
-    bedId: z.string().uuid(),
+    // Exactly one of bedId (direct) or roomId (server picks an available bed —
+    // discovery is masked and never exposes bed ids).
+    bedId: z.string().uuid().optional(),
+    roomId: z.string().uuid().optional(),
     moveInDate: z.coerce.date().optional(),
+    mealPlan: z.string().min(1).max(120).optional(),
   })
-  .strict();
+  .strict()
+  .refine((b) => Boolean(b.bedId) !== Boolean(b.roomId), {
+    message: "exactly one of bedId or roomId is required",
+  });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+
+/** Cancel a booking (refund is applied per policy, server-side). */
+export const cancelBookingSchema = z.object({ reason: z.string().min(1).max(500).optional() }).strict();
+export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
 
 export const createPaymentSchema = z
   .object({
