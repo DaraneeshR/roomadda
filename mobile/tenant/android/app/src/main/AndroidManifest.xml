@@ -25,6 +25,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Google Maps (discovery map view). Replace the placeholder with a real
+             "Maps SDK for Android" key (or wire ${MAPS_API_KEY} via build.gradle /
+             CI). Map tiles won't render until a valid key is set; the rest of the
+             app is unaffected. iOS needs GMSServices.provideAPIKey in AppDelegate. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="REPLACE_WITH_GOOGLE_MAPS_API_KEY" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

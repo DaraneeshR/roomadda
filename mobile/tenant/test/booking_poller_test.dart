@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roomadda_core/roomadda_core.dart';
 import 'package:roomadda_tenant/features/booking/application/booking_poller.dart';
@@ -36,11 +38,21 @@ class _ScriptedRepo implements BookingRepository {
   Future<Booking> createHold(String bedId) => throw UnimplementedError();
 
   @override
+  Future<Booking> createHoldForRoom(String roomId, {DateTime? moveInDate, String? mealPlan}) =>
+      throw UnimplementedError();
+
+  @override
   Future<RazorpayOrder> createOnlinePayment(String bookingId, int tokenPaise) =>
       throw UnimplementedError();
 
   @override
   Future<BookingPage> listMine({String? cursor, int limit = 20}) => throw UnimplementedError();
+
+  @override
+  Future<CancelResult> cancel(String bookingId, {String? reason}) => throw UnimplementedError();
+
+  @override
+  Future<Uint8List> downloadReceipt(String bookingId) => throw UnimplementedError();
 }
 
 void main() {
@@ -180,9 +192,19 @@ class _FailedPaymentRepo implements BookingRepository {
   Future<Booking> createHold(String bedId) => throw UnimplementedError();
 
   @override
+  Future<Booking> createHoldForRoom(String roomId, {DateTime? moveInDate, String? mealPlan}) =>
+      throw UnimplementedError();
+
+  @override
   Future<RazorpayOrder> createOnlinePayment(String bookingId, int tokenPaise) =>
       throw UnimplementedError();
 
   @override
   Future<BookingPage> listMine({String? cursor, int limit = 20}) => throw UnimplementedError();
+
+  @override
+  Future<CancelResult> cancel(String bookingId, {String? reason}) => throw UnimplementedError();
+
+  @override
+  Future<Uint8List> downloadReceipt(String bookingId) => throw UnimplementedError();
 }

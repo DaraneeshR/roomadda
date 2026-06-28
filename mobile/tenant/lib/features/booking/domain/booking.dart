@@ -12,9 +12,15 @@ class Booking {
   final String id;
   final String bedId;
   final String listingId;
-  final String status; // TOKEN_PENDING / CONFIRMED / EXPIRED / CANCELLED / ...
+  final String status; // PENDING_APPROVAL / TOKEN_PENDING / CONFIRMED / EXPIRED / ...
   final Paise tokenAmount;
+  final Paise? monthlyRent;
+  final Paise? deposit;
   final DateTime createdAt;
+  final DateTime? moveInDate;
+  final String? mealPlan;
+  /// Host's name — present ONLY once the booking is CONFIRMED (server-owned).
+  final String? hostName;
   final DateTime? confirmedAt;
   final DateTime? holdExpiresAt;
   final PaymentSummary? payment;
@@ -31,6 +37,11 @@ class Booking {
     required this.status,
     required this.tokenAmount,
     required this.createdAt,
+    this.monthlyRent,
+    this.deposit,
+    this.moveInDate,
+    this.mealPlan,
+    this.hostName,
     this.confirmedAt,
     this.holdExpiresAt,
     this.payment,
@@ -39,6 +50,8 @@ class Booking {
 
   bool get isConfirmed => status == 'CONFIRMED';
   bool get isExpired => status == 'EXPIRED';
+  bool get isPendingApproval => status == 'PENDING_APPROVAL';
+  bool get isTokenPending => status == 'TOKEN_PENDING';
 
   /// True once the server has recorded the (online) payment leg as FAILED.
   bool get isPaymentFailed =>
@@ -50,7 +63,12 @@ class Booking {
         listingId: json['listingId'] as String,
         status: json['status'] as String,
         tokenAmount: Paise(json['tokenAmountPaise'] as int),
+        monthlyRent: json['monthlyRentPaise'] == null ? null : Paise(json['monthlyRentPaise'] as int),
+        deposit: json['depositPaise'] == null ? null : Paise(json['depositPaise'] as int),
         createdAt: DateTime.parse(json['createdAt'] as String),
+        moveInDate: _parseDate(json['moveInDate']),
+        mealPlan: json['mealPlan'] as String?,
+        hostName: json['hostName'] as String?,
         confirmedAt: _parseDate(json['confirmedAt']),
         holdExpiresAt: _parseDate(json['holdExpiresAt']),
         payment: json['payment'] == null

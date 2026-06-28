@@ -29,6 +29,13 @@ dependencies:
   # KYC document capture (camera/gallery) with on-capture compression.
   image_picker: ^1.1.2
 
+  # Discovery map view (nearby pins). Requires a Google Maps API key in native
+  # config (AndroidManifest meta-data / iOS AppDelegate) to render on a device.
+  google_maps_flutter: ^2.9.0
+
+  # Share/save the downloaded PDF receipt.
+  share_plus: ^10.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -8,8 +8,21 @@ class Env {
 
   static const String _appEnv = String.fromEnvironment('APP_ENV', defaultValue: 'dev');
   static const String _apiFromDefine = String.fromEnvironment('API_BASE_URL');
+  static const String _placesKeyFromDefine = String.fromEnvironment('GOOGLE_PLACES_API_KEY');
 
   static bool get isProd => _appEnv == 'prod';
+
+  /// Google Places API key for search autocomplete. Optional: when empty, the
+  /// search field falls back to free-text city/area search (no suggestions).
+  /// Resolved from --dart-define first, then .env. Never committed.
+  static String get googlePlacesApiKey {
+    if (_placesKeyFromDefine.isNotEmpty) return _placesKeyFromDefine;
+    if (dotenv.isInitialized) {
+      final v = dotenv.maybeGet('GOOGLE_PLACES_API_KEY');
+      if (v != null) return v;
+    }
+    return '';
+  }
 
   static String get apiBaseUrl {
     if (_apiFromDefine.isNotEmpty) return _apiFromDefine;

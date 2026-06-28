@@ -2,24 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:roomadda_core/roomadda_core.dart';
 import '../application/booking_poller.dart';
 import '../data/booking_repository.dart';
 import '../domain/booking.dart';
-import '../../kyc/application/kyc_controller.dart';
-import '../../kyc/domain/kyc.dart';
 
-/// Local UI stage for the synchronous part of the flow (hold + open Razorpay).
-/// Once payment is SUBMITTED, confirmation is owned by [bookingPollerProvider] —
-/// this screen renders that provider's state and never decides CONFIRMED itself
-/// (see /CLAUDE.md domain rule #2).
-enum _Stage { idle, preparing, paying, paymentFailed, submitted }
+/// Token payment for a booking that is already TOKEN_PENDING (Instant Book, or a
+/// Request-to-Book the host has accepted). The Razorpay success callback means
+/// "payment submitted", NOT confirmed — confirmation is owned by the poller,
+/// which watches the server for the webhook-driven CONFIRMED (see /CLAUDE.md #2).
+enum _Stage { loading, idle, preparing, paying, paymentFailed, submitted }
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
-  const BookingPaymentScreen({super.key, required this.bedId});
+  const BookingPaymentScreen({super.key, required this.bookingId});
 
-  final String bedId;
+  final String bookingId;
 
   @override
   ConsumerState<BookingPaymentScreen> createState() => _BookingPaymentScreenState();
@@ -28,8 +27,7 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
   late final Razorpay _razorpay;
   Booking? _booking;
-  String? _bookingId;
-  _Stage _stage = _Stage.idle;
+  _Stage _stage = _Stage.loading;
   String? _message;
 
   @override
@@ -39,6 +37,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
+    _load();
   }
 
   @override
@@ -47,21 +46,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
     super.dispose();
   }
 
+  Future<void> _load() async {
+    try {
+      final booking = await ref.read(bookingRepositoryProvider).fetchStatus(widget.bookingId);
+      if (!mounted) return;
+      setState(() {
+        _booking = booking;
+        _stage = booking.isConfirmed ? _Stage.submitted : _Stage.idle;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _stage = _Stage.paymentFailed;
+        _message = apiExceptionFrom(e).message;
+      });
+    }
+  }
+
   Future<void> _start() async {
+    final booking = _booking;
+    if (booking == null) return;
     setState(() {
       _stage = _Stage.preparing;
       _message = null;
     });
     try {
-      final repo = ref.read(bookingRepositoryProvider);
-      final booking = await repo.createHold(widget.bedId);
-      final order = await repo.createOnlinePayment(booking.id, booking.tokenAmount.value);
+      final order = await ref.read(bookingRepositoryProvider).createOnlinePayment(booking.id, booking.tokenAmount.value);
       if (!mounted) return;
-      setState(() {
-        _booking = booking;
-        _bookingId = booking.id;
-        _stage = _Stage.paying;
-      });
+      setState(() => _stage = _Stage.paying);
       _razorpay.open({
         'key': order.keyId,
         'order_id': order.orderId,
@@ -79,12 +91,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
     }
   }
 
-  /// The Razorpay SDK success callback is UI-ONLY: it means "payment submitted",
-  /// NOT "booking confirmed". We hand off to the poller, which watches the server
-  /// for the webhook-driven transition to CONFIRMED.
   void _onPaymentSuccess(PaymentSuccessResponse response) {
     if (!mounted) return;
-    setState(() => _stage = _Stage.submitted);
+    setState(() => _stage = _Stage.submitted); // submitted, NOT confirmed
   }
 
   void _onPaymentError(PaymentFailureResponse response) {
@@ -106,11 +115,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Bed: ${widget.bedId}'),
-            if (_booking != null) ...[
-              const SizedBox(height: 8),
-              Text('Token: ${_booking!.tokenAmount.format()}'),
-            ],
+            if (_booking != null) Text('Token: ${_booking!.tokenAmount.format()}'),
             const SizedBox(height: 24),
             Expanded(child: _buildBody()),
           ],
@@ -121,19 +126,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen> {
 
   Widget _buildBody() {
     return switch (_stage) {
-      // Payment is blocked server-side until KYC is VERIFIED; gate it here so the
-      // user completes KYC instead of hitting a 403 at pay time.
-      _Stage.idle => _KycGate(onProceed: _start),
+      _Stage.loading => const _BusyView(message: 'Loading your booking…'),
+      _Stage.idle => _ActionView(
+          message: 'Pay the token online to secure this bed.',
+          buttonLabel: 'Pay token online',
+          onPressed: _start,
+        ),
       _Stage.preparing => const _BusyView(message: 'Setting up your payment…'),
       _Stage.paying => const _BusyView(message: 'Waiting for the payment to complete…'),
       _Stage.paymentFailed => _ActionView(
           icon: Icons.error_outline,
-          iconColor: Colors.red,
+          iconColor: AppColors.accent,
           message: _message ?? 'Payment failed.',
           buttonLabel: 'Try again',
           onPressed: _start,
         ),
-      _Stage.submitted => _ConfirmationView(bookingId: _bookingId!),
+      _Stage.submitted => _ConfirmationView(bookingId: widget.bookingId),
     };
   }
 }
@@ -156,18 +164,18 @@ class _ConfirmationView extends ConsumerWidget {
       ConfirmationConfirmed(:final booking) => _ConfirmedView(booking: booking),
       ConfirmationHoldExpired() => const _ActionView(
           icon: Icons.timer_off_outlined,
-          iconColor: Colors.orange,
+          iconColor: AppColors.sponsored,
           message: 'Your hold expired before the payment was confirmed. '
               'If you were charged, it will be refunded automatically.',
         ),
       ConfirmationPaymentFailed() => const _ActionView(
           icon: Icons.error_outline,
-          iconColor: Colors.red,
+          iconColor: AppColors.accent,
           message: 'The payment failed. Please try booking again.',
         ),
       ConfirmationTimedOut() => _ActionView(
           icon: Icons.hourglass_bottom,
-          iconColor: Colors.orange,
+          iconColor: AppColors.sponsored,
           message: "We haven't received confirmation yet. The payment may still "
               'be settling — you can check again in a moment.',
           buttonLabel: 'Check again',
@@ -175,7 +183,7 @@ class _ConfirmationView extends ConsumerWidget {
         ),
       ConfirmationError(:final message) => _ActionView(
           icon: Icons.wifi_off,
-          iconColor: Colors.red,
+          iconColor: AppColors.accent,
           message: message,
           buttonLabel: 'Check again',
           onPressed: checkAgain,
@@ -184,34 +192,53 @@ class _ConfirmationView extends ConsumerWidget {
   }
 }
 
-/// Success: the server confirmed, so the listing arrives UNMASKED. We can now
-/// reveal the real name and full address — present only because the server
-/// returns them post-CONFIRMED.
-class _ConfirmedView extends StatelessWidget {
+/// Success: the server confirmed, so the booking now carries the host name and
+/// the unmasked listing. Shows the Booking ID + host + move-in and offers the
+/// downloadable receipt.
+class _ConfirmedView extends ConsumerWidget {
   const _ConfirmedView({required this.booking});
 
   final Booking booking;
 
+  Future<void> _downloadReceipt(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await ref.read(bookingRepositoryProvider).downloadReceipt(booking.id);
+      await Share.shareXFiles([
+        XFile.fromData(bytes, mimeType: 'application/pdf', name: 'roomadda-receipt-${booking.id}.pdf'),
+      ]);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(apiExceptionFrom(e).message)));
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = Theme.of(context).textTheme;
     final listing = booking.listing;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final moveIn = booking.moveInDate;
+    return ListView(
       children: [
-        const Icon(Icons.check_circle, color: Colors.green, size: 64),
+        const SizedBox(height: 12),
+        const Icon(Icons.check_circle, color: AppColors.verified, size: 64),
         const SizedBox(height: 16),
-        Text('Booking confirmed', style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+        Text('Booking confirmed', style: text.titleLarge, textAlign: TextAlign.center),
         const SizedBox(height: 8),
-        const Text('Confirmed by our server.', textAlign: TextAlign.center),
+        Text('Confirmed by our server.', style: text.bodySmall, textAlign: TextAlign.center),
+        const SizedBox(height: 20),
+        _row('Booking ID', booking.id),
+        if (booking.hostName != null) _row('Host', booking.hostName!),
+        if (moveIn != null) _row('Move-in', '${moveIn.day}/${moveIn.month}/${moveIn.year}'),
+        _row('Token paid', booking.tokenAmount.format()),
         if (listing != null && !listing.masked) ...[
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(listing.displayName, style: Theme.of(context).textTheme.titleMedium),
+                  Text(listing.displayName, style: text.titleMedium),
                   if (listing.fullAddress != null) ...[
                     const SizedBox(height: 4),
                     Text(listing.fullAddress!),
@@ -223,7 +250,33 @@ class _ConfirmedView extends StatelessWidget {
             ),
           ),
         ],
+        const SizedBox(height: 24),
+        PrimaryButton(
+          label: 'Download receipt',
+          icon: Icons.download,
+          expand: true,
+          onPressed: () => _downloadReceipt(context, ref),
+        ),
+        const SizedBox(height: 12),
+        SecondaryButton(
+          label: 'View my bookings',
+          expand: true,
+          onPressed: () => context.go('/tenant'),
+        ),
       ],
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.mutedInk)),
+          Flexible(child: Text(value, textAlign: TextAlign.right)),
+        ],
+      ),
     );
   }
 }
@@ -274,55 +327,9 @@ class _ActionView extends StatelessWidget {
         Text(message, textAlign: TextAlign.center),
         if (buttonLabel != null && onPressed != null) ...[
           const SizedBox(height: 24),
-          FilledButton(onPressed: onPressed, child: Text(buttonLabel!)),
+          PrimaryButton(label: buttonLabel!, onPressed: onPressed),
         ],
       ],
-    );
-  }
-}
-
-/// Pre-payment KYC gate. The server blocks payment until KYC is VERIFIED; this
-/// reads the caller's status and routes them to complete KYC (or wait for review)
-/// rather than letting them hit a 403 at pay time. It never decides verification.
-class _KycGate extends ConsumerWidget {
-  const _KycGate({required this.onProceed});
-
-  final VoidCallback onProceed;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(kycStatusProvider);
-    return status.when(
-      loading: () => const _BusyView(message: 'Checking your KYC status…'),
-      error: (e, _) => _ActionView(
-        icon: Icons.error_outline,
-        iconColor: Colors.red,
-        message: apiExceptionFrom(e).message,
-        buttonLabel: 'Retry',
-        onPressed: () => ref.invalidate(kycStatusProvider),
-      ),
-      data: (kyc) {
-        if (kyc.isVerified) {
-          return _ActionView(
-            message: 'Pay the token online to secure this bed.',
-            buttonLabel: 'Pay token online',
-            onPressed: onProceed,
-          );
-        }
-        final pending = kyc.status == KycStatus.pending;
-        return _ActionView(
-          icon: Icons.verified_user_outlined,
-          iconColor: Colors.orange,
-          message: pending
-              ? 'Your KYC is under review. Payment unlocks once it is verified.'
-              : 'KYC verification is required before you can pay the token.',
-          buttonLabel: pending ? 'Refresh status' : 'Complete KYC',
-          onPressed: () async {
-            if (!pending) await context.push('/tenant/kyc');
-            ref.invalidate(kycStatusProvider);
-          },
-        );
-      },
     );
   }
 }

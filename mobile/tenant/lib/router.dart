@@ -2,14 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:roomadda_core/roomadda_core.dart';
 
+import 'features/booking/presentation/booking_await_screen.dart';
+import 'features/booking/presentation/booking_detail_screen.dart';
 import 'features/booking/presentation/booking_payment_screen.dart';
-import 'features/booking/presentation/my_bookings_screen.dart';
+import 'features/discovery/presentation/discovery_shell.dart';
+import 'features/discovery/presentation/listing_detail_screen.dart';
+import 'features/discovery/presentation/map_screen.dart';
+import 'features/discovery/presentation/results_screen.dart';
 import 'features/kyc/presentation/kyc_screen.dart';
-import 'features/tenant/presentation/tenant_shell.dart';
 
 /// Tenant router. Serves only the TENANT role; the shared gate sends any other
-/// role to the wrong-app screen. The route tree is preserved verbatim from the
-/// original single-app router (`/tenant` + `bookings` + `booking/:bedId/pay`).
+/// role to the wrong-app screen. `/tenant` is the bottom-tab shell (Search /
+/// Saved / Bookings); discovery + booking screens push on top.
 final routerProvider = Provider<GoRouter>((ref) {
   return createRouter(
     ref,
@@ -18,20 +22,35 @@ final routerProvider = Provider<GoRouter>((ref) {
     appRoutes: [
       GoRoute(
         path: '/tenant',
-        builder: (_, __) => const TenantShell(),
+        builder: (_, __) => const DiscoveryShell(),
         routes: [
           GoRoute(
-            path: 'bookings',
-            builder: (_, __) => const MyBookingsScreen(),
+            path: 'results',
+            builder: (_, __) => const ResultsScreen(),
+          ),
+          GoRoute(
+            path: 'listing/:id',
+            builder: (context, state) => ListingDetailScreen(listingId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'map',
+            builder: (_, __) => const MapScreen(),
           ),
           GoRoute(
             path: 'kyc',
             builder: (_, __) => const KycScreen(),
           ),
           GoRoute(
-            path: 'booking/:bedId/pay',
-            builder: (context, state) =>
-                BookingPaymentScreen(bedId: state.pathParameters['bedId']!),
+            path: 'booking/:bookingId',
+            builder: (context, state) => BookingDetailScreen(bookingId: state.pathParameters['bookingId']!),
+          ),
+          GoRoute(
+            path: 'booking/:bookingId/pay',
+            builder: (context, state) => BookingPaymentScreen(bookingId: state.pathParameters['bookingId']!),
+          ),
+          GoRoute(
+            path: 'booking/:bookingId/await',
+            builder: (context, state) => BookingAwaitScreen(bookingId: state.pathParameters['bookingId']!),
           ),
         ],
       ),
