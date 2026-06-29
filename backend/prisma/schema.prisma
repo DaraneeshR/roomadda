@@ -106,6 +106,23 @@ enum TransactionStatus {
   REFUNDED
 }
 
+// Who initiated a cancellation. HOST (host declines) / SYSTEM (PG unavailable)
+// always yield a FULL refund; TENANT is tiered by the move-in window.
+enum CancelledBy {
+  TENANT
+  HOST
+  SYSTEM
+}
+
+// Lifecycle of a gateway refund. The synchronous refund API only reaches
+// INITIATED; ONLY the signature-verified webhook (refund.processed/failed)
+// settles it (refund truth = the verified webhook — see /CLAUDE.md).
+enum RefundStatus {
+  INITIATED
+  PROCESSED
+  FAILED
+}
+
 enum CashCollectionStatus {
   PENDING
   COLLECTED
@@ -315,6 +332,14 @@ model Booking {
   mealPlan        String?
   confirmedAt     DateTime?
   cancelledAt     DateTime?
+  // Cancellation outcome snapshot (set atomically with status -> CANCELLED).
+  // `refundPaise` is the amount actually initiated for refund; `refundReason` is
+  // the policy code; `cancelledBy` records who triggered it. The refund is only
+  // SETTLED via the verified webhook — these fields are the cancellation record,
+  // not a settlement flag.
+  cancelledBy     CancelledBy?
+  refundPaise     Int?
+  refundReason    String?
   // Hold expiry: TOKEN_PENDING beyond this is swept to EXPIRED by the job.
   holdExpiresAt   DateTime?
   createdAt       DateTime      @default(now())
@@ -325,6 +350,7 @@ model Booking {
   listing         PgListing        @relation(fields: [listingId], references: [id])
   payment         Payment?
   cashCollections CashCollection[]
+  refunds         RefundTransaction[]
 
   // NOTE: the "one live booking per bed" partial unique index
   // (uniq_live_booking_per_bed) is created in prisma/sql/02_booking_guard.sql —
@@ -348,6 +374,7 @@ model Payment {
 
   booking      Booking              @relation(fields: [bookingId], references: [id])
   transactions PaymentTransaction[]
+  refunds      RefundTransaction[]
 
   @@index([status])
   @@map("payments")
@@ -370,6 +397,37 @@ model PaymentTransaction {
 
   @@index([paymentId])
   @@map("payment_transactions")
+}
+
+// A cancellation refund against a captured payment (money in paise). Created
+// INITIATED when the synchronous Razorpay refund API is called; the verified
+// `refund.processed`/`refund.failed` webhook is the ONLY thing that settles it
+// to PROCESSED/FAILED (refund truth = the webhook, see /CLAUDE.md domain rule
+// #2). `razorpayRefundId` is unique so a replayed webhook is a no-op.
+model RefundTransaction {
+  id                String       @id @default(uuid()) @db.Uuid
+  paymentId         String       @db.Uuid
+  // Denormalised so the webhook can find the booking without a join.
+  bookingId         String       @db.Uuid
+  amountPaise       Int
+  status            RefundStatus @default(INITIATED)
+  // The gateway refund id (rfnd_…). Null only in the tiny window between the
+  // cancel commit and the synchronous API response; unique once set.
+  razorpayRefundId  String?      @unique
+  // Links the settled transition to the verified webhook that produced it.
+  webhookEventId    String?      @db.Uuid
+  processedAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  payment      Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  webhookEvent WebhookEvent? @relation(fields: [webhookEventId], references: [id])
+
+  @@index([paymentId])
+  @@index([bookingId])
+  @@index([status])
+  @@map("refund_transactions")
 }
 
 model CashCollection {
@@ -520,6 +578,7 @@ model WebhookEvent {
   error       String?
 
   transactions PaymentTransaction[]
+  refundTransactions RefundTransaction[]
 
   @@unique([provider, eventId])
   @@index([status])

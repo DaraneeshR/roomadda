@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { Booking } from "@prisma/client";
 import { getAuthUser } from "../../plugins/auth.js";
 import { bookingService } from "./booking.service.js";
+import { refundService } from "../refund/refund.service.js";
 import { paymentService } from "./payment.service.js";
 import { toBookingDetail } from "./booking.serializer.js";
 import { buildReceiptPdf } from "./receipt.service.js";
@@ -84,7 +85,9 @@ export const bookingRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // Cancel a booking — TENANT (own). The refund is applied per policy server-side.
+  // Cancel a booking — TENANT (own). The refund amount is computed per policy
+  // server-side and INITIATED; it settles to refunded ONLY via the verified
+  // webhook, so the response reports refundStatus PENDING (never "refunded").
   app.post(
     "/bookings/:id/cancel",
     { preHandler: [app.authenticate, app.requireRole("TENANT")] },
@@ -92,7 +95,21 @@ export const bookingRoutes: FastifyPluginAsync = async (app) => {
       const user = getAuthUser(request);
       const { id } = bookingIdParamSchema.parse(request.params);
       const { reason } = cancelBookingSchema.parse(request.body ?? {});
-      const result = await bookingService.cancelBooking(user.id, id, reason);
+      const result = await refundService.cancelByTenant(user.id, id, reason);
+      return reply.send(result);
+    },
+  );
+
+  // Decline / mark unavailable — HOST (owner) or ADMIN. Routes through the SAME
+  // cancellation core with cancelledBy = HOST, so a full refund is initiated.
+  app.post(
+    "/bookings/:id/decline",
+    { preHandler: [app.authenticate, app.requireRole("HOST", "ADMIN")] },
+    async (request, reply) => {
+      const user = getAuthUser(request);
+      const { id } = bookingIdParamSchema.parse(request.params);
+      const { reason } = cancelBookingSchema.parse(request.body ?? {});
+      const result = await refundService.declineByHostOrAdmin(user, id, reason);
       return reply.send(result);
     },
   );

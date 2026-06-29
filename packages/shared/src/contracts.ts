@@ -50,6 +50,19 @@ export const paymentStatusSchema = z.enum(["CREATED", "AUTHORIZED", "CAPTURED", 
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 export const PAYMENT_STATUSES = paymentStatusSchema.options;
 
+/** Who initiated a cancellation. Drives the refund policy: HOST/SYSTEM always
+ *  get a FULL refund; TENANT is tiered by the move-in window (see refund.policy). */
+export const cancelledBySchema = z.enum(["TENANT", "HOST", "SYSTEM"]);
+export type CancelledBy = z.infer<typeof cancelledBySchema>;
+export const CANCELLED_BY = cancelledBySchema.options;
+
+/** Lifecycle of a gateway refund. The synchronous refund API only reaches
+ *  INITIATED; ONLY the signature-verified webhook settles it to PROCESSED/FAILED
+ *  (refund truth = the verified webhook, never the API response — /CLAUDE.md). */
+export const refundStatusSchema = z.enum(["INITIATED", "PROCESSED", "FAILED"]);
+export type RefundStatus = z.infer<typeof refundStatusSchema>;
+export const REFUND_STATUSES = refundStatusSchema.options;
+
 export const cashCollectionStatusSchema = z.enum(["PENDING", "COLLECTED", "DEPOSITED", "RECONCILED"]);
 export type CashCollectionStatus = z.infer<typeof cashCollectionStatusSchema>;
 
@@ -206,6 +219,29 @@ export const bookingListResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type BookingListResponse = z.infer<typeof bookingListResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Cancellation + refund (POST /v1/bookings/:id/cancel and /decline). The refund
+// amount is computed server-side from the cancellation policy (see /CLAUDE.md
+// domain rule #2: refund truth is the verified webhook). The response NEVER
+// reports a refund as settled — `refundStatus` is PENDING while the gateway
+// settles asynchronously; it only becomes settled via the refund.* webhook.
+// ---------------------------------------------------------------------------
+export const cancelBookingResponseSchema = z.object({
+  status: z.literal("CANCELLED"),
+  /** Refund owed and actually initiated, integer paise (0 when none is due or
+   *  nothing was captured online to refund). */
+  refundPaise: z.number().int().nonnegative(),
+  /** Machine-stable policy reason code, e.g. "full_refund_window", "no_refund_window". */
+  refundReason: z.string(),
+  /**
+   * Settlement state at this instant. PENDING = a gateway refund was INITIATED
+   * and awaits the signature-verified webhook (never "refunded" here). NONE =
+   * nothing was refunded (outside the window, or no online capture to refund).
+   */
+  refundStatus: z.enum(["PENDING", "NONE"]),
+});
+export type CancelBookingResponse = z.infer<typeof cancelBookingResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // KYC view DTOs. The mobile app reads its own status to drive the booking gate

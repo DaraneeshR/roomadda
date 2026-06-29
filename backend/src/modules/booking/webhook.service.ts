@@ -7,6 +7,7 @@ import { AppError } from "../../lib/errors.js";
 import { settleBookingTx } from "./settlement.js";
 import { notifyBookingConfirmed } from "../../lib/notifications.js";
 import { markAdPaidByOrder } from "../ad/ad.payment.js";
+import { applyRefundWebhook } from "../refund/refund.payment.js";
 
 export interface WebhookResult {
   status: "processed" | "duplicate" | "ignored";
@@ -14,7 +15,10 @@ export interface WebhookResult {
 
 interface RazorpayEvent {
   event?: string;
-  payload?: { payment?: { entity?: { id?: string; order_id?: string; amount?: number } } };
+  payload?: {
+    payment?: { entity?: { id?: string; order_id?: string; amount?: number } };
+    refund?: { entity?: { id?: string; payment_id?: string; amount?: number; status?: string } };
+  };
 }
 
 const PROVIDER = "RAZORPAY" as const;
@@ -61,6 +65,10 @@ export const webhookService = {
       let processed: CaptureResult | null = null;
       if (eventType === "payment.captured") {
         processed = await handlePaymentCaptured(eventId, event.payload?.payment?.entity);
+      } else if (eventType === "refund.processed" || eventType === "refund.failed") {
+        // REFUND TRUTH = THIS WEBHOOK (see /CLAUDE.md): the only place a refund
+        // settles. Reuses the same signature + idempotency plumbing above.
+        processed = await handleRefundEvent(eventId, eventType, event.payload?.refund?.entity);
       }
       await prisma.webhookEvent.update({
         where: { provider_eventId: { provider: PROVIDER, eventId } },
@@ -68,7 +76,7 @@ export const webhookService = {
       });
       if (processed) {
         await writeAudit({
-          action: processed.kind === "ad" ? "ad.paid" : "payment.captured",
+          action: auditActionFor(processed),
           targetId: processed.targetId,
           metadata: { ...processed.meta, eventId },
         });
@@ -93,9 +101,50 @@ export const webhookService = {
 };
 
 interface CaptureResult {
-  kind: "booking" | "ad";
+  kind: "booking" | "ad" | "refund";
   targetId: string;
   meta: Record<string, unknown>;
+}
+
+/** The audit action a processed event maps to. Refunds split by settled state. */
+function auditActionFor(processed: CaptureResult): string {
+  switch (processed.kind) {
+    case "ad":
+      return "ad.paid";
+    case "refund":
+      // "refund.failed" IS the admin flag — money did not move; reconcile.
+      return processed.meta.refundStatus === "PROCESSED" ? "refund.processed" : "refund.failed";
+    default:
+      return "payment.captured";
+  }
+}
+
+/**
+ * Settle a refund from a verified refund webhook. Mirrors handlePaymentCaptured:
+ * its own transaction, idempotent. Delegates the row work to applyRefundWebhook
+ * (matched by the unique razorpay refund id). Returns null for an unknown refund
+ * id or an already-settled refund (no-op) so the event is recorded as "ignored".
+ */
+async function handleRefundEvent(
+  eventId: string,
+  eventType: string,
+  entity?: { id?: string; payment_id?: string; amount?: number },
+): Promise<CaptureResult | null> {
+  if (!entity?.id) return null;
+
+  return prisma.$transaction(async (tx) => {
+    const webhookEvent = await tx.webhookEvent.findUnique({
+      where: { provider_eventId: { provider: PROVIDER, eventId } },
+      select: { id: true },
+    });
+    const outcome = await applyRefundWebhook(tx, eventType, entity, webhookEvent?.id ?? null);
+    if (!outcome) return null;
+    return {
+      kind: "refund",
+      targetId: outcome.bookingId,
+      meta: { refundStatus: outcome.status, refundTransactionId: outcome.refundTransactionId, razorpayRefundId: entity.id },
+    };
+  });
 }
 
 /**

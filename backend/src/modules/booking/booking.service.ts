@@ -3,10 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 import { assertPaise } from "../../lib/money.js";
 import { AppError } from "../../lib/errors.js";
 import { toPage, type Page } from "../../lib/pagination.js";
-import { razorpay } from "../../lib/razorpay.js";
-import { logger } from "../../lib/logger.js";
 import { writeAudit } from "../../lib/audit.js";
-import { computeRefundPaise } from "./refund.js";
 import { bookingDetailInclude, type BookingWithRelations } from "./booking.serializer.js";
 import type { CreateBookingInput } from "./booking.schema.js";
 
@@ -17,8 +14,6 @@ const REQUEST_TTL_MS = 24 * 60 * 60 * 1000; // host-accept window for Request-to
 const LIVE_STATUSES: Prisma.BookingWhereInput["status"] = {
   in: ["INITIATED", "PENDING_APPROVAL", "TOKEN_PENDING", "CONFIRMED"],
 };
-
-const CANCELLABLE = new Set(["PENDING_APPROVAL", "TOKEN_PENDING", "CONFIRMED"]);
 
 interface LockedBedRow {
   id: string;
@@ -163,59 +158,9 @@ export const bookingService = {
     return updated;
   },
 
-  /**
-   * Tenant cancels their own booking. The refund is computed by the policy
-   * (PRD §8.4) and applied: the bed is freed, the payment marked REFUNDED, and a
-   * best-effort gateway refund issued (stub until live). Returns the refund owed.
-   */
-  async cancelBooking(tenantId: string, bookingId: string, reason?: string): Promise<{ status: string; refundPaise: number }> {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { payment: { include: { transactions: true } } },
-    });
-    if (!booking || booking.tenantId !== tenantId) throw bookingNotFound();
-    if (!CANCELLABLE.has(booking.status)) {
-      throw new AppError({ statusCode: 409, code: "BOOKING_NOT_CANCELLABLE", message: "This booking can no longer be cancelled" });
-    }
-
-    const refundPaise = computeRefundPaise({
-      status: booking.status,
-      tokenAmountPaise: booking.tokenAmountPaise,
-      moveInDate: booking.moveInDate,
-      now: new Date(),
-    });
-
-    await prisma.$transaction(async (tx) => {
-      await tx.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
-      // Free the bed (it may be HELD or BOOKED).
-      await tx.bed.update({ where: { id: booking.bedId }, data: { status: "AVAILABLE" } });
-      if (refundPaise > 0 && booking.payment) {
-        await tx.payment.update({ where: { id: booking.payment.id }, data: { status: "REFUNDED" } });
-      }
-    });
-
-    // Best-effort gateway refund — the booking is already cancelled; reconcile on failure.
-    if (refundPaise > 0) {
-      const captured = booking.payment?.transactions.find(
-        (t) => t.method === "RAZORPAY" && t.status === "CAPTURED" && t.razorpayPaymentId,
-      );
-      if (captured?.razorpayPaymentId) {
-        try {
-          await razorpay.refund(captured.razorpayPaymentId, refundPaise);
-        } catch (err) {
-          logger.error({ err, bookingId }, "refund gateway call failed; marked REFUNDED, reconcile manually");
-        }
-      }
-    }
-
-    await writeAudit({
-      actorId: tenantId,
-      action: "booking.cancelled",
-      targetId: bookingId,
-      metadata: { refundPaise, reason: reason ?? null },
-    });
-    return { status: "CANCELLED", refundPaise };
-  },
+  // Cancellation + refunds live in the refund module (refundService) so the
+  // policy and the "refund truth = webhook" rule are enforced in exactly one
+  // place. The cancel/decline routes call refundService directly.
 
   /** Data for the confirmed-booking PDF receipt (tenant-owned, CONFIRMED only). */
   async getReceiptData(bookingId: string, tenantId: string) {
