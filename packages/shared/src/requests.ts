@@ -1,15 +1,25 @@
 import { z } from "zod";
 import {
   adSlotTypeSchema,
+  agentVisitStatusSchema,
+  amenityCheckSchema,
   bookingStatusSchema,
   e164Schema,
   genderPolicySchema,
+  inspectionRecommendationSchema,
+  inspectionStatusSchema,
   kycStatusSchema,
   listingStatusSchema,
+  chatMessageKindSchema,
   occupationTypeSchema,
   paymentStatusSchema,
+  serviceRequestCategorySchema,
+  serviceRequestPrioritySchema,
+  serviceRequestStatusSchema,
   userGenderSchema,
   userRoleSchema,
+  walkInPaymentModeSchema,
+  weeklyMenuSchema,
 } from "./contracts.js";
 
 /**
@@ -102,6 +112,13 @@ export const createListingSchema = z
     longitude,
     gender: genderPolicySchema.default("COED"),
     amenities: amenities.default([]),
+    // Optional create-step fields (meals, house rules, token + booking-type). All
+    // editable later via the host listing edit endpoint.
+    houseRules: z.array(z.string().min(1).max(200)).max(50).default([]),
+    mealsOffered: z.boolean().default(false),
+    mealChargesPaise: paise.optional(),
+    tokenAmountPaise: paise.positive().optional(),
+    instantBook: z.boolean().default(true),
   })
   .strict();
 
@@ -148,7 +165,145 @@ export const createPhotoSchema = z
   })
   .strict();
 
+/** Request a presigned PUT for one listing photo captured on-device (jpeg/png).
+ *  The client PUTs the bytes to the public bucket, then attaches the returned
+ *  publicUrl via the existing createPhotoSchema path. */
+export const listingPhotoUploadUrlSchema = z
+  .object({ contentType: z.enum(["image/jpeg", "image/png"]) })
+  .strict();
+export type ListingPhotoUploadUrlInput = z.infer<typeof listingPhotoUploadUrlSchema>;
+
 export const roomParamSchema = z.object({ id: z.string().uuid(), roomId: z.string().uuid() }).strict();
+
+// --- Maintenance / service requests -----------------------------------------
+/** Raise a ticket against the caller's active stay (the server resolves which). */
+export const createServiceRequestSchema = z
+  .object({
+    category: serviceRequestCategorySchema,
+    description: z.string().min(1).max(2000),
+    priority: serviceRequestPrioritySchema.default("NORMAL"),
+    // Up to 3 private object keys from the photo-url endpoint (ownership checked).
+    photoRefs: z.array(z.string().min(1).max(1024)).max(3).default([]),
+  })
+  .strict();
+export type CreateServiceRequestInput = z.infer<typeof createServiceRequestSchema>;
+
+/** A follow-up comment on a request (tenants can comment, never delete). */
+export const serviceRequestCommentInputSchema = z.object({ body: z.string().min(1).max(2000) }).strict();
+export type ServiceRequestCommentInput = z.infer<typeof serviceRequestCommentInputSchema>;
+
+/** 1–5 satisfaction rating, accepted only once a request is RESOLVED. */
+export const serviceRequestRatingSchema = z.object({ rating: z.number().int().min(1).max(5) }).strict();
+export type ServiceRequestRatingInput = z.infer<typeof serviceRequestRatingSchema>;
+
+/** Presigned PUT for one request photo (jpeg/png only). */
+export const serviceRequestPhotoUrlSchema = z
+  .object({ contentType: z.enum(["image/jpeg", "image/png"]) })
+  .strict();
+export type ServiceRequestPhotoUrlInput = z.infer<typeof serviceRequestPhotoUrlSchema>;
+
+export const listServiceRequestsQuerySchema = z
+  .object({ status: serviceRequestStatusSchema.optional(), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type ListServiceRequestsQuery = z.infer<typeof listServiceRequestsQuerySchema>;
+
+/** Admin oversight query — filter by status / priority / escalation. */
+export const adminServiceRequestsQuerySchema = z
+  .object({
+    status: serviceRequestStatusSchema.optional(),
+    priority: serviceRequestPrioritySchema.optional(),
+    // Query strings are text; accept only the literal booleans.
+    escalated: z.enum(["true", "false"]).transform((v) => v === "true").optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type AdminServiceRequestsQuery = z.infer<typeof adminServiceRequestsQuerySchema>;
+
+// --- Leave notice -----------------------------------------------------------
+/** Serve notice to vacate. The notice-period / 3-day-lock rules are enforced
+ *  in the service against the caller's active stay. */
+export const createLeaveNoticeSchema = z.object({ moveOutDate: z.coerce.date() }).strict();
+export type CreateLeaveNoticeInput = z.infer<typeof createLeaveNoticeSchema>;
+
+// --- Safety: trusted contacts + SOS -----------------------------------------
+export const createTrustedContactSchema = z
+  .object({ name: z.string().min(1).max(120), phone: e164Schema })
+  .strict();
+export type CreateTrustedContactInput = z.infer<typeof createTrustedContactSchema>;
+
+/** Trigger SOS. Coordinates are OPTIONAL — the alert still fires (admin + SMS)
+ *  when GPS is unavailable, so it works on poor connectivity / denied location. */
+export const sosSchema = z
+  .object({
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+    accuracyMeters: z.number().nonnegative().optional(),
+  })
+  .strict();
+export type SosInput = z.infer<typeof sosSchema>;
+
+// --- Chat (tenant <-> host) -------------------------------------------------
+/** Send a message: TEXT carries `text`, PHOTO carries `photoRef` (from photo-url).
+ *  The NO-phone-numbers rule is enforced in the service (clear, specific error). */
+export const sendChatMessageSchema = z
+  .object({
+    kind: chatMessageKindSchema.default("TEXT"),
+    text: z.string().min(1).max(2000).optional(),
+    photoRef: z.string().min(1).max(1024).optional(),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (v.kind === "TEXT" && (!v.text || v.photoRef)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "TEXT requires `text` and no `photoRef`" });
+    }
+    if (v.kind === "PHOTO" && (!v.photoRef || v.text)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "PHOTO requires `photoRef` and no `text`" });
+    }
+  });
+export type SendChatMessageInput = z.infer<typeof sendChatMessageSchema>;
+
+export const chatTypingSchema = z.object({ isTyping: z.boolean() }).strict();
+export type ChatTypingInput = z.infer<typeof chatTypingSchema>;
+
+export const reportChatMessageSchema = z.object({ reason: z.string().min(1).max(500).optional() }).strict();
+export type ReportChatMessageInput = z.infer<typeof reportChatMessageSchema>;
+
+export const chatPhotoUrlSchema = z.object({ contentType: z.enum(["image/jpeg", "image/png"]) }).strict();
+export type ChatPhotoUrlInput = z.infer<typeof chatPhotoUrlSchema>;
+
+export const listChatMessagesQuerySchema = z.object({ cursor: cursorParam, limit: limitSchema }).strict();
+export type ListChatMessagesQuery = z.infer<typeof listChatMessagesQuerySchema>;
+
+/** Register an FCM device token for push (chat + future notifications). */
+export const registerDeviceSchema = z
+  .object({ token: z.string().min(1).max(4096), platform: z.enum(["android", "ios"]).optional() })
+  .strict();
+export type RegisterDeviceInput = z.infer<typeof registerDeviceSchema>;
+
+// --- Meal menu --------------------------------------------------------------
+/** Read the menu for `date` (default today) plus the following day. */
+export const menuQuerySchema = z.object({ date: z.coerce.date().optional() }).strict();
+export type MenuQuery = z.infer<typeof menuQuerySchema>;
+
+/** One slot in a menu upsert: a dish, or explicitly not served. Omit to leave empty. */
+const mealSlotInputSchema = z
+  .object({
+    text: z.string().min(1).max(500).nullable().optional(),
+    notAvailable: z.boolean().optional(),
+  })
+  .strict();
+
+/** Minimal host upsert of a day's menu (host-update UI lands in the host phase). */
+export const upsertMealMenuSchema = z
+  .object({
+    date: z.coerce.date(),
+    breakfast: mealSlotInputSchema.optional(),
+    lunch: mealSlotInputSchema.optional(),
+    dinner: mealSlotInputSchema.optional(),
+  })
+  .strict();
+export type UpsertMealMenuInput = z.infer<typeof upsertMealMenuSchema>;
 
 export const listFiltersSchema = z
   .object({
@@ -220,6 +375,13 @@ export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 /** Cancel a booking (refund is applied per policy, server-side). */
 export const cancelBookingSchema = z.object({ reason: z.string().min(1).max(500).optional() }).strict();
 export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
+
+// ---------------------------------------------------------------------------
+// Recurring monthly rent. The pay endpoint takes NO amount — the server always
+// orders the FULL invoice amount, so a partial payment cannot be requested.
+// ---------------------------------------------------------------------------
+export const listRentQuerySchema = z.object({ cursor: cursorParam, limit: limitSchema }).strict();
+export type ListRentQuery = z.infer<typeof listRentQuerySchema>;
 
 export const createPaymentSchema = z
   .object({
@@ -362,6 +524,12 @@ export const paymentSearchSchema = z
   })
   .strict();
 
+/** Admin property-inspection review queue — defaults to SUBMITTED (awaiting review). */
+export const adminInspectionsQuerySchema = z
+  .object({ status: inspectionStatusSchema.default("SUBMITTED"), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type AdminInspectionsQuery = z.infer<typeof adminInspectionsQuerySchema>;
+
 // ---------------------------------------------------------------------------
 // Roomie assistant — untrusted public boundary. The message is length-bounded
 // BEFORE any work and control characters are stripped so they cannot be
@@ -400,3 +568,234 @@ export const roomieRequestSchema = z
   .strict();
 
 export type RoomieRequest = z.infer<typeof roomieRequestSchema>;
+
+// ---------------------------------------------------------------------------
+// HOST SURFACE request schemas (consumed by the host app + the web host portal).
+// Every host route is ownership-scoped server-side; these only validate shape.
+// ---------------------------------------------------------------------------
+const aadhaarNumber = z.string().regex(/^\d{12}$/, "Aadhaar number must be 12 digits");
+
+/** Edit a listing's host-managed fields. An address change (fullAddress / pincode
+ *  / latitude / longitude) re-queues the listing for approval; minor edits go
+ *  live immediately — the server classifies which. At least one field required. */
+export const updateHostListingSchema = z
+  .object({
+    alias: z.string().min(1).max(120),
+    actualName: z.string().min(1).max(200),
+    areaLabel: z.string().min(1).max(120),
+    city: z.string().min(1).max(120),
+    pincode,
+    fullAddress: z.string().min(1).max(500),
+    latitude,
+    longitude,
+    gender: genderPolicySchema,
+    amenities,
+    houseRules: z.array(z.string().min(1).max(200)).max(50),
+    mealsOffered: z.boolean(),
+    mealChargesPaise: paise.nullable(),
+    tokenAmountPaise: paise.positive().nullable(),
+    instantBook: z.boolean(),
+  })
+  .partial()
+  .strict()
+  .refine((obj) => Object.keys(obj).length > 0, { message: "no fields to update" });
+export type UpdateHostListingInput = z.infer<typeof updateHostListingSchema>;
+
+/** Edit a room. A monthly-rent change greater than 20% re-queues the parent
+ *  listing for approval (the server classifies); other edits go live. */
+export const updateHostRoomSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    floor: z.number().int().min(-5).max(200).nullable(),
+    sharingType: z.number().int().min(1).max(20),
+    monthlyRentPaise: paise,
+    depositPaise: paise,
+  })
+  .partial()
+  .strict()
+  .refine((obj) => Object.keys(obj).length > 0, { message: "no fields to update" });
+export type UpdateHostRoomInput = z.infer<typeof updateHostRoomSchema>;
+
+/** Manual walk-in inventory adjust: BLOCK marks beds occupied (flagged distinctly
+ *  from platform bookings), UNBLOCK frees previously blocked beds. */
+export const adjustInventorySchema = z
+  .object({
+    action: z.enum(["BLOCK", "UNBLOCK"]),
+    count: z.number().int().min(1).max(100).default(1),
+  })
+  .strict();
+export type AdjustInventoryInput = z.infer<typeof adjustInventorySchema>;
+
+/** Record a walk-in tenant. The Aadhaar number is typed (never an uploaded doc)
+ *  and stored for the host's record only — it is never returned in full. */
+export const createWalkInSchema = z
+  .object({
+    roomId: z.string().uuid(),
+    name: z.string().min(1).max(120),
+    phone: e164Schema,
+    aadhaarNumber,
+    moveInDate: z.coerce.date(),
+    monthlyRentPaise: paise.positive(),
+    depositPaise: paise.default(0),
+    paymentMode: walkInPaymentModeSchema.default("CASH"),
+  })
+  .strict();
+export type CreateWalkInInput = z.infer<typeof createWalkInSchema>;
+
+export const walkInParamSchema = z.object({ walkInId: z.string().uuid() }).strict();
+export const walkInQuerySchema = z
+  .object({
+    // includeCheckedOut surfaces past walk-ins in the roster; default current only.
+    includeCheckedOut: z.enum(["true", "false"]).transform((v) => v === "true").optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type WalkInQuery = z.infer<typeof walkInQuerySchema>;
+
+/** Host roster query — `scope` selects current (default) or past tenants. */
+export const rosterQuerySchema = z
+  .object({ scope: z.enum(["current", "past"]).default("current"), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type RosterQuery = z.infer<typeof rosterQuerySchema>;
+
+/** Host's incoming booking-request feed. `status` defaults to actionable requests. */
+export const hostBookingRequestsQuerySchema = z
+  .object({
+    status: bookingStatusSchema.optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type HostBookingRequestsQuery = z.infer<typeof hostBookingRequestsQuerySchema>;
+
+/** Host service queue query — filter by status; newest/escalated first. */
+export const hostServiceQuerySchema = z
+  .object({ status: serviceRequestStatusSchema.optional(), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type HostServiceQuery = z.infer<typeof hostServiceQuerySchema>;
+
+/** A tenant-visible note the host adds to a service request. */
+export const serviceNoteSchema = z.object({ note: z.string().min(1).max(2000) }).strict();
+export type ServiceNoteInput = z.infer<typeof serviceNoteSchema>;
+
+/** A broadcast to all current tenants of a property (max 280 chars, 3/day). */
+export const broadcastSchema = z.object({ body: z.string().min(1).max(280) }).strict();
+export type BroadcastInput = z.infer<typeof broadcastSchema>;
+
+/** Save (create/replace) a named weekly meal template. */
+export const createMealTemplateSchema = z
+  .object({ name: z.string().min(1).max(80), days: weeklyMenuSchema })
+  .strict();
+export type CreateMealTemplateInput = z.infer<typeof createMealTemplateSchema>;
+
+export const mealTemplateParamSchema = z.object({ templateId: z.string().uuid() }).strict();
+/** Route params for a template nested under a listing: { id, templateId }. */
+export const listingTemplateParamSchema = z
+  .object({ id: z.string().uuid(), templateId: z.string().uuid() })
+  .strict();
+
+/** Apply a saved template to a week, filling 7 days of menu starting weekStartDate. */
+export const applyMealTemplateSchema = z
+  .object({ templateId: z.string().uuid(), weekStartDate: z.coerce.date() })
+  .strict();
+export type ApplyMealTemplateInput = z.infer<typeof applyMealTemplateSchema>;
+
+// ---------------------------------------------------------------------------
+// AGENT SURFACE request schemas (the §9.1 zone-access invariant is enforced
+// server-side on every route; these only validate shape). Agents are created by
+// ADMIN only — there is no self-register schema here.
+// ---------------------------------------------------------------------------
+
+/** ADMIN creates a zone-scoped agent (no self-register). `assignedCity` is the
+ *  §9.1 scope key. */
+export const createAgentSchema = z
+  .object({
+    fullName: z.string().min(1).max(120),
+    phone: e164Schema,
+    assignedCity: z.string().min(1).max(120),
+    email: z.string().email().max(200).optional(),
+  })
+  .strict();
+export type CreateAgentInput = z.infer<typeof createAgentSchema>;
+
+/** Agent visit feed query — optional status filter, cursor-paginated. */
+export const agentVisitsQuerySchema = z
+  .object({ status: agentVisitStatusSchema.optional(), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type AgentVisitsQuery = z.infer<typeof agentVisitsQuerySchema>;
+
+export const visitIdParamSchema = z.object({ id: z.string().uuid() }).strict();
+
+/** GPS check-in on a visit. The point is validated against the property geography
+ *  (within 200m) server-side; an out-of-range point is still recorded (flagged). */
+export const agentCheckInSchema = z
+  .object({
+    lat: latitude,
+    lng: longitude,
+    accuracyMeters: z.number().nonnegative().optional(),
+  })
+  .strict();
+export type AgentCheckInInput = z.infer<typeof agentCheckInSchema>;
+
+/** Per-area maps in the inspection checklist (bounded key counts). */
+const amenitiesCheckMap = z
+  .record(z.string().min(1).max(60), amenityCheckSchema)
+  .refine((m) => Object.keys(m).length <= 100, { message: "too many amenities" });
+const cleanlinessMap = z
+  .record(z.string().min(1).max(60), z.number().int().min(1).max(5))
+  .refine((m) => Object.keys(m).length <= 50, { message: "too many areas" });
+const securityInfraMap = z
+  .record(z.string().min(1).max(60), z.boolean())
+  .refine((m) => Object.keys(m).length <= 50, { message: "too many security items" });
+
+/** Partial-save the inspection checklist (DRAFT). Every field is optional so the
+ *  agent can save/resume on the same visit; at least one field is required. */
+export const inspectionDraftSchema = z
+  .object({
+    amenities: amenitiesCheckMap.optional(),
+    roomCountListed: z.number().int().min(0).max(1000).optional(),
+    roomCountActual: z.number().int().min(0).max(1000).optional(),
+    cleanliness: cleanlinessMap.optional(),
+    securityInfra: securityInfraMap.optional(),
+    discrepancies: z.string().max(5000).nullable().optional(),
+    recommendation: inspectionRecommendationSchema.optional(),
+    notesForAdmin: z.string().max(5000).nullable().optional(),
+  })
+  .strict()
+  .refine((obj) => Object.keys(obj).length > 0, { message: "no fields to save" });
+export type InspectionDraftInput = z.infer<typeof inspectionDraftSchema>;
+
+/** Presigned PUT for one inspection photo (jpeg/png only). */
+export const inspectionPhotoUrlSchema = z
+  .object({ contentType: z.enum(["image/jpeg", "image/png"]) })
+  .strict();
+export type InspectionPhotoUrlInput = z.infer<typeof inspectionPhotoUrlSchema>;
+
+/** Attach one geotagged + timestamped photo (after uploading to its object key). */
+export const addInspectionPhotoSchema = z
+  .object({
+    key: z.string().min(1).max(1024),
+    lat: latitude,
+    lng: longitude,
+    takenAt: z.coerce.date(),
+  })
+  .strict();
+export type AddInspectionPhotoInput = z.infer<typeof addInspectionPhotoSchema>;
+
+/** Agent-created booking (assisted OR walk-in): the agent enters the tenant's
+ *  name + mobile and a room/bed. The agent NEVER pays — the user pays from their
+ *  own device (assisted = SMS link; walk-in = scans a QR). */
+export const agentBookingSchema = z
+  .object({
+    tenantName: z.string().min(1).max(120),
+    tenantPhone: e164Schema,
+    bedId: z.string().uuid().optional(),
+    roomId: z.string().uuid().optional(),
+    moveInDate: z.coerce.date().optional(),
+  })
+  .strict()
+  .refine((b) => Boolean(b.bedId) !== Boolean(b.roomId), {
+    message: "exactly one of bedId or roomId is required",
+  });
+export type AgentBookingInput = z.infer<typeof agentBookingSchema>;

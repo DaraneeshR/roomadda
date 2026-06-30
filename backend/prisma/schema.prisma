@@ -130,6 +130,56 @@ enum CashCollectionStatus {
   RECONCILED
 }
 
+enum RentInvoiceStatus {
+  DUE
+  PAID
+  // Derived label for an unpaid invoice past its due date. The READ path
+  // computes this from (status != PAID && dueDate < today) so the API is correct
+  // even before the sweep runs; the sweep persists it for queries/metrics.
+  OVERDUE
+}
+
+enum ServiceRequestCategory {
+  PLUMBING
+  ELECTRICAL
+  CLEANING
+  APPLIANCE
+  WIFI
+  FURNITURE
+  PEST_CONTROL
+  OTHER
+}
+
+enum ServiceRequestPriority {
+  NORMAL
+  URGENT
+}
+
+enum ServiceRequestStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum LeaveNoticeStatus {
+  ACTIVE
+  WITHDRAWN
+}
+
+// How a host-recorded walk-in tenant paid their move-in dues (host's own record;
+// no money is settled by RoomAdda for walk-ins — it is bookkeeping only).
+enum WalkInPaymentMode {
+  CASH
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum ChatMessageKind {
+  TEXT
+  PHOTO
+}
+
 enum AdSlotType {
   DAY
   WEEK
@@ -157,6 +207,33 @@ enum AgentVisitStatus {
   CANCELLED
 }
 
+// How an agent-attributed booking was created. ASSISTED = agent enters the
+// tenant's details and a pay link is SMSed to the USER; WALK_IN = the user scans
+// an agent-shown Razorpay QR. Both confirm ONLY via the verified webhook and earn
+// the same commission. Attribution (Booking.bookedByAgentId) is immutable once
+// the booking is CONFIRMED (see /CLAUDE.md domain rules + §9.1).
+enum AgentBookingChannel {
+  ASSISTED
+  WALK_IN
+}
+
+// Lifecycle of a property inspection. The AGENT drives DRAFT (partial-save/resume)
+// -> SUBMITTED (enters the admin review queue); ADMIN drives APPROVED / REJECTED
+// in their phase.
+enum InspectionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+// The agent's overall verdict on an inspection.
+enum InspectionRecommendation {
+  APPROVE
+  APPROVE_WITH_CONDITIONS
+  REJECT
+}
+
 enum WebhookProvider {
   RAZORPAY
   MSG91
@@ -174,12 +251,12 @@ enum WebhookStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id              String   @id @default(uuid()) @db.Uuid
-  role            UserRole @default(TENANT)
-  phone           String   @unique
-  email           String?  @unique
+  id              String          @id @default(uuid()) @db.Uuid
+  role            UserRole        @default(TENANT)
+  phone           String          @unique
+  email           String?         @unique
   fullName        String
-  isPhoneVerified Boolean  @default(false)
+  isPhoneVerified Boolean         @default(false)
   // Optional self-managed profile (PATCH /v1/me, self only). `gender` is used
   // ONLY for discovery filter matching and is NEVER returned to hosts
   // (see /CLAUDE.md domain rules + privacy rules).
@@ -188,30 +265,43 @@ model User {
   occupationType  OccupationType?
   college         String?
   company         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  // Agent zone (the §9.1 zone-access invariant): the city an AGENT is scoped to.
+  // Set by ADMIN at agent creation (agents are never self-registered); an agent
+  // may only ever read/act on leads, visits, and properties in this city. Null for
+  // every non-agent role. Enforced server-side on every agent route (zone.ts).
+  assignedCity    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  kyc             KycRecord?
-  listings        PgListing[]      @relation("HostListings")
-  bookings        Booking[]        @relation("TenantBookings")
-  agentVisits     AgentVisit[]     @relation("AgentVisits")
-  cashCollections CashCollection[] @relation("AgentCashCollections")
-  grantedTrust    TrustTag[]       @relation("TrustGrantedBy")
-  refreshTokens   RefreshToken[]   @relation("UserRefreshTokens")
-  wishlist        Wishlist[]       @relation("UserWishlist")
+  kyc              KycRecord?
+  listings         PgListing[]             @relation("HostListings")
+  bookings         Booking[]               @relation("TenantBookings")
+  agentBookings    Booking[]               @relation("AgentBookings")
+  agentVisits      AgentVisit[]            @relation("AgentVisits")
+  agentInspections PropertyInspection[]    @relation("AgentInspections")
+  cashCollections  CashCollection[]        @relation("AgentCashCollections")
+  grantedTrust     TrustTag[]              @relation("TrustGrantedBy")
+  refreshTokens    RefreshToken[]          @relation("UserRefreshTokens")
+  wishlist         Wishlist[]              @relation("UserWishlist")
+  menuUpdates      MealMenu[]              @relation("MenuUpdatedByHost")
+  serviceRequests  ServiceRequest[]        @relation("TenantServiceRequests")
+  serviceComments  ServiceRequestComment[] @relation("ServiceRequestComments")
+  leaveNotices     LeaveNotice[]           @relation("TenantLeaveNotices")
+  trustedContacts  TrustedContact[]        @relation("UserTrustedContacts")
+  deviceTokens     DeviceToken[]           @relation("UserDevices")
 
   @@index([role])
   @@map("users")
 }
 
 model KycRecord {
-  id          String     @id @default(uuid()) @db.Uuid
-  userId      String     @unique @db.Uuid
-  status      KycStatus  @default(PENDING)
-  docType     KycDocType
+  id                String     @id @default(uuid()) @db.Uuid
+  userId            String     @unique @db.Uuid
+  status            KycStatus  @default(PENDING)
+  docType           KycDocType
   // Legacy single vendor-doc reference (pre-self-serve intake). Nullable now
   // that the tenant uploads documents and we store per-document S3 keys below.
-  docRef      String?
+  docRef            String?
   // Private S3 object keys for the uploaded documents (Aadhaar front/back + one
   // supporting ID). The bucket is PRIVATE + SSE (AES-256); only the key — never
   // the file or any raw number — is stored. Null until the tenant submits.
@@ -220,11 +310,11 @@ model KycRecord {
   supportingDocKey  String?
   // What the supporting ID is: STUDENT_ID / OFFICE_ID / OFFER_LETTER.
   supportingDocType String?
-  verifiedAt  DateTime?
-  rejectedAt  DateTime?
-  rejectReason String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  verifiedAt        DateTime?
+  rejectedAt        DateTime?
+  rejectReason      String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -237,40 +327,59 @@ model KycRecord {
 // ---------------------------------------------------------------------------
 
 model PgListing {
-  id          String        @id @default(uuid()) @db.Uuid
-  hostId      String        @db.Uuid
+  id               String        @id @default(uuid()) @db.Uuid
+  hostId           String        @db.Uuid
   // Public-safe identity (always returned).
-  alias       String
-  areaLabel   String
-  city        String
-  amenities   String[]      @default([])
+  alias            String
+  areaLabel        String
+  city             String
+  amenities        String[]      @default([])
   // Masked fields — only revealed to a confirmed tenant / owner / admin / agent.
-  actualName  String
-  fullAddress String
-  pincode     String
-  latitude    Float
-  longitude   Float
+  actualName       String
+  fullAddress      String
+  pincode          String
+  latitude         Float
+  longitude        Float
   // NOTE: a PostGIS `location geography(Point,4326)` column is added to this
   // table out-of-band by prisma/sql/01_postgis.sql (Prisma does not model the
   // geography type). It is maintained from latitude/longitude by a trigger and
   // queried via raw SQL. Kept out of the Prisma schema so migrations stay
   // relational and portable.
-  status      ListingStatus @default(DRAFT)
-  gender      GenderPolicy  @default(COED)
+  status           ListingStatus @default(DRAFT)
+  gender           GenderPolicy  @default(COED)
   // Instant Book confirms on payment; otherwise a booking waits for host accept
   // (Request-to-Book) before the payment link activates.
-  instantBook Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  instantBook      Boolean       @default(true)
+  // Meals create-step: whether the PG serves meals + the monthly charge (paise).
+  // The DAILY menu lives in MealMenu; this is the listing-level offer.
+  mealsOffered     Boolean       @default(false)
+  mealChargesPaise Int?
+  // House-rules create-step: free-text rule lines shown to tenants.
+  houseRules       String[]      @default([])
+  // Token create-step: host-configured amount to secure a bed (paise). When null
+  // the booking flow falls back to the deposit, else one month's rent.
+  tokenAmountPaise Int?
+  // Host pause (NOT a delete): hidden from tenant discovery while keeping its
+  // inventory, bookings, and tenants intact. Distinct from admin SUSPENDED.
+  paused           Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  host        User          @relation("HostListings", fields: [hostId], references: [id])
-  rooms       Room[]
-  photos      ListingPhoto[]
-  bookings    Booking[]
-  trustTags   TrustTag[]
-  adSlots     AdSlot[]
-  agentVisits AgentVisit[]
-  wishlists   Wishlist[]
+  host            User             @relation("HostListings", fields: [hostId], references: [id])
+  rooms           Room[]
+  photos          ListingPhoto[]
+  bookings        Booking[]
+  trustTags       TrustTag[]
+  adSlots         AdSlot[]
+  agentVisits     AgentVisit[]
+  inspections     PropertyInspection[]
+  wishlists       Wishlist[]
+  mealMenus       MealMenu[]
+  mealTemplates   MealTemplate[]
+  serviceRequests ServiceRequest[]
+  walkIns         WalkInTenant[]
+  broadcasts      Broadcast[]
+  editLogs        ListingEditLog[]
 
   @@index([hostId])
   @@index([status])
@@ -278,18 +387,23 @@ model PgListing {
 }
 
 model Room {
-  id            String   @id @default(uuid()) @db.Uuid
-  listingId     String   @db.Uuid
-  name          String
-  floor         Int?
-  sharingType   Int      @default(1)
-  monthlyRentPaise Int
-  depositPaise  Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String    @id @default(uuid()) @db.Uuid
+  listingId           String    @db.Uuid
+  name                String
+  floor               Int?
+  sharingType         Int       @default(1)
+  monthlyRentPaise    Int
+  depositPaise        Int       @default(0)
+  // Last time the host confirmed this room's occupancy is accurate. The inventory
+  // view flags a room "not verified in 3 days" when this is older than the window
+  // (or never set) so stale availability is surfaced for the host to re-check.
+  inventoryVerifiedAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing PgListing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
   beds    Bed[]
+  walkIns WalkInTenant[]
 
   @@index([listingId])
   @@map("rooms")
@@ -301,6 +415,10 @@ model Bed {
   label            String
   status           BedStatus @default(AVAILABLE)
   monthlyRentPaise Int?
+  // Set when the occupying tenant serves a leave notice: the bed is "Vacating
+  // Soon" and frees up on `vacatingFrom` (the move-out date). Cleared on withdrawal.
+  vacatingSoon     Boolean   @default(false)
+  vacatingFrom     DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -317,39 +435,49 @@ model Bed {
 // ---------------------------------------------------------------------------
 
 model Booking {
-  id              String        @id @default(uuid()) @db.Uuid
-  bedId           String        @db.Uuid
-  tenantId        String        @db.Uuid
+  id               String               @id @default(uuid()) @db.Uuid
+  bedId            String               @db.Uuid
+  tenantId         String               @db.Uuid
   // Denormalised for fast masking checks (tenant <-> listing).
-  listingId       String        @db.Uuid
-  status          BookingStatus @default(INITIATED)
+  listingId        String               @db.Uuid
+  status           BookingStatus        @default(INITIATED)
   // Money snapshot taken at hold time (so later room edits don't move it).
   tokenAmountPaise Int
   monthlyRentPaise Int
   depositPaise     Int
-  moveInDate      DateTime?
+  moveInDate       DateTime?
   // Tenant's chosen meal plan label (free text; meals module is post-MVP).
-  mealPlan        String?
-  confirmedAt     DateTime?
-  cancelledAt     DateTime?
+  mealPlan         String?
+  // Agent attribution (§9.1): the AGENT who created this booking (assisted or
+  // walk-in), and which channel. Null for self-serve tenant bookings. Set at hold
+  // time and IMMUTABLE once the booking is CONFIRMED — no route reassigns it.
+  bookedByAgentId  String?              @db.Uuid
+  agentChannel     AgentBookingChannel?
+  confirmedAt      DateTime?
+  cancelledAt      DateTime?
   // Cancellation outcome snapshot (set atomically with status -> CANCELLED).
   // `refundPaise` is the amount actually initiated for refund; `refundReason` is
   // the policy code; `cancelledBy` records who triggered it. The refund is only
   // SETTLED via the verified webhook — these fields are the cancellation record,
   // not a settlement flag.
-  cancelledBy     CancelledBy?
-  refundPaise     Int?
-  refundReason    String?
+  cancelledBy      CancelledBy?
+  refundPaise      Int?
+  refundReason     String?
   // Hold expiry: TOKEN_PENDING beyond this is swept to EXPIRED by the job.
-  holdExpiresAt   DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  holdExpiresAt    DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
-  bed             Bed              @relation(fields: [bedId], references: [id])
-  tenant          User             @relation("TenantBookings", fields: [tenantId], references: [id])
-  listing         PgListing        @relation(fields: [listingId], references: [id])
+  bed             Bed                 @relation(fields: [bedId], references: [id])
+  tenant          User                @relation("TenantBookings", fields: [tenantId], references: [id])
+  bookedByAgent   User?               @relation("AgentBookings", fields: [bookedByAgentId], references: [id])
+  listing         PgListing           @relation(fields: [listingId], references: [id])
   payment         Payment?
   cashCollections CashCollection[]
+  rentInvoices    RentInvoice[]
+  serviceRequests ServiceRequest[]
+  leaveNotices    LeaveNotice[]
+  conversation    Conversation?
   refunds         RefundTransaction[]
 
   // NOTE: the "one live booking per bed" partial unique index
@@ -358,6 +486,8 @@ model Booking {
   @@index([bedId])
   @@index([tenantId])
   @@index([listingId, status])
+  // Serves the agent dashboard/performance rollups (their attributed bookings).
+  @@index([bookedByAgentId, status])
   @@map("bookings")
 }
 
@@ -405,20 +535,20 @@ model PaymentTransaction {
 // to PROCESSED/FAILED (refund truth = the webhook, see /CLAUDE.md domain rule
 // #2). `razorpayRefundId` is unique so a replayed webhook is a no-op.
 model RefundTransaction {
-  id                String       @id @default(uuid()) @db.Uuid
-  paymentId         String       @db.Uuid
+  id               String       @id @default(uuid()) @db.Uuid
+  paymentId        String       @db.Uuid
   // Denormalised so the webhook can find the booking without a join.
-  bookingId         String       @db.Uuid
-  amountPaise       Int
-  status            RefundStatus @default(INITIATED)
+  bookingId        String       @db.Uuid
+  amountPaise      Int
+  status           RefundStatus @default(INITIATED)
   // The gateway refund id (rfnd_…). Null only in the tiny window between the
   // cancel commit and the synchronous API response; unique once set.
-  razorpayRefundId  String?      @unique
+  razorpayRefundId String?      @unique
   // Links the settled transition to the verified webhook that produced it.
-  webhookEventId    String?      @db.Uuid
-  processedAt       DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  webhookEventId   String?      @db.Uuid
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   payment      Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -431,16 +561,16 @@ model RefundTransaction {
 }
 
 model CashCollection {
-  id          String               @id @default(uuid()) @db.Uuid
-  bookingId   String               @db.Uuid
-  agentId     String               @db.Uuid
-  amountPaise Int
-  status      CashCollectionStatus @default(PENDING)
-  collectedAt DateTime?
+  id           String               @id @default(uuid()) @db.Uuid
+  bookingId    String               @db.Uuid
+  agentId      String               @db.Uuid
+  amountPaise  Int
+  status       CashCollectionStatus @default(PENDING)
+  collectedAt  DateTime?
   reconciledAt DateTime?
-  note        String?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  note         String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   booking Booking @relation(fields: [bookingId], references: [id])
   agent   User    @relation("AgentCashCollections", fields: [agentId], references: [id])
@@ -448,6 +578,311 @@ model CashCollection {
   @@index([bookingId])
   @@index([agentId])
   @@map("cash_collections")
+}
+
+// Recurring monthly rent. One invoice per (booking, billing month). RENT IS
+// MONEY: an invoice becomes PAID ONLY via the signature-verified Razorpay
+// webhook (full amount), never app-side — mirroring the token/ad payment path.
+// Razorpay refs live here (no Payment row, which is 1:1 with a booking).
+model RentInvoice {
+  id                String            @id @default(uuid()) @db.Uuid
+  bookingId         String            @db.Uuid
+  // First day of the billing month this invoice covers (date only).
+  periodMonth       DateTime          @db.Date
+  amountPaise       Int
+  dueDate           DateTime
+  status            RentInvoiceStatus @default(DUE)
+  // Set when payment is initiated / captured (mirrors AdSlot.razorpayOrderId).
+  razorpayOrderId   String?           @unique
+  razorpayPaymentId String?           @unique
+  paidAt            DateTime?
+  // Links the PAID transition to the verified webhook that produced it.
+  webhookEventId    String?           @db.Uuid
+  // Reminder windows already sent for this invoice (e.g. "DUE_IN_5_DAYS"), so the
+  // rent-reminder sweep never double-sends a window. A PAID invoice never reminds.
+  remindersSent     String[]          @default([])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  webhookEvent WebhookEvent? @relation(fields: [webhookEventId], references: [id])
+
+  // The generator never double-bills a period for a booking.
+  @@unique([bookingId, periodMonth])
+  @@index([bookingId])
+  @@index([status, dueDate])
+  @@map("rent_invoices")
+}
+
+// Maintenance / service requests a tenant raises against their active stay. The
+// status lifecycle is Submitted -> Acknowledged -> Resolved (host/admin drive the
+// later transitions in their phase). An Urgent request unresolved past the
+// escalation window is auto-flagged (`escalated`) for admin attention. Tenants
+// can comment but never delete (no delete route exists).
+model ServiceRequest {
+  id             String                 @id @default(uuid()) @db.Uuid
+  // Human-friendly, unique ticket number shown to the tenant (e.g. SR-2A4F9C).
+  ticketNumber   String                 @unique
+  bookingId      String                 @db.Uuid
+  // Denormalised for fast own-list queries and host/admin oversight.
+  tenantId       String                 @db.Uuid
+  listingId      String                 @db.Uuid
+  category       ServiceRequestCategory
+  description    String
+  priority       ServiceRequestPriority @default(NORMAL)
+  status         ServiceRequestStatus   @default(SUBMITTED)
+  // Up to 3 private photo object keys (validated to the tenant's own prefix).
+  photoRefs      String[]               @default([])
+  // Auto-escalation flag for Urgent requests unresolved past the window.
+  escalated      Boolean                @default(false)
+  escalatedAt    DateTime?
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  // Tenant's 1-5 satisfaction rating, captured after the request is Resolved.
+  rating         Int?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  booking  Booking                 @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tenant   User                    @relation("TenantServiceRequests", fields: [tenantId], references: [id])
+  listing  PgListing               @relation(fields: [listingId], references: [id])
+  comments ServiceRequestComment[]
+
+  @@index([tenantId, createdAt])
+  @@index([listingId, status])
+  // Serves the escalation sweep (Urgent + unresolved + not yet escalated).
+  @@index([priority, status, escalated])
+  @@map("service_requests")
+}
+
+model ServiceRequestComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  requestId  String   @db.Uuid
+  authorId   String   @db.Uuid
+  // Snapshot of the author's role for display (TENANT / HOST / ADMIN / AGENT).
+  authorRole UserRole
+  body       String
+  createdAt  DateTime @default(now())
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author  User           @relation("ServiceRequestComments", fields: [authorId], references: [id])
+
+  @@index([requestId, createdAt])
+  @@map("service_request_comments")
+}
+
+// A tenant's notice to vacate. `moveOutDate` must be at least the notice period
+// out (enforced in the service); a notice cannot be withdrawn within 3 days of
+// move-out. On submit, the host + admin are notified and the bed is flagged
+// Vacating Soon.
+model LeaveNotice {
+  id          String            @id @default(uuid()) @db.Uuid
+  bookingId   String            @db.Uuid
+  // Denormalised for fast own-list queries and to free the bed on withdrawal.
+  tenantId    String            @db.Uuid
+  listingId   String            @db.Uuid
+  bedId       String            @db.Uuid
+  moveOutDate DateTime
+  status      LeaveNoticeStatus @default(ACTIVE)
+  withdrawnAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tenant  User    @relation("TenantLeaveNotices", fields: [tenantId], references: [id])
+
+  @@index([bookingId])
+  @@index([tenantId, createdAt])
+  @@map("leave_notices")
+}
+
+// A host-recorded walk-in occupant (someone who joined the PG off-platform). The
+// host types the tenant's details — including the Aadhaar NUMBER (never an
+// uploaded document): it is stored for the host's tenancy record only, NEVER
+// logged and NEVER returned in full (serializers expose only the last 4 digits).
+// Creating a walk-in BLOCKS a bed (BedStatus.BLOCKED — distinct from a platform
+// BOOKED bed) so availability is reduced, and SMSes the tenant an app-invite with
+// a single-use pre-registration token (hash only is stored). The walk-in shows in
+// the host's tenant roster; `checkedOutAt` moves it to the past-tenants list and
+// frees its bed.
+model WalkInTenant {
+  id               String            @id @default(uuid()) @db.Uuid
+  listingId        String            @db.Uuid
+  roomId           String            @db.Uuid
+  // The bed blocked for this walk-in; null only after checkout frees it.
+  bedId            String?           @db.Uuid
+  // Denormalised owner (the host who recorded it) — no relation needed.
+  hostId           String            @db.Uuid
+  name             String
+  // E.164 mobile; the app-invite SMS is sent here.
+  phone            String
+  // Aadhaar number TYPED by the host. Sensitive PII: never logged, never returned
+  // in full. Stored as the digits the host entered for their own record.
+  aadhaarNumber    String
+  moveInDate       DateTime
+  monthlyRentPaise Int
+  depositPaise     Int               @default(0)
+  paymentMode      WalkInPaymentMode @default(CASH)
+  // App-invite pre-registration token: only the SHA-256 hash is stored; the raw
+  // token goes out once in the SMS. `invitedAt` records when the invite fired.
+  inviteTokenHash  String?           @unique
+  invitedAt        DateTime?
+  // Roster lifecycle: set when the host marks the tenant checked out (frees bed).
+  checkedOutAt     DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  room    Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, checkedOutAt])
+  @@index([roomId])
+  @@map("walk_in_tenants")
+}
+
+// A host's saved weekly meal template — applied to fill a week's MealMenu rows in
+// one action. `days` is a validated 7×3 structure (Mon..Sun, each with the three
+// slots) stored as JSON; it is validated by zod at the API boundary.
+model MealTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @db.Uuid
+  name      String
+  days      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // One template name per listing (upsert keys on this).
+  @@unique([listingId, name])
+  @@index([listingId])
+  @@map("meal_templates")
+}
+
+// A host broadcast: one message fanned out to every CURRENT tenant of a property.
+// Each broadcast is also mirrored into each tenant's chat thread (a HOST message),
+// so this row is the rate-limit + audit ledger (max 3/day per property). Ex-tenants
+// are never recipients.
+model Broadcast {
+  id             String   @id @default(uuid()) @db.Uuid
+  listingId      String   @db.Uuid
+  hostId         String   @db.Uuid
+  body           String
+  // How many current tenants received it (for the host's "sent to N" confirmation).
+  recipientCount Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@map("broadcasts")
+}
+
+// Append-only edit history for a listing. Each host/admin edit records which
+// fields changed and whether the change re-queued the listing for approval (a
+// rent change > 20% or an address change). Drives the host "edit history" view.
+model ListingEditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @db.Uuid
+  actorId   String   @db.Uuid
+  // The field names that changed, e.g. ["alias", "houseRules"].
+  fields    String[] @default([])
+  // True when the edit moved the listing back to PENDING_REVIEW (§9.2 re-approval).
+  requeued  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@map("listing_edit_logs")
+}
+
+// A user's emergency / safety contacts (1–3, enforced in the service). On SOS,
+// each is sent an SMS (MSG91) with the user's live location.
+model TrustedContact {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserTrustedContacts", fields: [userId], references: [id], onDelete: Cascade)
+
+  // The same number can't be added twice for one user.
+  @@unique([userId, phone])
+  @@index([userId])
+  @@map("trusted_contacts")
+}
+
+// ---------------------------------------------------------------------------
+// Tenant <-> host chat. Real-time delivery is Firebase (Firestore + FCM, see
+// PRD); EVERY message is mirrored here for admin audit. One conversation per
+// booking; sending is disabled once the booking is no longer CONFIRMED. Phone
+// numbers are NEVER allowed in message text (rejected at the boundary).
+// ---------------------------------------------------------------------------
+model Conversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @unique @db.Uuid
+  // Denormalised participants for fast scoping + the host/tenant split.
+  tenantId  String   @db.Uuid
+  hostId    String   @db.Uuid
+  listingId String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking  Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([tenantId])
+  @@index([hostId])
+  @@map("conversations")
+}
+
+model ChatMessage {
+  id             String          @id @default(uuid()) @db.Uuid
+  conversationId String          @db.Uuid
+  senderId       String          @db.Uuid
+  senderRole     UserRole
+  kind           ChatMessageKind @default(TEXT)
+  // Text body (null for a photo) / private photo object key (null for text).
+  body           String?
+  photoRef       String?
+  createdAt      DateTime        @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reports      ChatReport[]
+
+  @@index([conversationId, createdAt])
+  @@map("chat_messages")
+}
+
+model ChatReport {
+  id         String   @id @default(uuid()) @db.Uuid
+  messageId  String   @db.Uuid
+  reporterId String   @db.Uuid
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("chat_reports")
+}
+
+// FCM device tokens for push (chat + future notifications). One row per device.
+model DeviceToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserDevices", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
 
 // ---------------------------------------------------------------------------
@@ -509,22 +944,94 @@ model TrustTag {
 }
 
 model AgentVisit {
-  id          String           @id @default(uuid()) @db.Uuid
-  listingId   String           @db.Uuid
-  agentId     String           @db.Uuid
-  status      AgentVisitStatus @default(SCHEDULED)
-  scheduledAt DateTime
-  visitedAt   DateTime?
-  notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id               String           @id @default(uuid()) @db.Uuid
+  listingId        String           @db.Uuid
+  agentId          String           @db.Uuid
+  status           AgentVisitStatus @default(SCHEDULED)
+  scheduledAt      DateTime
+  visitedAt        DateTime?
+  notes            String?
+  // GPS check-in: the point the agent checked in from + when. The point must be
+  // within CHECK_IN_RADIUS_M (200m) of the property (PostGIS ST_DWithin against
+  // pg_listings.location) for the check-in to VALIDATE. An out-of-range check-in
+  // is still recorded (the "cannot reach property" flag path) but checkInValid is
+  // false, and an inspection can be SUBMITTED only on a valid check-in.
+  checkInLat       Float?
+  checkInLng       Float?
+  checkInAt        DateTime?
+  checkInDistanceM Float?
+  checkInValid     Boolean?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  agent   User      @relation("AgentVisits", fields: [agentId], references: [id])
+  listing    PgListing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  agent      User                @relation("AgentVisits", fields: [agentId], references: [id])
+  inspection PropertyInspection?
 
   @@index([listingId])
   @@index([agentId])
+  // Serves the agent dashboard "today's assigned visits" (by agent + schedule).
+  @@index([agentId, scheduledAt])
   @@map("agent_visits")
+}
+
+// A structured property inspection an agent fills during a visit. ONE per visit.
+// Supports partial-save/resume (status DRAFT) and a final SUBMIT that requires a
+// valid GPS check-in on the visit AND at least MIN_INSPECTION_PHOTOS (8) geotagged
+// + timestamped photos. On submit it enters the admin review queue (SUBMITTED).
+// The structured checklist fields are validated by zod at the API boundary.
+model PropertyInspection {
+  id              String                    @id @default(uuid()) @db.Uuid
+  visitId         String                    @unique @db.Uuid
+  agentId         String                    @db.Uuid
+  // Denormalised listing id for the zone-isolation guard + admin queue grouping.
+  listingId       String                    @db.Uuid
+  status          InspectionStatus          @default(DRAFT)
+  // Per-amenity YES/NO/PARTIAL map (e.g. { "wifi": "YES", "geyser": "PARTIAL" }).
+  amenities       Json?
+  // Room count: what the listing claims vs what the agent counted on site.
+  roomCountListed Int?
+  roomCountActual Int?
+  // Cleanliness 1–5 per area (e.g. { "kitchen": 4, "bathroom": 3 }).
+  cleanliness     Json?
+  // Security infrastructure checklist (e.g. { "cctv": true, "guard": false }).
+  securityInfra   Json?
+  // Free-text discrepancies the agent observed.
+  discrepancies   String?
+  recommendation  InspectionRecommendation?
+  // Free-text notes the agent leaves for the admin reviewer.
+  notesForAdmin   String?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  visit   AgentVisit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  agent   User              @relation("AgentInspections", fields: [agentId], references: [id])
+  listing PgListing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  photos  InspectionPhoto[]
+
+  @@index([status, submittedAt])
+  @@index([listingId])
+  @@map("property_inspections")
+}
+
+// One inspection photo. EACH photo is geotagged (lat/lng) + timestamped (takenAt)
+// — the submit gate requires at least 8 of these. Only the PRIVATE S3 object key
+// is stored (never a public URL, never the bytes — same as KYC/service photos).
+model InspectionPhoto {
+  id           String   @id @default(uuid()) @db.Uuid
+  inspectionId String   @db.Uuid
+  objectKey    String
+  lat          Float
+  lng          Float
+  takenAt      DateTime
+  createdAt    DateTime @default(now())
+
+  inspection PropertyInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+  @@map("inspection_photos")
 }
 
 model ListingPhoto {
@@ -539,6 +1046,41 @@ model ListingPhoto {
 
   @@index([listingId])
   @@map("listing_photos")
+}
+
+// Daily meal menu for a listing's tenants. One row per (listing, calendar day).
+// Each slot carries free dish text plus a "not served today" flag — distinct from
+// "not updated yet" (no row at all). The tenant view is transparent about who
+// last edited it (the host) and when. Host-update endpoints land in the host
+// phase; a minimal owner-only POST exists so menus can be created/seeded.
+model MealMenu {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @db.Uuid
+  // Calendar day this menu is for (date only — no time-of-day).
+  date      DateTime @db.Date
+
+  breakfast String?
+  lunch     String?
+  dinner    String?
+
+  // Per-slot "not served today" flags (host marked the slot closed).
+  breakfastNotAvailable Boolean @default(false)
+  lunchNotAvailable     Boolean @default(false)
+  dinnerNotAvailable    Boolean @default(false)
+
+  // The host who last edited this menu, for the tenant's "last updated" line.
+  updatedByHostId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing       PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  updatedByHost User?     @relation("MenuUpdatedByHost", fields: [updatedByHostId], references: [id])
+
+  // One menu per listing per day; the upsert keys on this.
+  @@unique([listingId, date])
+  @@index([listingId, date])
+  @@map("meal_menus")
 }
 
 // ---------------------------------------------------------------------------
@@ -577,7 +1119,8 @@ model WebhookEvent {
   processedAt DateTime?
   error       String?
 
-  transactions PaymentTransaction[]
+  transactions       PaymentTransaction[]
+  rentInvoices       RentInvoice[]
   refundTransactions RefundTransaction[]
 
   @@unique([provider, eventId])
