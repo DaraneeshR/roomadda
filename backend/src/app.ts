@@ -27,6 +27,7 @@ import { adminRoutes } from "./modules/admin/admin.route.js";
 import { metricsRoutes } from "./modules/metrics/metrics.route.js";
 import { roomieRoutes } from "./modules/roomie/roomie.route.js";
 import { hostRoutes } from "./modules/host/host.route.js";
+import { agentRoutes } from "./modules/agent/agent.route.js";
 
 /** 1 MB request body cap. */
 const BODY_LIMIT_BYTES = 1_048_576;
@@ -83,6 +84,7 @@ export async function buildApp() {
       await v1.register(metricsRoutes);
       await v1.register(roomieRoutes);
       await v1.register(hostRoutes);
+      await v1.register(agentRoutes);
       // Encapsulated: webhook gets its own raw-body parser, scoped to this child.
       await v1.register(webhookRoutes);
     },
