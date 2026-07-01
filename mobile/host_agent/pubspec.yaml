@@ -20,6 +20,16 @@ dependencies:
   flutter_riverpod: ^2.6.1
   go_router: ^14.8.1
 
+  # Networking (host repositories talk to dio directly, via core's dioProvider)
+  dio: ^5.8.0
+
+  # Date formatting on the host surface (move-in dates, menu days)
+  intl: ^0.20.2
+
+  # On-device listing photos: capture/pick from camera or gallery, then upload to
+  # a presigned URL (same plugin + version the tenant KYC flow uses).
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
