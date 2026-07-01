@@ -9,6 +9,7 @@ export {
   createRoomSchema,
   createBedSchema,
   createPhotoSchema,
+  listingPhotoUploadUrlSchema,
   roomParamSchema,
   listFiltersSchema,
   nearbyQuerySchema,
@@ -21,6 +22,7 @@ export type {
   CreateRoomInput,
   CreateBedInput,
   CreatePhotoInput,
+  ListingPhotoUploadUrlInput,
   ListFilters,
   NearbyQuery,
 } from "@roomadda/shared";

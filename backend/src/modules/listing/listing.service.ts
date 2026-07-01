@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { Prisma, type Bed, type KycStatus, type ListingPhoto, type Room } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { assertPaise } from "../../lib/money.js";
 import { AppError } from "../../lib/errors.js";
+import { objectStorage, type PublicPresignedUpload } from "../../lib/storage.js";
 import { toPage, type Page } from "../../lib/pagination.js";
 import { listingInclude, type ListingWithRelations } from "./serializer.js";
 import type {
@@ -169,6 +171,21 @@ export const listingService = {
     }
   },
 
+  /**
+   * Presign a PUT URL for one on-device listing photo (HOST/owner). The key is
+   * scoped to the listing so it can't be forged; the public bucket returns a
+   * stable `publicUrl` the client then attaches via {@link addPhoto}. Mirrors the
+   * KYC / service-request / inspection presign pattern (public bucket here).
+   */
+  async createPhotoUploadUrl(
+    listingId: string,
+    contentType: "image/jpeg" | "image/png",
+  ): Promise<PublicPresignedUpload> {
+    const ext = contentType === "image/png" ? "png" : "jpg";
+    const key = `listings/${listingId}/${randomUUID()}.${ext}`;
+    return objectStorage.presignPublicUpload({ key, contentType });
+  },
+
   async addPhoto(listingId: string, input: CreatePhotoInput): Promise<ListingPhoto> {
     // If this photo is primary, demote any existing primary — two writes, so a
     // transaction (see /CLAUDE.md).
@@ -187,7 +204,8 @@ export const listingService = {
 
   /** Public, PUBLISHED-only, filtered + cursor-paginated listing browse. */
   async listPublished(filters: ListFilters): Promise<Page<ListingWithRelations>> {
-    const where: Prisma.PgListingWhereInput = { status: "PUBLISHED" };
+    // Paused listings stay PUBLISHED but are hidden from tenant discovery.
+    const where: Prisma.PgListingWhereInput = { status: "PUBLISHED", paused: false };
     if (filters.city) where.city = { equals: filters.city, mode: "insensitive" };
     if (filters.area) where.areaLabel = { contains: filters.area, mode: "insensitive" };
     if (filters.gender) where.gender = filters.gender;
@@ -241,6 +259,7 @@ export const listingService = {
       SELECT id, ST_Distance(location, ${point}) AS distance_m
       FROM pg_listings
       WHERE status = 'PUBLISHED'
+        AND paused = false
         AND location IS NOT NULL
         AND ST_DWithin(location, ${point}, ${radiusM})
         ${keyset}

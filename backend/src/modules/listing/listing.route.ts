@@ -16,6 +16,7 @@ import {
   createRoomSchema,
   listFiltersSchema,
   listingIdParamSchema,
+  listingPhotoUploadUrlSchema,
   nearbyQuerySchema,
   roomParamSchema,
   updateListingSchema,
@@ -33,6 +34,19 @@ async function requireManageable(id: string, user: Viewer): Promise<void> {
       code: "FORBIDDEN",
       message: "You do not have permission to manage this listing",
     });
+  }
+}
+
+/**
+ * Ownership gate that reports a non-owner as 404 (never 403) so a host cannot
+ * probe another host's inventory by id — matching the host surface's privacy
+ * stance (see modules/host/ownership.ts + /CLAUDE.md masking rule #4). Used by
+ * the photo-upload presign, which hands back a writable URL.
+ */
+async function requireOwnedListing(id: string, user: Viewer): Promise<void> {
+  const ownership = await listingService.getOwnership(id);
+  if (!ownership || !canManageListing(ownership, user)) {
+    throw new AppError({ statusCode: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" });
   }
 }
 
@@ -106,6 +120,20 @@ export const listingRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // Presigned PUT for one on-device photo (public bucket). A non-owner is 404 —
+  // existence is never leaked since this hands back a writable URL.
+  app.post(
+    "/listings/:id/photos/upload-url",
+    { preHandler: [app.authenticate, app.requireRole("HOST", "ADMIN")] },
+    async (request, reply) => {
+      const user = getAuthUser(request);
+      const { id } = listingIdParamSchema.parse(request.params);
+      await requireOwnedListing(id, user);
+      const { contentType } = listingPhotoUploadUrlSchema.parse(request.body);
+      return reply.status(201).send(await listingService.createPhotoUploadUrl(id, contentType));
+    },
+  );
+
   app.post(
     "/listings/:id/photos",
     { preHandler: [app.authenticate, app.requireRole("HOST", "ADMIN")] },
@@ -160,8 +188,9 @@ export const listingRoutes: FastifyPluginAsync = async (app) => {
         user?.role === "TENANT" ? await listingService.hasConfirmedBooking(id, user.id) : false;
       const reveal = canViewPrivateListing(listing, { user, hasConfirmedBooking });
 
-      // Hide non-published listings from anyone who can't see the private shape.
-      if (listing.status !== "PUBLISHED" && !reveal) {
+      // Hide non-published (or host-paused) listings from anyone who can't see
+      // the private shape.
+      if ((listing.status !== "PUBLISHED" || listing.paused) && !reveal) {
         throw new AppError({ statusCode: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" });
       }
 
