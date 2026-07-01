@@ -2,8 +2,12 @@ import type { FastifyPluginAsync } from "fastify";
 import { getAuthUser } from "../../plugins/auth.js";
 import { adminService } from "./admin.service.js";
 import {
+  adminInspectionsQuerySchema,
+  adminServiceRequestsQuerySchema,
   bookingSearchSchema,
   cashQuerySchema,
+  chatReportsQuerySchema,
+  createAgentSchema,
   idParamSchema,
   kycQuerySchema,
   listingReviewQuerySchema,
@@ -68,5 +72,28 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
   app.get("/admin/payments", async (request) =>
     adminService.searchPayments(paymentSearchSchema.parse(request.query)),
+  );
+
+  // ---- Maintenance / service requests oversight ----
+  app.get("/admin/service-requests", async (request) =>
+    adminService.listServiceRequests(adminServiceRequestsQuerySchema.parse(request.query)),
+  );
+
+  // ---- Chat moderation (reported messages) ----
+  app.get("/admin/chat/reports", async (request) =>
+    adminService.listChatReports(chatReportsQuerySchema.parse(request.query)),
+  );
+
+  // ---- Agents (ADMIN-created, zone-scoped; no self-register) ----
+  app.post("/admin/agents", async (request, reply) => {
+    const admin = getAuthUser(request);
+    const body = createAgentSchema.parse(request.body);
+    const agent = await adminService.createAgent(admin, body, request.ip);
+    return reply.status(201).send({ agent });
+  });
+
+  // ---- Property inspection review queue (agents submit here) ----
+  app.get("/admin/inspections", async (request) =>
+    adminService.listInspections(adminInspectionsQuerySchema.parse(request.query)),
   );
 };

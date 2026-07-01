@@ -6,13 +6,20 @@ import { AppError } from "../../lib/errors.js";
 import { toPage, type Page } from "../../lib/pagination.js";
 import { invalidateFeaturedCache } from "../ad/ad.service.js";
 import { assertListingPublishable } from "../listing/listing.service.js";
+import { serviceRequestService } from "../service-request/service-request.service.js";
+import { toAdminItem } from "../service-request/service-request.serializer.js";
+import { chatService } from "../chat/chat.service.js";
 import type {
+  adminInspectionsQuerySchema,
+  adminServiceRequestsQuerySchema,
   bookingSearchSchema,
   cashQuerySchema,
+  createAgentSchema,
   kycQuerySchema,
   listingReviewQuerySchema,
   paymentSearchSchema,
 } from "./admin.schema.js";
+import type { AgentSummary } from "@roomadda/shared";
 import type { z } from "zod";
 
 type Actor = { id: string };
@@ -238,6 +245,98 @@ export const adminService = {
         method: p.method,
         razorpayOrderId: p.razorpayOrderId,
         createdAt: p.createdAt.toISOString(),
+      })),
+      nextCursor: page.nextCursor,
+    };
+  },
+
+  // ---- Maintenance / service requests ------------------------------------
+  /** Oversight list of tenant service requests (escalated first). Read-only. */
+  async listServiceRequests(query: z.infer<typeof adminServiceRequestsQuerySchema>): Promise<Page<unknown>> {
+    const page = await serviceRequestService.listForAdmin(query);
+    return { items: page.items.map(toAdminItem), nextCursor: page.nextCursor };
+  },
+
+  // ---- Chat moderation ---------------------------------------------------
+  /** Reported chat messages, newest first (the audit mirror powers moderation). */
+  async listChatReports(query: Paged): Promise<Page<unknown>> {
+    return chatService.listReportsForAdmin(query);
+  },
+
+  // ---- Agents (ADMIN-created, zone-scoped; no self-register) -------------
+  /**
+   * Create a zone-scoped AGENT. Agents are ONLY ever created here (never
+   * self-registered) and are confined to `assignedCity` — the §9.1 zone-access
+   * invariant. A duplicate phone/email is a typed 409.
+   */
+  async createAgent(actor: Actor, input: z.infer<typeof createAgentSchema>, ip?: string): Promise<AgentSummary> {
+    try {
+      const agent = await prisma.user.create({
+        data: {
+          fullName: input.fullName,
+          phone: input.phone,
+          email: input.email ?? null,
+          role: "AGENT",
+          assignedCity: input.assignedCity,
+          isPhoneVerified: false,
+        },
+      });
+      await writeAudit({
+        actorId: actor.id,
+        action: "agent.created",
+        targetId: agent.id,
+        ip,
+        metadata: { assignedCity: input.assignedCity },
+      });
+      return {
+        id: agent.id,
+        fullName: agent.fullName,
+        phone: agent.phone,
+        assignedCity: agent.assignedCity,
+        role: agent.role,
+        createdAt: agent.createdAt.toISOString(),
+      };
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        const target = Array.isArray(err.meta?.target) ? (err.meta?.target as string[]).join(",") : "";
+        throw new AppError({
+          statusCode: 409,
+          code: target.includes("email") ? "EMAIL_TAKEN" : "PHONE_TAKEN",
+          message: "An account with this phone or email already exists",
+        });
+      }
+      throw err;
+    }
+  },
+
+  // ---- Property inspection review queue ----------------------------------
+  /** Agent inspections awaiting review (SUBMITTED by default), oldest first. */
+  async listInspections(query: z.infer<typeof adminInspectionsQuerySchema>): Promise<Page<unknown>> {
+    const rows = await prisma.propertyInspection.findMany({
+      where: { status: query.status },
+      orderBy: [{ submittedAt: "asc" }, { id: "asc" }],
+      take: query.limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      include: {
+        agent: { select: { id: true, fullName: true, assignedCity: true } },
+        visit: { select: { id: true, scheduledAt: true } },
+        listing: { select: { id: true, alias: true, city: true } },
+        _count: { select: { photos: true } },
+      },
+    });
+    const page = toPage(rows, query.limit);
+    return {
+      items: page.items.map((i) => ({
+        id: i.id,
+        status: i.status,
+        recommendation: i.recommendation,
+        roomCountListed: i.roomCountListed,
+        roomCountActual: i.roomCountActual,
+        photoCount: i._count.photos,
+        agent: i.agent,
+        visit: { id: i.visit.id, scheduledAt: i.visit.scheduledAt.toISOString() },
+        listing: i.listing,
+        submittedAt: i.submittedAt?.toISOString() ?? null,
       })),
       nextCursor: page.nextCursor,
     };
