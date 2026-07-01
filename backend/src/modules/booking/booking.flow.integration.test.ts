@@ -8,6 +8,7 @@ import { signAccessToken } from "../../lib/tokens.js";
 import { errorHandlerPlugin } from "../../plugins/error-handler.js";
 import { authPlugin } from "../../plugins/auth.js";
 import { bookingRoutes } from "./booking.route.js";
+import { bookingService } from "./booking.service.js";
 import { paymentService } from "./payment.service.js";
 import { webhookService } from "./webhook.service.js";
 
@@ -127,6 +128,32 @@ describe("booking flow (integration)", () => {
       method: "ONLINE", onlinePaise: booking.tokenAmountPaise, cashPaise: 0,
     });
     expect(pay.statusCode).toBe(201);
+  });
+
+  it("accepted-but-unpaid request: host accept locks the bed ~4h, then the sweep releases it", async () => {
+    const { room } = await listingWithRoom(false, 1); // its own request-to-book room + bed
+    const created = await auth("POST", "/v1/bookings", tenantToken, { roomId: room.id });
+    const booking = created.json().booking;
+    expect(booking.status).toBe("PENDING_APPROVAL");
+    const bedId = booking.bedId as string;
+
+    // Host accepts -> TOKEN_PENDING with a ~4h payment window; the bed stays HELD.
+    const accepted = await auth("POST", `/v1/bookings/${booking.id}/accept`, hostToken);
+    expect(accepted.json().booking.status).toBe("TOKEN_PENDING");
+    const afterAccept = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });
+    const windowMs = afterAccept.holdExpiresAt!.getTime() - Date.now();
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    // Within a minute of the 4h target (covers test-runtime jitter).
+    expect(windowMs).toBeGreaterThan(FOUR_HOURS - 60_000);
+    expect(windowMs).toBeLessThanOrEqual(FOUR_HOURS);
+    expect((await prisma.bed.findUniqueOrThrow({ where: { id: bedId } })).status).toBe("HELD");
+
+    // The accepted-but-unpaid hold lapses -> the sweep frees the bed (no stranded inventory).
+    await prisma.booking.update({ where: { id: booking.id }, data: { holdExpiresAt: new Date(Date.now() - 1000) } });
+    const freed = await bookingService.expireStaleHolds();
+    expect(freed).toBeGreaterThanOrEqual(1);
+    expect((await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).status).toBe("EXPIRED");
+    expect((await prisma.bed.findUniqueOrThrow({ where: { id: bedId } })).status).toBe("AVAILABLE");
   });
 
   it("receipt: 409 before confirmation, valid PDF after the webhook confirms", async () => {

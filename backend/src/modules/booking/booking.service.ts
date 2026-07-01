@@ -1,4 +1,4 @@
-import { Prisma, type Booking, type UserRole } from "@prisma/client";
+import { Prisma, type AgentBookingChannel, type Booking, type UserRole } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { assertPaise } from "../../lib/money.js";
 import { AppError } from "../../lib/errors.js";
@@ -7,8 +7,12 @@ import { writeAudit } from "../../lib/audit.js";
 import { bookingDetailInclude, type BookingWithRelations } from "./booking.serializer.js";
 import type { CreateBookingInput } from "./booking.schema.js";
 
-const HOLD_TTL_MS = 15 * 60 * 1000; // payment window once payable
+const HOLD_TTL_MS = 15 * 60 * 1000; // instant-book payment window once payable
 const REQUEST_TTL_MS = 24 * 60 * 60 * 1000; // host-accept window for Request-to-Book
+// Once a host ACCEPTS a Request-to-Book, the bed is locked for the tenant to pay
+// the token (PRD: a 4h payment window — longer than the instant-book window
+// because the tenant is reacting to the accept rather than paying inline).
+const ACCEPT_HOLD_TTL_MS = 4 * 60 * 60 * 1000;
 
 /** Statuses that hold a bed (cannot be double-booked). Includes the awaiting-host state. */
 const LIVE_STATUSES: Prisma.BookingWhereInput["status"] = {
@@ -63,8 +67,17 @@ export const bookingService = {
    * Instant Book → TOKEN_PENDING (payable now). Request-to-Book →
    * PENDING_APPROVAL (payment blocked until the host accepts). Money is
    * snapshotted at hold time.
+   *
+   * `attribution` records an AGENT-initiated booking (assisted / walk-in): the
+   * agent who created it, the channel, and an overridden hold TTL (e.g. the 2h
+   * assisted-pay window). Attribution is written here at hold time and is never
+   * altered afterwards — it is IMMUTABLE once the booking confirms (§9.1).
    */
-  async createBookingHold(tenantId: string, input: CreateBookingInput): Promise<Booking> {
+  async createBookingHold(
+    tenantId: string,
+    input: CreateBookingInput,
+    attribution?: { agentId: string; channel: AgentBookingChannel; holdTtlMs?: number },
+  ): Promise<Booking> {
     try {
       return await prisma.$transaction(async (tx) => {
         const bed = input.bedId
@@ -84,15 +97,16 @@ export const bookingService = {
             listingId: true,
             monthlyRentPaise: true,
             depositPaise: true,
-            listing: { select: { instantBook: true } },
+            listing: { select: { instantBook: true, tokenAmountPaise: true } },
           },
         });
         if (!room) throw new AppError({ statusCode: 404, code: "ROOM_NOT_FOUND", message: "Room not found" });
 
         const monthlyRentPaise = bed.monthlyRentPaise ?? room.monthlyRentPaise;
         const depositPaise = room.depositPaise;
-        // Token to secure the bed: the deposit if set, else one month's rent.
-        const tokenAmountPaise = depositPaise > 0 ? depositPaise : monthlyRentPaise;
+        // Token to secure the bed: the host-configured token if set, else the
+        // deposit, else one month's rent.
+        const tokenAmountPaise = room.listing.tokenAmountPaise ?? (depositPaise > 0 ? depositPaise : monthlyRentPaise);
         if (tokenAmountPaise <= 0) {
           throw new AppError({ statusCode: 400, code: "BED_NOT_BOOKABLE", message: "This bed has no token price configured" });
         }
@@ -102,7 +116,8 @@ export const bookingService = {
 
         const instant = room.listing.instantBook;
         const status = instant ? "TOKEN_PENDING" : "PENDING_APPROVAL";
-        const ttlMs = instant ? HOLD_TTL_MS : REQUEST_TTL_MS;
+        // Agent holds may override the instant-book TTL (the 2h assisted window).
+        const ttlMs = instant ? attribution?.holdTtlMs ?? HOLD_TTL_MS : REQUEST_TTL_MS;
 
         const booking = await tx.booking.create({
           data: {
@@ -115,6 +130,8 @@ export const bookingService = {
             depositPaise,
             moveInDate: input.moveInDate ?? null,
             mealPlan: input.mealPlan ?? null,
+            bookedByAgentId: attribution?.agentId ?? null,
+            agentChannel: attribution?.channel ?? null,
             holdExpiresAt: new Date(Date.now() + ttlMs),
           },
         });
@@ -147,7 +164,7 @@ export const bookingService = {
     }
     const updated = await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "TOKEN_PENDING", holdExpiresAt: new Date(Date.now() + HOLD_TTL_MS) },
+      data: { status: "TOKEN_PENDING", holdExpiresAt: new Date(Date.now() + ACCEPT_HOLD_TTL_MS) },
     });
     await writeAudit({
       actorId: actor.id,
