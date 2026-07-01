@@ -7,6 +7,7 @@ import { AppError } from "../../lib/errors.js";
 import { settleBookingTx } from "./settlement.js";
 import { notifyBookingConfirmed } from "../../lib/notifications.js";
 import { markAdPaidByOrder } from "../ad/ad.payment.js";
+import { markRentInvoicePaidByOrder } from "../rent/rent.payment.js";
 import { applyRefundWebhook } from "../refund/refund.payment.js";
 
 export interface WebhookResult {
@@ -101,7 +102,7 @@ export const webhookService = {
 };
 
 interface CaptureResult {
-  kind: "booking" | "ad" | "refund";
+  kind: "booking" | "rent" | "ad" | "refund";
   targetId: string;
   meta: Record<string, unknown>;
 }
@@ -111,6 +112,8 @@ function auditActionFor(processed: CaptureResult): string {
   switch (processed.kind) {
     case "ad":
       return "ad.paid";
+    case "rent":
+      return "rent.paid";
     case "refund":
       // "refund.failed" IS the admin flag — money did not move; reconcile.
       return processed.meta.refundStatus === "PROCESSED" ? "refund.processed" : "refund.failed";
@@ -148,9 +151,9 @@ async function handleRefundEvent(
 }
 
 /**
- * Apply a captured payment. The same event type covers booking token payments
- * and ad-slot payments; dispatch by which entity owns the order. One transaction,
- * idempotent.
+ * Apply a captured payment. The same event type covers booking token payments,
+ * recurring rent invoices, and ad-slot payments; dispatch by which entity owns
+ * the order (order ids are unique per entity). One transaction, idempotent.
  */
 async function handlePaymentCaptured(
   eventId: string,
@@ -186,6 +189,10 @@ async function handlePaymentCaptured(
       const settled = await settleBookingTx(tx, payment.bookingId);
       return { kind: "booking", targetId: payment.bookingId, meta: { paymentId: payment.id, confirmed: settled.confirmed } };
     }
+
+    // A recurring rent invoice? (RENT IS MONEY — only a full capture pays it.)
+    const rentInvoiceId = await markRentInvoicePaidByOrder(tx, orderId, entity, webhookEvent?.id ?? null);
+    if (rentInvoiceId) return { kind: "rent", targetId: rentInvoiceId, meta: {} };
 
     // Otherwise an ad-slot payment?
     const adSlotId = await markAdPaidByOrder(tx, orderId);

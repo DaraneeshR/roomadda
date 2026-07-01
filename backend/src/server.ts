@@ -5,6 +5,9 @@ import { redis } from "./lib/redis.js";
 import { buildApp } from "./app.js";
 import { startBookingExpiry, stopBookingExpiry } from "./jobs/booking-expiry.js";
 import { startAdExpiry, stopAdExpiry } from "./jobs/ad-expiry.js";
+import { startRentBilling, stopRentBilling } from "./jobs/rent-billing.js";
+import { startServiceEscalation, stopServiceEscalation } from "./jobs/service-escalation.js";
+import { startMenuReminder, stopMenuReminder } from "./jobs/menu-reminder.js";
 
 async function main(): Promise<void> {
   const app = await buildApp();
@@ -15,9 +18,13 @@ async function main(): Promise<void> {
   await app.listen({ host: env.HOST, port: env.PORT });
   logger.info({ host: env.HOST, port: env.PORT, env: env.NODE_ENV }, "roomadda-api listening");
 
-  // Background workers: sweep expired booking holds and ended ad slots.
+  // Background workers: sweep expired booking holds and ended ad slots, and
+  // generate/relabel recurring rent invoices.
   await startBookingExpiry();
   await startAdExpiry();
+  await startRentBilling();
+  await startServiceEscalation();
+  await startMenuReminder();
 
   let shuttingDown = false;
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
@@ -28,6 +35,9 @@ async function main(): Promise<void> {
       await app.close(); // stop accepting connections, drain in-flight requests
       await stopBookingExpiry();
       await stopAdExpiry();
+      await stopRentBilling();
+      await stopServiceEscalation();
+      await stopMenuReminder();
       await prisma.$disconnect();
       await redis.quit();
       logger.info("graceful shutdown complete");
