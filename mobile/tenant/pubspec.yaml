@@ -33,6 +33,10 @@ dependencies:
   # config (AndroidManifest meta-data / iOS AppDelegate) to render on a device.
   google_maps_flutter: ^2.9.0
 
+  # Live GPS for the SOS safety feature. Needs location permission in native
+  # config (AndroidManifest / Info.plist) to resolve a fix on a device.
+  geolocator: ^13.0.1
+
   # Share/save the downloaded PDF receipt.
   share_plus: ^10.1.4
 

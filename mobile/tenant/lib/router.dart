@@ -5,15 +5,22 @@ import 'package:roomadda_core/roomadda_core.dart';
 import 'features/booking/presentation/booking_await_screen.dart';
 import 'features/booking/presentation/booking_detail_screen.dart';
 import 'features/booking/presentation/booking_payment_screen.dart';
-import 'features/discovery/presentation/discovery_shell.dart';
 import 'features/discovery/presentation/listing_detail_screen.dart';
 import 'features/discovery/presentation/map_screen.dart';
 import 'features/discovery/presentation/results_screen.dart';
 import 'features/kyc/presentation/kyc_screen.dart';
+import 'features/rent/presentation/rent_payment_screen.dart';
+import 'features/rent/presentation/rent_screen.dart';
+import 'features/safety/presentation/leave_notice_screen.dart';
+import 'features/safety/presentation/trusted_contacts_screen.dart';
+import 'features/service/presentation/raise_request_screen.dart';
+import 'features/service/presentation/service_request_detail_screen.dart';
+import 'features/stay/presentation/tenant_home_shell.dart';
 
 /// Tenant router. Serves only the TENANT role; the shared gate sends any other
-/// role to the wrong-app screen. `/tenant` is the bottom-tab shell (Search /
-/// Saved / Bookings); discovery + booking screens push on top.
+/// role to the wrong-app screen. `/tenant` is the home shell, which swaps the
+/// browse surface (Search / Saved / Bookings) for the post-move-in dashboard
+/// once the tenant has an active stay; discovery + booking screens push on top.
 final routerProvider = Provider<GoRouter>((ref) {
   return createRouter(
     ref,
@@ -22,7 +29,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     appRoutes: [
       GoRoute(
         path: '/tenant',
-        builder: (_, __) => const DiscoveryShell(),
+        builder: (_, __) => const TenantHomeShell(),
         routes: [
           GoRoute(
             path: 'results',
@@ -51,6 +58,30 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'booking/:bookingId/await',
             builder: (context, state) => BookingAwaitScreen(bookingId: state.pathParameters['bookingId']!),
+          ),
+          GoRoute(
+            path: 'rent',
+            builder: (_, __) => const RentScreen(),
+          ),
+          GoRoute(
+            path: 'rent/:invoiceId/pay',
+            builder: (context, state) => RentPaymentScreen(invoiceId: state.pathParameters['invoiceId']!),
+          ),
+          GoRoute(
+            path: 'service/new',
+            builder: (_, __) => const RaiseRequestScreen(),
+          ),
+          GoRoute(
+            path: 'service/:id',
+            builder: (context, state) => ServiceRequestDetailScreen(requestId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'leave-notice',
+            builder: (_, __) => const LeaveNoticeScreen(),
+          ),
+          GoRoute(
+            path: 'trusted-contacts',
+            builder: (_, __) => const TrustedContactsScreen(),
           ),
         ],
       ),
