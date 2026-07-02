@@ -727,6 +727,9 @@ export type AgentVisitsQuery = z.infer<typeof agentVisitsQuerySchema>;
 
 export const visitIdParamSchema = z.object({ id: z.string().uuid() }).strict();
 
+/** `:id` path param for GET /v1/agent/bookings/:id (an agent-attributed booking). */
+export const agentBookingIdParamSchema = z.object({ id: z.string().uuid() }).strict();
+
 /** GPS check-in on a visit. The point is validated against the property geography
  *  (within 200m) server-side; an out-of-range point is still recorded (flagged). */
 export const agentCheckInSchema = z

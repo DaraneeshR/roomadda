@@ -1235,6 +1235,19 @@ export const walkInBookingResultSchema = z.object({
 });
 export type WalkInBookingResult = z.infer<typeof walkInBookingResultSchema>;
 
+/** GET /v1/agent/bookings/:id — the live status of ONE booking the calling agent
+ *  created (assisted or walk-in). The walk-in flow polls THIS so confirmation
+ *  reflects the specific booking's webhook settlement, never an aggregate counter
+ *  that any other in-scope confirmation would move. A booking the agent did not
+ *  create is a 404 (no cross-agent/zone leak). */
+export const agentBookingStatusSchema = z.object({
+  bookingId: z.string(),
+  status: bookingStatusSchema,
+  agentChannel: agentBookingChannelSchema.nullable(),
+  confirmedAt: z.string().nullable(),
+});
+export type AgentBookingStatus = z.infer<typeof agentBookingStatusSchema>;
+
 /** An agent as ADMIN sees it after creating one. */
 export const agentSummarySchema = z.object({
   id: z.string(),
