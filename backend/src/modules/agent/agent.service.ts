@@ -14,6 +14,7 @@ import { bookingService } from "../booking/booking.service.js";
 import type { AgentDashboard, AgentPerformance } from "@roomadda/shared";
 import {
   assertBedInZone,
+  assertListingInZone,
   assertOwnedVisitInZone,
   assertRoomInZone,
   zoneListingFilter,
@@ -428,6 +429,32 @@ export const agentService = {
       razorpayOrder: { orderId: order.id, amount: order.amount, currency: order.currency, keyId: env.RAZORPAY_KEY_ID },
       expiresAt: booking.holdExpiresAt?.toISOString() ?? null,
     };
+  },
+
+  // ---- Attributed booking status (walk-in / assisted poll target) --------
+  /**
+   * The live status of ONE booking THIS agent created. The walk-in flow polls
+   * this so confirmation reflects the SPECIFIC booking's webhook settlement — not
+   * an aggregate counter (closedThisMonth) that any other in-scope confirmation
+   * would also move. A booking the agent did not create (bookedByAgentId != caller)
+   * is a 404, and even the agent's own booking is denied if its property sits
+   * outside their zone (§9.1); either miss is indistinguishable from a missing id.
+   */
+  async getAttributedBooking(agentId: string, agentCity: string, bookingId: string) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        status: true,
+        agentChannel: true,
+        confirmedAt: true,
+        bookedByAgentId: true,
+        listingId: true,
+      },
+    });
+    if (!booking || booking.bookedByAgentId !== agentId) throw notFound();
+    await assertListingInZone(agentCity, booking.listingId);
+    return booking;
   },
 };
 

@@ -5,6 +5,7 @@
  */
 export {
   visitIdParamSchema,
+  agentBookingIdParamSchema,
   agentVisitsQuerySchema,
   agentCheckInSchema,
   inspectionDraftSchema,

@@ -2,9 +2,10 @@ import type { FastifyPluginAsync } from "fastify";
 import { getAuthUser } from "../../plugins/auth.js";
 import { agentService } from "./agent.service.js";
 import { getAgentCity } from "./zone.js";
-import { toAgentVisit, toInspection } from "./agent.serializer.js";
+import { toAgentBookingStatus, toAgentVisit, toInspection } from "./agent.serializer.js";
 import {
   addInspectionPhotoSchema,
+  agentBookingIdParamSchema,
   agentBookingSchema,
   agentCheckInSchema,
   agentVisitsQuerySchema,
@@ -128,5 +129,17 @@ export const agentRoutes: FastifyPluginAsync = async (app) => {
     const city = await getAgentCity(user.id);
     const body = agentBookingSchema.parse(request.body);
     return reply.status(201).send(await agentService.createWalkInBooking(user.id, city, body));
+  });
+
+  // One agent-created booking's live status (own attribution + in-zone). The
+  // walk-in flow polls THIS to detect the webhook-driven CONFIRMED for the
+  // specific booking — never an aggregate counter, which any other in-scope
+  // confirmation would move. Not the agent's own booking / out-of-zone → 404.
+  app.get("/agent/bookings/:id", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    const city = await getAgentCity(user.id);
+    const { id } = agentBookingIdParamSchema.parse(request.params);
+    const booking = await agentService.getAttributedBooking(user.id, city, id);
+    return reply.send(toAgentBookingStatus(booking));
   });
 };

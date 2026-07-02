@@ -1,5 +1,6 @@
-import type { AgentVisit, InspectionPhoto, PropertyInspection } from "@prisma/client";
+import type { AgentVisit, Booking, InspectionPhoto, PropertyInspection } from "@prisma/client";
 import type {
+  AgentBookingStatus,
   AgentCheckInDto,
   AgentVisit as AgentVisitDto,
   AmenityCheck,
@@ -55,6 +56,22 @@ export function toAgentVisit(visit: VisitWithListing): AgentVisitDto {
     notes: visit.notes,
     checkIn: checkInDto(visit),
     inspectionStatus: visit.inspection?.status ?? null,
+  };
+}
+
+/**
+ * The status of ONE booking the agent created (the walk-in poll target). Carries
+ * only the fields the flow needs to detect the webhook-driven CONFIRMED for this
+ * specific booking — no tenant PII or payable order (the agent never pays).
+ */
+export function toAgentBookingStatus(
+  booking: Pick<Booking, "id" | "status" | "agentChannel" | "confirmedAt">,
+): AgentBookingStatus {
+  return {
+    bookingId: booking.id,
+    status: booking.status,
+    agentChannel: booking.agentChannel,
+    confirmedAt: booking.confirmedAt?.toISOString() ?? null,
   };
 }
 

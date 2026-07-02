@@ -329,6 +329,84 @@ describe("agent surface (integration)", () => {
     expect(confirmed.agentChannel).toBe("ASSISTED");
   });
 
+  // -------------------------------------------------------------------------
+  // Attributed booking status read (GET /v1/agent/bookings/:id) — the walk-in
+  // poll target. Attribution-scoped: an agent reads only bookings THEY created;
+  // a foreign agent's booking is a 404. Reading a SPECIFIC booking's status is
+  // unaffected by any other in-scope confirmation (the counter-race fix).
+  // -------------------------------------------------------------------------
+  async function createWalkIn(token: string): Promise<{ bookingId: string; orderId: string; tokenPaise: number }> {
+    const tenantPhone = uniquePhone();
+    extraTenantPhones.push(tenantPhone);
+    const created = await auth("POST", "/v1/agent/walkin-bookings", token, {
+      tenantName: "Status Tenant", tenantPhone, roomId: blr.room.id,
+    });
+    expect(created.statusCode).toBe(201);
+    return {
+      bookingId: created.json().bookingId,
+      orderId: created.json().razorpayOrder.orderId,
+      tokenPaise: created.json().tokenAmountPaise,
+    };
+  }
+
+  it("STATUS: an agent reads only their OWN attributed booking; a foreign agent's booking is 404", async () => {
+    // A second in-zone (Bengaluru) agent — isolates attribution from the zone
+    // guard: both agents share a zone, so only bookedByAgentId gates the read.
+    const agentBlr2 = await prisma.user.create({
+      data: { phone: uniquePhone(), fullName: "Agent Blr 2", role: "AGENT", assignedCity: "Bengaluru", isPhoneVerified: true },
+    });
+    userIds.push(agentBlr2.id);
+    const agent2Token = await signAccessToken({ sub: agentBlr2.id, role: "AGENT" });
+
+    const mine = await createWalkIn(agentToken);
+    const theirs = await createWalkIn(agent2Token);
+
+    // The creator reads their own booking's live status (pre-payment: pending).
+    const ownRead = await auth("GET", `/v1/agent/bookings/${mine.bookingId}`, agentToken);
+    expect(ownRead.statusCode).toBe(200);
+    expect(ownRead.json()).toMatchObject({
+      bookingId: mine.bookingId,
+      status: "TOKEN_PENDING",
+      agentChannel: "WALK_IN",
+      confirmedAt: null,
+    });
+
+    // A booking the caller did NOT create is indistinguishable from a missing id.
+    const crossRead = await auth("GET", `/v1/agent/bookings/${theirs.bookingId}`, agentToken);
+    expect(crossRead.statusCode).toBe(404);
+    expect(crossRead.json().error.code).toBe("NOT_FOUND");
+    // …and symmetrically the other way (no cross-agent leak in either direction).
+    const crossReadBack = await auth("GET", `/v1/agent/bookings/${mine.bookingId}`, agent2Token);
+    expect(crossReadBack.statusCode).toBe(404);
+  });
+
+  it("STATUS: a specific booking's status is UNAFFECTED by another in-scope confirmation (counter-race fix)", async () => {
+    // Two walk-ins by the SAME agent in the SAME zone. Confirming one must not
+    // make the OTHER read as confirmed — the read is per-booking, not a counter.
+    const target = await createWalkIn(agentToken);
+    const sibling = await createWalkIn(agentToken);
+
+    // Confirm the SIBLING via its verified webhook (an in-scope confirmation that
+    // WOULD move the dashboard's closedThisMonth counter the old poller watched).
+    const sibEvt = capturedEvent(sibling.orderId, sibling.tokenPaise);
+    expect((await webhookService.processRazorpay(sibEvt.raw, sibEvt.signature, sibEvt.eventId)).status).toBe("processed");
+
+    // The TARGET booking's own status is still pending — a sibling's confirmation
+    // never leaks in (this is exactly the race the counter-based poller had).
+    const stillPending = await auth("GET", `/v1/agent/bookings/${target.bookingId}`, agentToken);
+    expect(stillPending.statusCode).toBe(200);
+    expect(stillPending.json().status).toBe("TOKEN_PENDING");
+    expect(stillPending.json().confirmedAt).toBeNull();
+
+    // Only when the TARGET's OWN webhook settles does its status flip to CONFIRMED.
+    const tgtEvt = capturedEvent(target.orderId, target.tokenPaise);
+    await webhookService.processRazorpay(tgtEvt.raw, tgtEvt.signature, tgtEvt.eventId);
+    const confirmed = await auth("GET", `/v1/agent/bookings/${target.bookingId}`, agentToken);
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json().status).toBe("CONFIRMED");
+    expect(confirmed.json().confirmedAt).not.toBeNull();
+  });
+
   it("walk-in booking: returns a Razorpay QR/order; confirms via the webhook; same attribution", async () => {
     const tenantPhone = uniquePhone();
     extraTenantPhones.push(tenantPhone);
