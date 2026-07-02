@@ -1,4 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Agent inspection photos (image_picker camera source). Declaring CAMERA
+         means image_picker requires a runtime grant; a denial is caught and
+         surfaced as a clear message, never a crash. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Agent GPS check-in + photo geotags (geolocator). Runtime-requested via
+         Geolocator.requestPermission(); a denial degrades gracefully. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Neither is strictly required to install the app on devices without the
+         hardware; the features degrade with a clear message instead. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <application
         android:label="RoomAdda Host &amp; Agent"
         android:name="${applicationName}"

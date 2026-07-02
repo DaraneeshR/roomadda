@@ -9,8 +9,23 @@ class Env {
   static const String _appEnv = String.fromEnvironment('APP_ENV', defaultValue: 'dev');
   static const String _apiFromDefine = String.fromEnvironment('API_BASE_URL');
   static const String _placesKeyFromDefine = String.fromEnvironment('GOOGLE_PLACES_API_KEY');
+  static const String _payBaseFromDefine = String.fromEnvironment('PAY_BASE_URL');
 
   static bool get isProd => _appEnv == 'prod';
+
+  /// Base of the user-facing pay page. The agent walk-in encodes
+  /// `$payBaseUrl/pay/<bookingId>?order=<orderId>` into the QR the USER scans on
+  /// their OWN device — the agent never pays. Must mirror the backend's
+  /// `buildPayUrl` (PUBLIC_PAY_BASE_URL) so a scanned link resolves. Resolved from
+  /// --dart-define first, then .env, then the backend's dev/local default.
+  static String get payBaseUrl {
+    if (_payBaseFromDefine.isNotEmpty) return _payBaseFromDefine;
+    if (dotenv.isInitialized) {
+      final v = dotenv.maybeGet('PAY_BASE_URL');
+      if (v != null && v.isNotEmpty) return v;
+    }
+    return isProd ? 'https://app.roomadda.example' : 'https://app.roomadda.local';
+  }
 
   /// Google Places API key for search autocomplete. Optional: when empty, the
   /// search field falls back to free-text city/area search (no suggestions).

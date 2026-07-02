@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Agent inspection: capture the >=8 geotagged property photos. -->
+	<key>NSCameraUsageDescription</key>
+	<string>RoomAdda needs the camera to capture property inspection photos.</string>
+	<!-- Agent GPS check-in (validated server-side within 200m) + photo geotags. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>RoomAdda uses your location to check in at a property and to geotag inspection photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RoomAdda needs photo access to attach property inspection photos.</string>
 </dict>
 </plist>

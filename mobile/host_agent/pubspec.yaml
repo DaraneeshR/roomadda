@@ -26,9 +26,20 @@ dependencies:
   # Date formatting on the host surface (move-in dates, menu days)
   intl: ^0.20.2
 
-  # On-device listing photos: capture/pick from camera or gallery, then upload to
-  # a presigned URL (same plugin + version the tenant KYC flow uses).
+  # On-device photos: capture/pick from camera or gallery, then upload to a
+  # presigned URL (same plugin + version the tenant KYC flow uses). Used by both
+  # host listing photos and the agent inspection's >=8 geotagged property photos.
   image_picker: ^1.1.2
+
+  # Agent GPS check-in + photo geotags. The check-in point is validated server-side
+  # (ST_DWithin <=200m); on-device we only capture the fix. Same plugin + version
+  # the tenant safety/SOS flow uses.
+  geolocator: ^13.0.1
+
+  # Renders the Razorpay pay QR the USER scans on their OWN device for an agent
+  # walk-in. Pure-Dart (no platform channel). The agent NEVER pays — the QR carries
+  # a user-facing pay URL and the booking confirms only via the verified webhook.
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

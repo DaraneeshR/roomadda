@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:roomadda_core/roomadda_core.dart';
 
+import 'features/agent/inspection/presentation/inspection_screen.dart';
 import 'features/agent/presentation/agent_shell.dart';
+import 'features/agent/visits/presentation/visit_detail_screen.dart';
 import 'features/host/broadcast/presentation/broadcast_screen.dart';
 import 'features/host/inventory/presentation/inventory_screen.dart';
 import 'features/host/listings/presentation/host_listing_detail_screen.dart';
@@ -68,7 +70,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(path: '/agent', builder: (_, __) => const AgentShell()),
+      GoRoute(
+        path: '/agent',
+        builder: (_, __) => const AgentShell(),
+        routes: [
+          GoRoute(
+            path: 'visits/:id',
+            builder: (context, state) => VisitDetailScreen(visitId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'inspection',
+                builder: (context, state) => InspectionScreen(visitId: state.pathParameters['id']!),
+              ),
+            ],
+          ),
+        ],
+      ),
     ],
   );
 });
