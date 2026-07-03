@@ -32,6 +32,23 @@ export function AuthButton(): React.ReactNode {
 
   const label = user.fullName.trim() || "Account";
 
+  // A user has exactly one role — a host manages their PG, a tenant their stay.
+  const items =
+    user.role === "HOST"
+      ? [
+          { href: "/host", label: "Host dashboard" },
+          { href: "/host/listings", label: "My listings" },
+          { href: "/host/bookings", label: "Bookings & tenants" },
+          { href: "/host/operations", label: "Meals, service & revenue" },
+        ]
+      : [
+          { href: "/account/dashboard", label: "My stay" },
+          { href: "/account/bookings", label: "My bookings" },
+          { href: "/account/rent", label: "Pay rent" },
+          { href: "/account/wishlist", label: "Wishlist" },
+          { href: "/account/kyc", label: "KYC verification" },
+        ];
+
   return (
     <div className="relative">
       <button
@@ -50,13 +67,7 @@ export function AuthButton(): React.ReactNode {
             className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
             role="menu"
           >
-            {[
-              { href: "/account/dashboard", label: "My stay" },
-              { href: "/account/bookings", label: "My bookings" },
-              { href: "/account/rent", label: "Pay rent" },
-              { href: "/account/wishlist", label: "Wishlist" },
-              { href: "/account/kyc", label: "KYC verification" },
-            ].map((item) => (
+            {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
