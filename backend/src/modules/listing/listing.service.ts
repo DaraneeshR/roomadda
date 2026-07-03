@@ -227,6 +227,22 @@ export const listingService = {
     // Move-in date -> availability proxy: the matching room must have a free bed.
     // (No date-aware inventory yet; see the schema note in @roomadda/shared.)
     if (filters.moveInDate) roomFilter.beds = { some: { status: "AVAILABLE" } };
+
+    // Trust-badge filter. INSTANT_BOOK is derived (host-enabled + a live bed);
+    // every other kind must be a live, non-suspended, unexpired earned badge.
+    if (filters.badge === "INSTANT_BOOK") {
+      where.instantBook = true;
+      roomFilter.beds = { some: { status: "AVAILABLE" } };
+    } else if (filters.badge) {
+      where.trustTags = {
+        some: {
+          kind: filters.badge,
+          suspended: false,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      };
+    }
+
     if (Object.keys(roomFilter).length > 0) where.rooms = { some: roomFilter };
 
     const rows = await prisma.pgListing.findMany({

@@ -1,6 +1,7 @@
 import { Prisma, type ListingPhoto, type UserRole } from "@prisma/client";
-import type { PrivateListing, PublicListing } from "@roomadda/shared";
+import type { PrivateListing, PublicListing, TrustBadge } from "@roomadda/shared";
 import { effectiveTokenPaise } from "../../lib/money.js";
+import { buildBadgeView } from "../badge/badge.serializer.js";
 
 /**
  * Listing masking (see /CLAUDE.md domain rule #4). The public shape NEVER
@@ -22,6 +23,8 @@ export const listingInclude = {
     include: { beds: { select: { id: true, status: true } } },
     orderBy: { createdAt: "asc" },
   },
+  // Earned trust badges (the serializer filters to active + orders by priority).
+  trustTags: true,
 } satisfies Prisma.PgListingInclude;
 
 export type ListingWithRelations = Prisma.PgListingGetPayload<{ include: typeof listingInclude }>;
@@ -59,6 +62,8 @@ interface CommonListing {
   rooms: RoomView[];
   ratingAverage: number | null;
   ratingCount: number;
+  badges: TrustBadge[];
+  featured: boolean;
   createdAt: string;
 }
 
@@ -108,6 +113,14 @@ const approxLocation = (listing: ListingWithRelations): { lat: number; lng: numb
 
 function commonFields(listing: ListingWithRelations): CommonListing {
   const rents = listing.rooms.map((r) => r.monthlyRentPaise);
+  const now = new Date();
+  // INSTANT_BOOK is derived live: host-enabled AND at least one bookable bed.
+  const hasAvailableBed = listing.rooms.some((r) => r.beds.some((b) => b.status === "AVAILABLE"));
+  const { badges, featured } = buildBadgeView({
+    tags: listing.trustTags,
+    instantBookEligible: listing.instantBook && hasAvailableBed,
+    now,
+  });
   return {
     id: listing.id,
     alias: listing.alias,
@@ -123,6 +136,9 @@ function commonFields(listing: ListingWithRelations): CommonListing {
     // Cached aggregate maintained on every new review (see modules/review).
     ratingAverage: ratingAverage(listing.ratingSum, listing.ratingCount),
     ratingCount: listing.ratingCount,
+    // Earned/derived trust badges, ordered by priority (see modules/badge).
+    badges,
+    featured,
     createdAt: listing.createdAt.toISOString(),
   };
 }

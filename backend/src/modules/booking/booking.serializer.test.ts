@@ -42,6 +42,7 @@ function makeListing(): BookingWithRelations["listing"] {
     updatedAt: NOW,
     photos: [],
     rooms: [],
+    trustTags: [],
     host: { id: HOST_ID, fullName: "Mr. Rao" },
   };
 }

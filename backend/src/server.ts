@@ -9,6 +9,8 @@ import { startRentBilling, stopRentBilling } from "./jobs/rent-billing.js";
 import { startServiceEscalation, stopServiceEscalation } from "./jobs/service-escalation.js";
 import { startMenuReminder, stopMenuReminder } from "./jobs/menu-reminder.js";
 import { startSocialBooked, stopSocialBooked } from "./jobs/social-booked.js";
+import { startBadgeTrending, stopBadgeTrending } from "./jobs/badge-trending.js";
+import { startBadgeDurable, stopBadgeDurable } from "./jobs/badge-durable.js";
 
 async function main(): Promise<void> {
   const app = await buildApp();
@@ -27,6 +29,8 @@ async function main(): Promise<void> {
   await startServiceEscalation();
   await startMenuReminder();
   await startSocialBooked();
+  await startBadgeTrending();
+  await startBadgeDurable();
 
   let shuttingDown = false;
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
@@ -41,6 +45,8 @@ async function main(): Promise<void> {
       await stopServiceEscalation();
       await stopMenuReminder();
       await stopSocialBooked();
+      await stopBadgeTrending();
+      await stopBadgeDurable();
       await prisma.$disconnect();
       await redis.quit();
       logger.info("graceful shutdown complete");

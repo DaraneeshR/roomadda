@@ -134,6 +134,43 @@ export type OccupationType = z.infer<typeof occupationTypeSchema>;
 export const OCCUPATION_TYPES = occupationTypeSchema.options;
 
 // ---------------------------------------------------------------------------
+// Trust badges. EARNED automatically by the badge engine from REAL signals
+// (ratings, inspections, response rate, bookings, inventory) — never fake-
+// granted. RA_VERIFIED gates the higher badges; TRENDING is time-boxed;
+// INSTANT_BOOK is derived live from availability; FEATURED is the only
+// admin-granted (paid) badge and is styled separately from the earned set.
+// ---------------------------------------------------------------------------
+export const trustBadgeKindSchema = z.enum([
+  "RA_VERIFIED",
+  "RA_ASSURED",
+  "RA_CHOICE",
+  "LUXURY",
+  "WIZARD",
+  "TRENDING",
+  "INSTANT_BOOK",
+  "FEATURED",
+]);
+export type TrustBadgeKind = z.infer<typeof trustBadgeKindSchema>;
+export const TRUST_BADGE_KINDS = trustBadgeKindSchema.options;
+
+/** How a badge was obtained: RULE = earned by the engine; ADMIN = granted
+ *  (FEATURED only — admin can NEVER fake-grant a rule badge). */
+export const trustBadgeSourceSchema = z.enum(["RULE", "ADMIN"]);
+export type TrustBadgeSource = z.infer<typeof trustBadgeSourceSchema>;
+
+/** One earned/derived badge as exposed on the listing serializer. */
+export const trustBadgeSchema = z.object({
+  kind: trustBadgeKindSchema,
+  source: trustBadgeSourceSchema,
+  /** When the listing first became eligible (ISO 8601). */
+  earnedAt: z.string(),
+  /** Time-boxed badges (e.g. TRENDING) carry an expiry; null = holds until the
+   *  rules stop holding. */
+  expiresAt: z.string().nullable(),
+});
+export type TrustBadge = z.infer<typeof trustBadgeSchema>;
+
+// ---------------------------------------------------------------------------
 // Listing DTOs. These mirror the backend listing serializer (see /CLAUDE.md
 // domain rule #4 on masking). The PUBLIC shape NEVER carries actualName,
 // fullAddress, pincode, or exact latitude/longitude; the PRIVATE shape is only
@@ -187,6 +224,15 @@ const commonListingSchema = z.object({
    */
   ratingAverage: z.number().nullable(),
   ratingCount: z.number().int().nonnegative(),
+  /**
+   * Earned/derived trust badges, already ordered by priority (highest first).
+   * Cards render the top 2–3; the detail view shows all. FEATURED is NOT here —
+   * it is styled separately via `featured`. Every badge is real (engine-earned or
+   * live-derived); an admin can suspend one but never fabricate it.
+   */
+  badges: z.array(trustBadgeSchema),
+  /** Admin-granted, paid Featured placement — styled separately from `badges`. */
+  featured: z.boolean(),
   createdAt: z.string(),
 });
 

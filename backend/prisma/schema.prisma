@@ -194,11 +194,27 @@ enum AdSlotStatus {
   CANCELLED
 }
 
-enum TrustTagKind {
-  VERIFIED_OWNER
-  AGENT_VISITED
-  FAST_RESPONDER
-  DOCUMENTS_CLEAR
+// Trust badges (PRD). Earned automatically by the badge engine from REAL signals
+// (see modules/badge). RA_VERIFIED gates the higher badges; TRENDING is
+// time-boxed; INSTANT_BOOK is derived live on read (never stored); FEATURED is
+// the only admin-granted (paid) badge, styled separately from the earned set.
+enum TrustBadgeKind {
+  RA_VERIFIED
+  RA_ASSURED
+  RA_CHOICE
+  LUXURY
+  WIZARD
+  TRENDING
+  INSTANT_BOOK
+  FEATURED
+}
+
+// How a badge link was obtained. RULE = earned + maintained by the engine; ADMIN
+// = granted (FEATURED only). An admin can SUSPEND a rule badge but NEVER
+// fake-grant one — enforced in the service.
+enum TrustBadgeSource {
+  RULE
+  ADMIN
 }
 
 enum AgentVisitStatus {
@@ -280,7 +296,7 @@ model User {
   agentVisits      AgentVisit[]            @relation("AgentVisits")
   agentInspections PropertyInspection[]    @relation("AgentInspections")
   cashCollections  CashCollection[]        @relation("AgentCashCollections")
-  grantedTrust     TrustTag[]              @relation("TrustGrantedBy")
+  suspendedBadges  TrustTag[]              @relation("TrustSuspendedBy")
   refreshTokens    RefreshToken[]          @relation("UserRefreshTokens")
   wishlist         Wishlist[]              @relation("UserWishlist")
   menuUpdates      MealMenu[]              @relation("MenuUpdatedByHost")
@@ -946,17 +962,38 @@ model AdSlot {
 // Trust, agent visits, photos
 // ---------------------------------------------------------------------------
 
+// One listing↔badge link. Rule badges are created/refreshed/removed by the badge
+// engine (see modules/badge); FEATURED is admin-granted (source ADMIN). Each link
+// records when it was earned and, for time-boxed badges, when it expires. An
+// admin can SUSPEND a rule badge (retained for audit, hidden + not re-earned)
+// with a logged reason, but can NEVER fake-grant one.
 model TrustTag {
-  id          String       @id @default(uuid()) @db.Uuid
-  listingId   String       @db.Uuid
-  kind        TrustTagKind
-  grantedById String?      @db.Uuid
-  grantedAt   DateTime     @default(now())
+  id              String           @id @default(uuid()) @db.Uuid
+  listingId       String           @db.Uuid
+  kind            TrustBadgeKind
+  source          TrustBadgeSource @default(RULE)
+  earnedAt        DateTime         @default(now())
+  // Null = holds until the rules stop holding; set for time-boxed badges
+  // (TRENDING) and paid FEATURED placements. The engine also removes on rule
+  // failure, and the serializer hides an expired link.
+  expiresAt       DateTime?
+  // Admin suspension: hides the badge without deleting it; the engine skips a
+  // suspended link (never re-earns/duplicates it). `suspendedReason` is required
+  // when suspending (logged + audited).
+  suspended       Boolean          @default(false)
+  suspendedReason String?
+  suspendedById   String?          @db.Uuid
+  suspendedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  listing   PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  grantedBy User?     @relation("TrustGrantedBy", fields: [grantedById], references: [id])
+  listing     PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  suspendedBy User?     @relation("TrustSuspendedBy", fields: [suspendedById], references: [id])
 
   @@unique([listingId, kind])
+  @@index([kind])
+  // Serves the expiry sweep (time-boxed badges past their window).
+  @@index([expiresAt])
   @@map("trust_tags")
 }
 

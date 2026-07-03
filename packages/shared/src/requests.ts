@@ -16,6 +16,7 @@ import {
   serviceRequestCategorySchema,
   serviceRequestPrioritySchema,
   serviceRequestStatusSchema,
+  trustBadgeKindSchema,
   userGenderSchema,
   userRoleSchema,
   walkInPaymentModeSchema,
@@ -317,6 +318,10 @@ export const listFiltersSchema = z
     // AVAILABLE bed). True date-aware availability needs move-out scheduling,
     // which isn't modelled yet — this is the closest serviceable behaviour.
     moveInDate: z.coerce.date().optional(),
+    // Trust-badge filter: only listings that currently hold this active badge.
+    // INSTANT_BOOK resolves to "host-enabled + a live AVAILABLE bed" (derived),
+    // every other kind to a live, non-suspended, unexpired earned badge.
+    badge: trustBadgeKindSchema.optional(),
     amenities: z
       .string()
       .optional()
@@ -500,6 +505,32 @@ export const viewingHeartbeatSchema = z
   .object({ sessionId: z.string().uuid().optional() })
   .strict();
 export type ViewingHeartbeatInput = z.infer<typeof viewingHeartbeatSchema>;
+
+// ---------------------------------------------------------------------------
+// Trust badges — admin actions. An admin may GRANT only the paid FEATURED badge
+// (never a rule badge — the service rejects any other kind), and may SUSPEND a
+// rule badge with a logged reason (hides it without deleting the audit record).
+// ---------------------------------------------------------------------------
+export const badgeKindParamSchema = z.object({ kind: trustBadgeKindSchema }).strict();
+
+/** Path params for a specific listing↔badge link (`/listings/:id/badges/:kind`). */
+export const listingBadgeParamSchema = z
+  .object({ id: z.string().uuid(), kind: trustBadgeKindSchema })
+  .strict();
+
+/** Grant a badge. The service permits ONLY kind === "FEATURED"; `durationDays`
+ *  time-boxes the paid placement (default 30). */
+export const grantBadgeSchema = z
+  .object({
+    kind: trustBadgeKindSchema,
+    durationDays: z.coerce.number().int().min(1).max(365).default(30),
+  })
+  .strict();
+export type GrantBadgeInput = z.infer<typeof grantBadgeSchema>;
+
+/** Suspend a rule badge (logged reason; the badge is retained but hidden). */
+export const suspendBadgeSchema = z.object({ reason: z.string().min(1).max(500) }).strict();
+export type SuspendBadgeInput = z.infer<typeof suspendBadgeSchema>;
 
 // ---------------------------------------------------------------------------
 // Advertising (ad slots)
