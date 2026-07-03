@@ -4,4 +4,9 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- DEBUG ONLY: the local dev backend is plain http (http://10.0.2.2:3001).
+         Apps targeting API 28+ block cleartext traffic by default, which would
+         make the emulator silently fail to reach the backend. This flag lives in
+         the debug manifest so release builds stay https-only and secure. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>
