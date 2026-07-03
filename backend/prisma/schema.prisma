@@ -289,6 +289,7 @@ model User {
   leaveNotices     LeaveNotice[]           @relation("TenantLeaveNotices")
   trustedContacts  TrustedContact[]        @relation("UserTrustedContacts")
   deviceTokens     DeviceToken[]           @relation("UserDevices")
+  reviews          Review[]                @relation("TenantReviews")
 
   @@index([role])
   @@map("users")
@@ -362,6 +363,12 @@ model PgListing {
   // Host pause (NOT a delete): hidden from tenant discovery while keeping its
   // inventory, bookings, and tenants intact. Distinct from admin SUSPENDED.
   paused           Boolean       @default(false)
+  // Cached rating aggregate, maintained atomically on every new review (the sum
+  // of integer ratings + the review count). The average is derived from these
+  // in the serializer (ratingSum/ratingCount) so no float is ever stored, and a
+  // zero-review listing serializes cleanly as null/0. See modules/review.
+  ratingSum        Int           @default(0)
+  ratingCount      Int           @default(0)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -380,6 +387,7 @@ model PgListing {
   walkIns         WalkInTenant[]
   broadcasts      Broadcast[]
   editLogs        ListingEditLog[]
+  reviews         Review[]
 
   @@index([hostId])
   @@index([status])
@@ -479,6 +487,7 @@ model Booking {
   leaveNotices    LeaveNotice[]
   conversation    Conversation?
   refunds         RefundTransaction[]
+  review          Review?
 
   // NOTE: the "one live booking per bed" partial unique index
   // (uniq_live_booking_per_bed) is created in prisma/sql/02_booking_guard.sql —
@@ -1100,6 +1109,39 @@ model Wishlist {
   @@unique([userId, listingId])
   @@index([userId])
   @@map("wishlists")
+}
+
+// ---------------------------------------------------------------------------
+// Reviews & ratings. A tenant may review a listing ONLY from an eligible stay
+// (a CONFIRMED/COMPLETED booking they own on that listing) — enforced in the
+// service. ONE review per booking (bookingId is unique). The listing's cached
+// aggregate (PgListing.ratingSum/ratingCount) is bumped atomically in the same
+// transaction that inserts the review. A host may attach one public reply.
+// ---------------------------------------------------------------------------
+model Review {
+  id              String    @id @default(uuid()) @db.Uuid
+  // One review per booking — the unique key makes a double-submit a no-op.
+  bookingId       String    @unique @db.Uuid
+  // Denormalised for fast public listing reads and per-tenant scoping.
+  listingId       String    @db.Uuid
+  tenantId        String    @db.Uuid
+  // 1–5; also guarded by a CHECK constraint (see the migration).
+  rating          Int
+  text            String?
+  // The host's single public reply (they must own the listing). Null until set.
+  hostResponse    String?
+  hostRespondedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  booking Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  listing PgListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tenant  User      @relation("TenantReviews", fields: [tenantId], references: [id])
+
+  // Serves the public "newest first" listing-reviews feed (keyset on createdAt,id).
+  @@index([listingId, createdAt])
+  @@index([tenantId])
+  @@map("reviews")
 }
 
 // ---------------------------------------------------------------------------

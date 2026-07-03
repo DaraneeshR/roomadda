@@ -179,6 +179,14 @@ const commonListingSchema = z.object({
   instantBook: z.boolean(),
   photos: z.array(publicListingPhotoSchema),
   rooms: z.array(publicRoomSchema),
+  /**
+   * Aggregate rating over this listing's published reviews. Server-computed and
+   * cached on the listing (recomputed on every new review); feeds both the
+   * public card and the detail view. `ratingAverage` is null for a listing with
+   * zero reviews (empty state is first-class) — never a fabricated 0.
+   */
+  ratingAverage: z.number().nullable(),
+  ratingCount: z.number().int().nonnegative(),
   createdAt: z.string(),
 });
 
@@ -214,6 +222,51 @@ export const listingPhotoUploadUrlResponseSchema = z.object({
   expiresInSeconds: z.number().int().positive(),
 });
 export type ListingPhotoUploadUrlResponse = z.infer<typeof listingPhotoUploadUrlResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Reviews & ratings. A review is written by a tenant with an eligible stay on
+// the listing (one review per booking, enforced server-side) and is PUBLIC —
+// anyone browsing the listing may read it. `authorName` is the reviewer's
+// display name (reviews are attributed); no other tenant PII is exposed. The
+// host may attach one `hostResponse` per review.
+// ---------------------------------------------------------------------------
+export const reviewSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  /** 1–5 stars. */
+  rating: z.number().int().min(1).max(5),
+  /** Free-text body; null when the reviewer left a rating only. */
+  text: z.string().nullable(),
+  /** Reviewer's display name (reviews are attributed). */
+  authorName: z.string(),
+  /** The host's public reply, if they have responded; null otherwise. */
+  hostResponse: z.string().nullable(),
+  /** When the host responded (ISO 8601); null until they do. */
+  respondedAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type Review = z.infer<typeof reviewSchema>;
+
+/** Aggregate summary echoed alongside a page of reviews (mirrors the listing). */
+export const reviewSummarySchema = z.object({
+  ratingAverage: z.number().nullable(),
+  ratingCount: z.number().int().nonnegative(),
+});
+export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
+
+/** GET /v1/listings/:id/reviews — cursor-paginated, newest first, plus the
+ *  aggregate for the reviews-screen header. Zero reviews returns `items: []`
+ *  and `summary.ratingCount: 0` cleanly (empty state is first-class). */
+export const reviewListResponseSchema = z.object({
+  items: z.array(reviewSchema),
+  nextCursor: z.string().nullable(),
+  summary: reviewSummarySchema,
+});
+export type ReviewListResponse = z.infer<typeof reviewListResponseSchema>;
+
+/** POST /v1/listings/:id/reviews and POST /v1/reviews/:id/response responses. */
+export const reviewResponseSchema = z.object({ review: reviewSchema });
+export type ReviewResponse = z.infer<typeof reviewResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // Tenant booking-read DTOs — what the mobile payment screen polls to observe

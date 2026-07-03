@@ -33,6 +33,8 @@ function makeListing(): BookingWithRelations["listing"] {
     houseRules: [],
     tokenAmountPaise: null,
     paused: false,
+    ratingSum: 0,
+    ratingCount: 0,
     createdAt: NOW,
     updatedAt: NOW,
     photos: [],

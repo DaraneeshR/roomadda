@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   canManageListing,
   canViewPrivateListing,
+  ratingAverage,
   toPrivateListing,
   toPublicListing,
   type ListingWithRelations,
@@ -33,6 +34,8 @@ function makeListing(overrides: Partial<ListingWithRelations> = {}): ListingWith
     houseRules: [],
     tokenAmountPaise: null,
     paused: false,
+    ratingSum: 0,
+    ratingCount: 0,
     createdAt: now,
     updatedAt: now,
     photos: [],
@@ -110,6 +113,33 @@ describe("room tokenAmountPaise (what the app displays == what booking charges)"
   it("is present on the private (unmasked) shape too", () => {
     const priv = toPrivateListing(makeListing({ tokenAmountPaise: 200_000 }));
     expect(priv.rooms[0]?.tokenAmountPaise).toBe(200_000);
+  });
+});
+
+describe("rating aggregate on the listing shape", () => {
+  it("is a first-class empty state: zero reviews -> null average, count 0", () => {
+    const pub = toPublicListing(makeListing({ ratingSum: 0, ratingCount: 0 }));
+    expect(pub.ratingAverage).toBeNull();
+    expect(pub.ratingCount).toBe(0);
+  });
+
+  it("derives the average from the cached sum/count, rounded to 1 dp", () => {
+    // 4 + 5 + 5 = 14 over 3 reviews -> 4.666… -> 4.7
+    const pub = toPublicListing(makeListing({ ratingSum: 14, ratingCount: 3 }));
+    expect(pub.ratingAverage).toBe(4.7);
+    expect(pub.ratingCount).toBe(3);
+  });
+
+  it("is present on the private (unmasked) shape too", () => {
+    const priv = toPrivateListing(makeListing({ ratingSum: 9, ratingCount: 2 }));
+    expect(priv.ratingAverage).toBe(4.5);
+    expect(priv.ratingCount).toBe(2);
+  });
+
+  it("ratingAverage() helper: null on empty, rounded otherwise", () => {
+    expect(ratingAverage(0, 0)).toBeNull();
+    expect(ratingAverage(5, 1)).toBe(5);
+    expect(ratingAverage(10, 3)).toBe(3.3);
   });
 });
 

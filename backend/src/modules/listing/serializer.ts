@@ -57,6 +57,8 @@ interface CommonListing {
   instantBook: boolean;
   photos: PhotoView[];
   rooms: RoomView[];
+  ratingAverage: number | null;
+  ratingCount: number;
   createdAt: string;
 }
 
@@ -88,6 +90,16 @@ const roundTo = (value: number, decimals: number): number => {
   return Math.round(value * factor) / factor;
 };
 
+/**
+ * Derive the displayed average from the cached integer aggregate (see the
+ * review module). Null for a zero-review listing — the empty state is
+ * first-class and never fabricated as 0. Rounded to one decimal for display.
+ */
+export function ratingAverage(sum: number, count: number): number | null {
+  if (count <= 0) return null;
+  return roundTo(sum / count, 1);
+}
+
 /** Coarse, irreversible area marker (2 dp ≈ 1.1 km). Never the exact point. */
 const approxLocation = (listing: ListingWithRelations): { lat: number; lng: number } => ({
   lat: roundTo(listing.latitude, 2),
@@ -108,6 +120,9 @@ function commonFields(listing: ListingWithRelations): CommonListing {
     instantBook: listing.instantBook,
     photos: listing.photos.map(toPhoto),
     rooms: listing.rooms.map((r) => toRoom(r, listing.tokenAmountPaise)),
+    // Cached aggregate maintained on every new review (see modules/review).
+    ratingAverage: ratingAverage(listing.ratingSum, listing.ratingCount),
+    ratingCount: listing.ratingCount,
     createdAt: listing.createdAt.toISOString(),
   };
 }

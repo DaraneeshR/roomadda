@@ -465,6 +465,31 @@ export const wishlistQuerySchema = z.object({ cursor: cursorParam, limit: limitS
 export type WishlistQuery = z.infer<typeof wishlistQuerySchema>;
 
 // ---------------------------------------------------------------------------
+// Reviews & ratings. A tenant reviews a listing FROM a specific eligible stay
+// (`bookingId`), so the review is bound to that booking — one review per
+// booking, enforced server-side. The stay's eligibility (owned by the caller,
+// on this listing, CONFIRMED/COMPLETED) is checked in the service.
+// ---------------------------------------------------------------------------
+export const createReviewSchema = z
+  .object({
+    /** The caller's eligible stay this review is written from. */
+    bookingId: z.string().uuid(),
+    rating: z.number().int().min(1).max(5),
+    /** Optional free-text; a star-only review omits it. */
+    text: z.string().min(1).max(2000).optional(),
+  })
+  .strict();
+export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+
+/** The host's public reply to a review (host must own the listing). */
+export const hostReviewResponseSchema = z.object({ text: z.string().min(1).max(2000) }).strict();
+export type HostReviewResponseInput = z.infer<typeof hostReviewResponseSchema>;
+
+/** GET /v1/listings/:id/reviews — cursor-paginated, newest first. */
+export const listReviewsQuerySchema = z.object({ cursor: cursorParam, limit: limitSchema }).strict();
+export type ListReviewsQuery = z.infer<typeof listReviewsQuerySchema>;
+
+// ---------------------------------------------------------------------------
 // Advertising (ad slots)
 // ---------------------------------------------------------------------------
 export const slotTypeParamSchema = z.object({ slotType: adSlotTypeSchema }).strict();

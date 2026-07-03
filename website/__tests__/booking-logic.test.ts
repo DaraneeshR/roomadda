@@ -36,6 +36,8 @@ const commonListing = {
   instantBook: true,
   photos: [],
   rooms: [room],
+  ratingAverage: null,
+  ratingCount: 0,
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
