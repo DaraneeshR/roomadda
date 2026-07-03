@@ -1,5 +1,11 @@
 import "server-only";
-import type { NearbyListing, Page, PublicListing } from "@roomadda/shared";
+import type {
+  NearbyListing,
+  Page,
+  PublicListing,
+  ReviewListResponse,
+  SocialProof,
+} from "@roomadda/shared";
 import { env } from "./env";
 
 interface FetchOpts {
@@ -36,8 +42,18 @@ export const publicApi = {
   listings: (params: Record<string, string | undefined>, revalidate = 30) =>
     getJson<Page<PublicListing>>(`/v1/listings${qs(params)}`, { revalidate }),
 
+  // Detail folds in the honesty-gated social proof (see backend listing.route).
   listing: (id: string) =>
-    getJson<{ listing: PublicListing }>(`/v1/listings/${encodeURIComponent(id)}`, { revalidate: 60 }),
+    getJson<{ listing: PublicListing; social: SocialProof }>(
+      `/v1/listings/${encodeURIComponent(id)}`,
+      { revalidate: 60 },
+    ),
+
+  reviews: (id: string, params: Record<string, string | undefined> = {}, revalidate = 30) =>
+    getJson<ReviewListResponse>(
+      `/v1/listings/${encodeURIComponent(id)}/reviews${qs(params)}`,
+      { revalidate },
+    ),
 
   nearby: (lat: string, lng: string, radiusM: string) =>
     getJson<{ items: NearbyListing[] }>(`/v1/listings/search/nearby${qs({ lat, lng, radiusM })}`, {
