@@ -154,6 +154,12 @@ export const publicRoomSchema = z.object({
   sharingType: z.number(),
   monthlyRentPaise: z.number(),
   depositPaise: z.number(),
+  /**
+   * Token to pay now to secure a bed in THIS room (integer paise). Server-owned
+   * via `effectiveTokenPaise` (host token, else deposit, else rent) and equal to
+   * what booking creation charges — the app displays this value, never a guess.
+   */
+  tokenAmountPaise: z.number(),
   totalBeds: z.number(),
   availableBeds: z.number(),
 });

@@ -1,5 +1,6 @@
 import { Prisma, type ListingPhoto, type UserRole } from "@prisma/client";
 import type { PrivateListing, PublicListing } from "@roomadda/shared";
+import { effectiveTokenPaise } from "../../lib/money.js";
 
 /**
  * Listing masking (see /CLAUDE.md domain rule #4). The public shape NEVER
@@ -39,6 +40,7 @@ interface RoomView {
   sharingType: number;
   monthlyRentPaise: number;
   depositPaise: number;
+  tokenAmountPaise: number;
   totalBeds: number;
   availableBeds: number;
 }
@@ -65,13 +67,18 @@ const toPhoto = (p: ListingPhoto): PhotoView => ({
   sortOrder: p.sortOrder,
 });
 
-const toRoom = (room: ListingWithRelations["rooms"][number]): RoomView => ({
+const toRoom = (
+  room: ListingWithRelations["rooms"][number],
+  listingTokenPaise: number | null,
+): RoomView => ({
   id: room.id,
   name: room.name,
   floor: room.floor,
   sharingType: room.sharingType,
   monthlyRentPaise: room.monthlyRentPaise,
   depositPaise: room.depositPaise,
+  // Exactly what booking creation will charge for a bed in this room.
+  tokenAmountPaise: effectiveTokenPaise(listingTokenPaise, room),
   totalBeds: room.beds.length,
   availableBeds: room.beds.filter((b) => b.status === "AVAILABLE").length,
 });
@@ -100,7 +107,7 @@ function commonFields(listing: ListingWithRelations): CommonListing {
     priceFromPaise: rents.length > 0 ? Math.min(...rents) : null,
     instantBook: listing.instantBook,
     photos: listing.photos.map(toPhoto),
-    rooms: listing.rooms.map(toRoom),
+    rooms: listing.rooms.map((r) => toRoom(r, listing.tokenAmountPaise)),
     createdAt: listing.createdAt.toISOString(),
   };
 }

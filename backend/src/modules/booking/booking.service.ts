@@ -1,6 +1,6 @@
 import { Prisma, type AgentBookingChannel, type Booking, type UserRole } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
-import { assertPaise } from "../../lib/money.js";
+import { assertPaise, effectiveTokenPaise } from "../../lib/money.js";
 import { AppError } from "../../lib/errors.js";
 import { toPage, type Page } from "../../lib/pagination.js";
 import { writeAudit } from "../../lib/audit.js";
@@ -105,8 +105,9 @@ export const bookingService = {
         const monthlyRentPaise = bed.monthlyRentPaise ?? room.monthlyRentPaise;
         const depositPaise = room.depositPaise;
         // Token to secure the bed: the host-configured token if set, else the
-        // deposit, else one month's rent.
-        const tokenAmountPaise = room.listing.tokenAmountPaise ?? (depositPaise > 0 ? depositPaise : monthlyRentPaise);
+        // deposit, else one month's rent. Same policy the listing serializer
+        // shows the tenant pre-booking, so the charge can never surprise them.
+        const tokenAmountPaise = effectiveTokenPaise(room.listing.tokenAmountPaise, { depositPaise, monthlyRentPaise });
         if (tokenAmountPaise <= 0) {
           throw new AppError({ statusCode: 400, code: "BED_NOT_BOOKABLE", message: "This bed has no token price configured" });
         }

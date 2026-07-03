@@ -44,8 +44,6 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
     _room = widget.listing.rooms.where((r) => r.hasAvailability).cast<ListingRoom?>().firstWhere((_) => true, orElse: () => null);
   }
 
-  Paise _token(ListingRoom room) => room.deposit.value > 0 ? room.deposit : room.monthlyRent;
-
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -151,7 +149,7 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
             ]),
             const SizedBox(height: 16),
 
-            if (room != null) _Summary(room: room, token: _token(room)),
+            if (room != null) _Summary(room: room),
             const SizedBox(height: 12),
             const _CancellationPolicy(),
 
@@ -191,6 +189,11 @@ class _BookingSheetState extends ConsumerState<_BookingSheet> {
             },
           );
         }
+        // No server token means we don't know the price — disable rather than
+        // let a booking proceed on an unknown/guessed amount.
+        if (room.tokenAmount == null) {
+          return const PrimaryButton(label: 'Token unavailable — reopen listing', expand: true);
+        }
         final label = widget.listing.instantBook ? 'Book now — pay token' : 'Request to book';
         return PrimaryButton(label: _submitting ? 'Please wait…' : label, expand: true, onPressed: _submitting ? null : _confirm);
       },
@@ -206,19 +209,22 @@ String _sharing(int t) => switch (t) {
     };
 
 class _Summary extends StatelessWidget {
-  const _Summary({required this.room, required this.token});
+  const _Summary({required this.room});
   final ListingRoom room;
-  final Paise token;
 
   @override
   Widget build(BuildContext context) {
+    // The "Pay now" amount is the server-owned token; never derived here. If it's
+    // somehow absent we show a placeholder (and the CTA is disabled) rather than
+    // guessing — see /CLAUDE.md money rule #1.
+    final token = room.tokenAmount;
     return DecoratedBox(
       decoration: const BoxDecoration(color: AppColors.card, borderRadius: AppRadii.cardBorder, boxShadow: AppShadows.card),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            _row(context, 'Pay now (token)', token, accent: true),
+            _tokenRow(context, token),
             const SizedBox(height: 6),
             _row(context, 'Monthly rent', room.monthlyRent),
             const SizedBox(height: 6),
@@ -234,12 +240,24 @@ class _Summary extends StatelessWidget {
     );
   }
 
-  Widget _row(BuildContext context, String label, Paise amount, {bool accent = false}) {
+  Widget _tokenRow(BuildContext context, Paise? token) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('Pay now (token)', style: Theme.of(context).textTheme.bodyMedium),
+        token == null
+            ? Text('—', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.mutedInk))
+            : PriceText(token, fontSize: 15, color: AppColors.accent),
+      ],
+    );
+  }
+
+  Widget _row(BuildContext context, String label, Paise amount) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        PriceText(amount, fontSize: 15, color: accent ? AppColors.accent : AppColors.ink),
+        PriceText(amount, fontSize: 15, color: AppColors.ink),
       ],
     );
   }

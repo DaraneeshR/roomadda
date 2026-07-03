@@ -78,7 +78,10 @@ class _Detail extends StatelessWidget {
                 ],
                 Text('Location', style: text.titleMedium),
                 const SizedBox(height: 10),
-                _MaskedMap(listing: listing),
+                // The server unmasks (masked == false) only for a caller allowed
+                // to see the exact address — a CONFIRMED tenant on this listing.
+                // We render only what we were given; we never unmask client-side.
+                listing.masked ? _MaskedMap(listing: listing) : _RevealedLocation(listing: listing),
               ]),
             ),
           ),
@@ -198,6 +201,60 @@ class _MaskedMap extends StatelessWidget {
                   Text('${listing.areaLabel}, ${listing.city}', style: text.titleSmall),
                   const SizedBox(height: 2),
                   Text('Approximate area — exact address shown after your booking is confirmed.', style: text.bodySmall),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Unmasked location — shown ONLY when the server returned the private shape
+/// (`masked == false`) to a confirmed tenant / owner / admin / agent. Renders the
+/// real PG name, full address, and an exact pin marker.
+class _RevealedLocation extends StatelessWidget {
+  const _RevealedLocation({required this.listing});
+  final PublicListing listing;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final geo = listing.exactLocation;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: AppRadii.cardBorder,
+        color: AppColors.card,
+        border: Border.all(color: AppColors.verified),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.place, color: AppColors.verified),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (listing.actualName != null) ...[
+                    Text(listing.actualName!, style: text.titleSmall),
+                    const SizedBox(height: 2),
+                  ],
+                  if (listing.fullAddress != null) ...[
+                    Text(listing.fullAddress!, style: text.bodyMedium),
+                    const SizedBox(height: 2),
+                  ],
+                  Text('${listing.areaLabel}, ${listing.city}', style: text.bodySmall),
+                  if (geo != null) ...[
+                    const SizedBox(height: 2),
+                    Text('Pin: ${geo.lat.toStringAsFixed(5)}, ${geo.lng.toStringAsFixed(5)}', style: text.bodySmall),
+                  ],
+                  const SizedBox(height: 4),
+                  Text('Exact address — your booking is confirmed.',
+                      style: text.bodySmall?.copyWith(color: AppColors.verified)),
                 ],
               ),
             ),

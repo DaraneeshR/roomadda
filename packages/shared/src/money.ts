@@ -66,3 +66,21 @@ export function formatPaise(paise: number): string {
   assertPaise(paise);
   return inrFormatter.format(paise / 100);
 }
+
+/**
+ * The token (integer paise) a tenant pays now to secure a bed in a given room:
+ * the host-configured listing token if set, else the room's deposit, else one
+ * month's rent. This is the ONE definition of the token-pricing policy — the
+ * booking service (what it CHARGES) and the listing serializer (what the app
+ * DISPLAYS as "Pay now") both call it, so the shown token can never diverge from
+ * the amount charged (see /CLAUDE.md money rule #1: amounts are server-owned,
+ * never re-derived client-side).
+ */
+export function effectiveTokenPaise(
+  listingTokenPaise: number | null,
+  room: { depositPaise: number; monthlyRentPaise: number },
+): number {
+  const token = listingTokenPaise ?? (room.depositPaise > 0 ? room.depositPaise : room.monthlyRentPaise);
+  assertPaise(token);
+  return token;
+}

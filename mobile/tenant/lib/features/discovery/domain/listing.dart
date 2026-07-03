@@ -31,6 +31,14 @@ class ListingRoom {
   final int sharingType;
   final Paise monthlyRent;
   final Paise deposit;
+
+  /// The token the tenant pays NOW to secure a bed in this room — SERVER-OWNED
+  /// (`tokenAmountPaise`), equal to what booking creation charges. Null only if
+  /// an older server omitted it; the booking sheet then disables paying rather
+  /// than showing a guessed amount (never re-derive money client-side —
+  /// /CLAUDE.md money rule #1).
+  final Paise? tokenAmount;
+
   final int totalBeds;
   final int availableBeds;
 
@@ -41,6 +49,7 @@ class ListingRoom {
     required this.sharingType,
     required this.monthlyRent,
     required this.deposit,
+    required this.tokenAmount,
     required this.totalBeds,
     required this.availableBeds,
   });
@@ -54,6 +63,7 @@ class ListingRoom {
         sharingType: (j['sharingType'] as num).toInt(),
         monthlyRent: Paise((j['monthlyRentPaise'] as num).toInt()),
         deposit: Paise((j['depositPaise'] as num).toInt()),
+        tokenAmount: j['tokenAmountPaise'] == null ? null : Paise((j['tokenAmountPaise'] as num).toInt()),
         totalBeds: (j['totalBeds'] as num).toInt(),
         availableBeds: (j['availableBeds'] as num).toInt(),
       );
@@ -82,6 +92,15 @@ class PublicListing {
   /// Distance from the searched point, in metres. Present ONLY on nearby results.
   final int? distanceMeters;
 
+  /// UNMASKED location, revealed by the server ONLY to a caller allowed to see it
+  /// (a CONFIRMED tenant on this listing / owner / admin / agent), i.e. when
+  /// [masked] is false. These are parsed ONLY on an unmasked payload, so a server
+  /// that erroneously leaks them on a masked one still cannot surface them
+  /// (client-side defence-in-depth for /CLAUDE.md domain rule #4). Null otherwise.
+  final String? actualName;
+  final String? fullAddress;
+  final GeoPoint? exactLocation;
+
   const PublicListing({
     required this.id,
     required this.alias,
@@ -97,6 +116,9 @@ class PublicListing {
     required this.approxLocation,
     required this.masked,
     this.distanceMeters,
+    this.actualName,
+    this.fullAddress,
+    this.exactLocation,
   });
 
   ListingPhoto? get coverPhoto {
@@ -112,26 +134,35 @@ class PublicListing {
   /// Lowest room rent, falling back to the server's `priceFromPaise`.
   Paise? get startingRent => priceFrom;
 
-  factory PublicListing.fromJson(Map<String, dynamic> j) => PublicListing(
-        id: j['id'] as String,
-        alias: j['alias'] as String,
-        areaLabel: j['areaLabel'] as String,
-        city: j['city'] as String,
-        gender: j['gender'] as String,
-        status: j['status'] as String,
-        amenities: (j['amenities'] as List<dynamic>? ?? const []).map((e) => e as String).toList(),
-        priceFrom: j['priceFromPaise'] == null ? null : Paise((j['priceFromPaise'] as num).toInt()),
-        instantBook: j['instantBook'] as bool? ?? true,
-        photos: (j['photos'] as List<dynamic>? ?? const [])
-            .map((e) => ListingPhoto.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        rooms: (j['rooms'] as List<dynamic>? ?? const [])
-            .map((e) => ListingRoom.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        approxLocation: _geo(j['approxLocation']),
-        masked: j['masked'] as bool? ?? true,
-        distanceMeters: (j['distanceMeters'] as num?)?.toInt(),
-      );
+  factory PublicListing.fromJson(Map<String, dynamic> j) {
+    final masked = j['masked'] as bool? ?? true;
+    return PublicListing(
+      id: j['id'] as String,
+      alias: j['alias'] as String,
+      areaLabel: j['areaLabel'] as String,
+      city: j['city'] as String,
+      gender: j['gender'] as String,
+      status: j['status'] as String,
+      amenities: (j['amenities'] as List<dynamic>? ?? const []).map((e) => e as String).toList(),
+      priceFrom: j['priceFromPaise'] == null ? null : Paise((j['priceFromPaise'] as num).toInt()),
+      instantBook: j['instantBook'] as bool? ?? true,
+      photos: (j['photos'] as List<dynamic>? ?? const [])
+          .map((e) => ListingPhoto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      rooms: (j['rooms'] as List<dynamic>? ?? const [])
+          .map((e) => ListingRoom.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      approxLocation: _geo(j['approxLocation']),
+      masked: masked,
+      distanceMeters: (j['distanceMeters'] as num?)?.toInt(),
+      // Reveal fields are trusted ONLY on an unmasked payload; on a masked one we
+      // ignore them even if present (server-side masking is the contract, this is
+      // the client's belt-and-braces).
+      actualName: masked ? null : j['actualName'] as String?,
+      fullAddress: masked ? null : j['fullAddress'] as String?,
+      exactLocation: masked ? null : _geoOrNull(j['location']),
+    );
+  }
 }
 
 GeoPoint _geo(dynamic v) {
@@ -139,6 +170,13 @@ GeoPoint _geo(dynamic v) {
     return GeoPoint((v['lat'] as num).toDouble(), (v['lng'] as num).toDouble());
   }
   return const GeoPoint(0, 0);
+}
+
+GeoPoint? _geoOrNull(dynamic v) {
+  if (v is Map && v['lat'] != null && v['lng'] != null) {
+    return GeoPoint((v['lat'] as num).toDouble(), (v['lng'] as num).toDouble());
+  }
+  return null;
 }
 
 /// A page of masked listings (cursor-paginated, newest first).

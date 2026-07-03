@@ -86,6 +86,33 @@ describe("toPublicListing (masking)", () => {
   });
 });
 
+describe("room tokenAmountPaise (what the app displays == what booking charges)", () => {
+  it("uses the host-configured listing token when set", () => {
+    // The demo seed configures ₹2,000 (200_000 paise) — the exact value the
+    // booking sheet must show, NOT the deposit/rent.
+    const pub = toPublicListing(makeListing({ tokenAmountPaise: 200_000 }));
+    expect(pub.rooms[0]?.tokenAmountPaise).toBe(200_000);
+    expect(pub.rooms[0]?.tokenAmountPaise).not.toBe(pub.rooms[0]?.depositPaise);
+  });
+
+  it("falls back to the room deposit when no listing token is set", () => {
+    const pub = toPublicListing(makeListing({ tokenAmountPaise: null }));
+    expect(pub.rooms[0]?.tokenAmountPaise).toBe(2_400_000); // = depositPaise
+  });
+
+  it("falls back to one month's rent when there is no deposit", () => {
+    const base = makeListing({ tokenAmountPaise: null });
+    const room = { ...base.rooms[0]!, depositPaise: 0 };
+    const pub = toPublicListing({ ...base, rooms: [room] });
+    expect(pub.rooms[0]?.tokenAmountPaise).toBe(1_200_000); // = monthlyRentPaise
+  });
+
+  it("is present on the private (unmasked) shape too", () => {
+    const priv = toPrivateListing(makeListing({ tokenAmountPaise: 200_000 }));
+    expect(priv.rooms[0]?.tokenAmountPaise).toBe(200_000);
+  });
+});
+
 describe("toPrivateListing", () => {
   it("includes the unmasked fields", () => {
     const priv = toPrivateListing(makeListing());
