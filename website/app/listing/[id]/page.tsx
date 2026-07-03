@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { formatPaise } from "@roomadda/shared";
 import { publicApi } from "../../../lib/api";
 import { ApproxMap } from "../../../components/ApproxMap";
+import { BookingFlow } from "../../../components/booking/BookingFlow";
 
 export const revalidate = 60;
 
@@ -29,13 +30,19 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-slate-900">{l.alias}</h1>
-      <p className="text-slate-600">
-        {l.areaLabel}, {l.city} · {l.gender}
-        {l.priceFromPaise !== null && (
-          <span className="ml-2 font-medium text-slate-900">from {formatPaise(l.priceFromPaise)}/mo</span>
-        )}
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{l.alias}</h1>
+          <p className="text-slate-600">
+            {l.areaLabel}, {l.city} · {l.gender}
+            {l.priceFromPaise !== null && (
+              <span className="ml-2 font-medium text-slate-900">from {formatPaise(l.priceFromPaise)}/mo</span>
+            )}
+          </p>
+        </div>
+        {/* Book fully on the web — token paid here, confirmed only by the webhook. */}
+        <BookingFlow listing={l} />
+      </div>
 
       {l.photos.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
