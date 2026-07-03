@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function KycPage(): React.ReactNode {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
+    <div>
       <h1 className="text-2xl font-bold text-slate-900">KYC verification</h1>
       <p className="mt-1 text-slate-600">
         Verify your identity so you can book a PG. You can keep browsing without it.
@@ -17,6 +17,6 @@ export default function KycPage(): React.ReactNode {
       <div className="mt-6">
         <KycPanel />
       </div>
-    </main>
+    </div>
   );
 }

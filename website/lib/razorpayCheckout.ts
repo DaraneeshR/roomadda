@@ -58,13 +58,19 @@ export interface CheckoutCallbacks {
   onFailed: (message: string) => void;
 }
 
+/** A Razorpay order as our BFF returns it (booking token or rent invoice). */
+export type CheckoutOrder = NonNullable<TokenPaymentOrder["razorpayOrder"]>;
+
 /**
- * Open the Razorpay modal for a token order. Resolves once the modal is open (or
+ * Open the Razorpay modal for an order. Resolves once the modal is open (or
  * rejects if checkout can't load); the outcome flows through the callbacks.
+ * `description` labels the payment in the modal (e.g. "Booking token", "Rent —
+ * July 2026"). Used by BOTH the booking and rent flows — one gateway wrapper.
  */
-export async function openTokenCheckout(
-  order: NonNullable<TokenPaymentOrder["razorpayOrder"]>,
+export async function openCheckout(
+  order: CheckoutOrder,
   cb: CheckoutCallbacks,
+  description = "Payment",
 ): Promise<void> {
   const Razorpay = await loadCheckout();
   const rzp = new Razorpay({
@@ -73,11 +79,16 @@ export async function openTokenCheckout(
     amount: order.amount,
     currency: order.currency,
     name: "RoomAdda",
-    description: "Booking token",
+    description,
     // handler = payment submitted to the gateway, NOT confirmed.
     handler: () => cb.onSubmitted(),
     modal: { ondismiss: () => cb.onFailed("Payment was cancelled.") },
   });
   rzp.on("payment.failed", () => cb.onFailed("Payment failed. Please try again."));
   rzp.open();
+}
+
+/** Booking-token checkout — thin wrapper over {@link openCheckout}. */
+export function openTokenCheckout(order: CheckoutOrder, cb: CheckoutCallbacks): Promise<void> {
+  return openCheckout(order, cb, "Booking token");
 }

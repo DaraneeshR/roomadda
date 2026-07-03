@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatPaise, type PublicListing } from "@roomadda/shared";
+import { WishlistHeart } from "./wishlist/WishlistHeart";
 
 export function ListingCard({ listing }: { listing: PublicListing }) {
   const primary = listing.photos.find((p) => p.isPrimary) ?? listing.photos[0];
@@ -10,11 +11,13 @@ export function ListingCard({ listing }: { listing: PublicListing }) {
       href={`/listing/${listing.id}`}
       className="group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
     >
-      <div className="aspect-[4/3] w-full bg-gradient-to-br from-teal-100 to-slate-200">
+      <div className="relative aspect-[4/3] w-full bg-gradient-to-br from-teal-100 to-slate-200">
         {primary ? (
           // Arbitrary CDN hosts; plain <img> avoids configuring next/image remotePatterns.
           <img src={primary.url} alt={listing.alias} className="h-full w-full object-cover" loading="lazy" />
         ) : null}
+        {/* Heart syncs to the shared account (same wishlist as the app). */}
+        <WishlistHeart listingId={listing.id} />
       </div>
       <div className="space-y-1 p-4">
         <div className="flex items-center justify-between gap-2">

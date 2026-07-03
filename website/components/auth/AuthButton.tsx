@@ -47,17 +47,27 @@ export function AuthButton(): React.ReactNode {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} aria-hidden />
           <div
-            className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+            className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
             role="menu"
           >
-            <Link
-              href="/account/kyc"
-              onClick={() => setMenuOpen(false)}
-              className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              role="menuitem"
-            >
-              KYC verification
-            </Link>
+            {[
+              { href: "/account/dashboard", label: "My stay" },
+              { href: "/account/bookings", label: "My bookings" },
+              { href: "/account/rent", label: "Pay rent" },
+              { href: "/account/wishlist", label: "Wishlist" },
+              { href: "/account/kyc", label: "KYC verification" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                role="menuitem"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <div className="my-1 h-px bg-slate-100" />
             <button
               type="button"
               onClick={() => {
