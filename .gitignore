@@ -58,3 +58,6 @@ mobile/android/local.properties
 mobile/**/GeneratedPluginRegistrant.*
 **/*.g.dart
 **/*.freezed.dart
+
+# Local dev-only OTP recovery helper (redundant with the DEV_OTP server log).
+backend/.otp_peek.mjs
