@@ -21,6 +21,7 @@ import { deviceRoutes } from "./modules/devices/devices.route.js";
 import { kycRoutes } from "./modules/kyc/kyc.route.js";
 import { wishlistRoutes } from "./modules/wishlist/wishlist.route.js";
 import { reviewRoutes } from "./modules/review/review.route.js";
+import { socialRoutes } from "./modules/social/social.route.js";
 import { webhookRoutes } from "./modules/booking/webhook.route.js";
 import { cashRoutes } from "./modules/booking/cash.route.js";
 import { adRoutes } from "./modules/ad/ad.route.js";
@@ -80,6 +81,7 @@ export async function buildApp() {
       await v1.register(kycRoutes);
       await v1.register(wishlistRoutes);
       await v1.register(reviewRoutes);
+      await v1.register(socialRoutes);
       await v1.register(cashRoutes);
       await v1.register(adRoutes);
       await v1.register(adminRoutes);

@@ -490,6 +490,18 @@ export const listReviewsQuerySchema = z.object({ cursor: cursorParam, limit: lim
 export type ListReviewsQuery = z.infer<typeof listReviewsQuerySchema>;
 
 // ---------------------------------------------------------------------------
+// Social proof — "viewing now" presence heartbeat. The client pings this on a
+// short interval while a listing is open (web + app). `sessionId` is a stable
+// per-device/tab id so the SAME viewer is counted ONCE (distinct sessions, not
+// refreshes); an authenticated caller is deduped by their user id server-side,
+// so the field is optional but required for anonymous viewers to be counted.
+// ---------------------------------------------------------------------------
+export const viewingHeartbeatSchema = z
+  .object({ sessionId: z.string().uuid().optional() })
+  .strict();
+export type ViewingHeartbeatInput = z.infer<typeof viewingHeartbeatSchema>;
+
+// ---------------------------------------------------------------------------
 // Advertising (ad slots)
 // ---------------------------------------------------------------------------
 export const slotTypeParamSchema = z.object({ slotType: adSlotTypeSchema }).strict();

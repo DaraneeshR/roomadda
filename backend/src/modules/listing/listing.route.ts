@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { getAuthUser } from "../../plugins/auth.js";
 import { AppError } from "../../lib/errors.js";
+import { logger } from "../../lib/logger.js";
+import { socialService } from "../social/social.service.js";
 import { listingService } from "./listing.service.js";
 import {
   canManageListing,
@@ -194,8 +196,19 @@ export const listingRoutes: FastifyPluginAsync = async (app) => {
         throw new AppError({ statusCode: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" });
       }
 
+      // Fold in the honesty-gated social proof (see modules/social). It never
+      // gates the core response: any failure (e.g. Redis blip) degrades to an
+      // empty object, exactly like every unmet floor — the client shows nothing.
+      let social = {};
+      try {
+        social = await socialService.getSocialProof(id);
+      } catch (err) {
+        logger.warn({ err, listingId: id }, "social proof unavailable for listing detail");
+      }
+
       return reply.send({
         listing: reveal ? toPrivateListing(listing) : toPublicListing(listing),
+        social,
       });
     },
   );

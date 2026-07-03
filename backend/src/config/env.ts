@@ -143,6 +143,22 @@ const envSchema = z.object({
   ROOMIE_SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(1800),
   // How many masked listings to retrieve as discovery context per turn.
   ROOMIE_RETRIEVAL_LIMIT: z.coerce.number().int().min(1).max(20).default(8),
+
+  // Social proof — HONESTY-GATED. Each widget has a minimum-real-value FLOOR;
+  // below the floor the field is OMITTED (never faked). Every threshold is env-
+  // tunable so ops can dial credibility without a code change (/CLAUDE.md).
+  // "Viewing now": distinct sessions counted as active if they heartbeat within
+  // the TTL window; shown only at/above the floor.
+  SOCIAL_VIEWING_FLOOR: z.coerce.number().int().positive().default(3),
+  SOCIAL_VIEWING_TTL_SECONDS: z.coerce.number().int().positive().max(600).default(30),
+  // "Booked N times in last <window> days" from CONFIRMED-paid bookings + walk-ins.
+  SOCIAL_BOOKED_FLOOR: z.coerce.number().int().positive().default(3),
+  SOCIAL_BOOKED_WINDOW_DAYS: z.coerce.number().int().positive().max(90).default(7),
+  // "Z have this wishlisted" — shown only at/above this real count.
+  SOCIAL_WISHLIST_FLOOR: z.coerce.number().int().positive().default(5),
+  // "Only N beds left" scarcity: amber when available beds ≤ this (and > 0), red
+  // when fully booked (0 available). No genuine scarcity => the widget is omitted.
+  SOCIAL_SCARCITY_AMBER_MAX: z.coerce.number().int().positive().default(2),
 }).superRefine((val, ctx) => {
   // SOS must reach a real human in production. Refuse to boot a prod server that
   // has no ops alert channel — a logged no-op is acceptable in dev/test only.

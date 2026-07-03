@@ -369,6 +369,14 @@ model PgListing {
   // zero-review listing serializes cleanly as null/0. See modules/review.
   ratingSum        Int           @default(0)
   ratingCount      Int           @default(0)
+  // Cached "booked N times recently" social-proof count — REAL confirmed-paid
+  // bookings + host walk-ins in the last `recentBookingWindowDays` days, as of
+  // `recentBookingCountAt`. Recomputed by the social-booked cron (never on the
+  // read path). Null window = never swept yet → the widget is omitted. See
+  // modules/social; honesty-gated by SOCIAL_BOOKED_FLOOR.
+  recentBookingCount      Int      @default(0)
+  recentBookingWindowDays Int?
+  recentBookingCountAt    DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 

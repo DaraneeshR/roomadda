@@ -269,6 +269,45 @@ export const reviewResponseSchema = z.object({ review: reviewSchema });
 export type ReviewResponse = z.infer<typeof reviewResponseSchema>;
 
 // ---------------------------------------------------------------------------
+// Social proof — HONESTY-GATED. Every number here is REAL: computed from live
+// sessions / confirmed-paid bookings / live inventory / real wishlists. Each
+// widget has a server-side minimum-real-value FLOOR; below it the field is
+// OMITTED ENTIRELY (never zero-filled, never faked), so the client literally has
+// nothing to render and cannot manufacture social proof. All fields are
+// therefore optional — presence means the real value cleared its floor.
+// ---------------------------------------------------------------------------
+
+/** Genuine scarcity level for the "only N beds left" widget. */
+export const scarcityLevelSchema = z.enum(["amber", "red"]);
+export type ScarcityLevel = z.infer<typeof scarcityLevelSchema>;
+
+export const socialProofSchema = z.object({
+  /** Distinct sessions actively viewing right now (Redis, short TTL). Present
+   *  only when the real count ≥ the viewing floor. */
+  viewingNow: z.number().int().positive().optional(),
+  /** Confirmed-PAID bookings (incl. walk-in + agent) in a rolling window.
+   *  `count` is real; present only when ≥ the booked floor. Recomputed on a
+   *  short cron and cached on the listing. */
+  bookedRecently: z
+    .object({ count: z.number().int().positive(), windowDays: z.number().int().positive() })
+    .optional(),
+  /** Genuine live scarcity from bed inventory: amber when few beds remain, red
+   *  when fully booked. Omitted when there is no real scarcity to show. */
+  bedsLeft: z
+    .object({ count: z.number().int().nonnegative(), level: scarcityLevelSchema })
+    .optional(),
+  /** How many tenants have wishlisted this listing (real count). Present only
+   *  when ≥ the wishlist floor. */
+  wishlistedCount: z.number().int().positive().optional(),
+});
+export type SocialProof = z.infer<typeof socialProofSchema>;
+
+/** GET /v1/listings/:id/social response. `social` is a (possibly empty) object;
+ *  an empty object means nothing cleared its floor — the honest "show nothing". */
+export const socialProofResponseSchema = z.object({ social: socialProofSchema });
+export type SocialProofResponse = z.infer<typeof socialProofResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // Tenant booking-read DTOs — what the mobile payment screen polls to observe
 // the webhook-driven transition to CONFIRMED (see /CLAUDE.md domain rule #2:
 // payment truth is the verified webhook, never the client). The `listing` field
