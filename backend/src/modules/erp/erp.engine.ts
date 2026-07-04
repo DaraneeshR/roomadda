@@ -7,6 +7,8 @@
  * aggregated from captured payments + cash); the engine never re-derives money
  * the webhook already owns — it only combines authoritative amounts.
  */
+import type { BookingStatus, CancelledBy } from "@prisma/client";
+import type { BookingApprovalStatus, InvoiceBreakdown } from "@roomadda/shared";
 import { assertPaise } from "../../lib/money.js";
 
 /** Indian financial year starts on 1 April. FY 2026 = 1 Apr 2026 → 31 Mar 2027. */
@@ -72,6 +74,66 @@ export function proRataFirstMonthRentPaise(monthlyRentPaise: number, moveIn: Dat
   const proRata = Math.round((monthlyRentPaise * remainingDays) / daysInMonth);
   assertPaise(proRata);
   return proRata;
+}
+
+/**
+ * Map a booking's REAL lifecycle to the §15.3 ledger "approval" column — the one
+ * decision-state every ERP screen (ledger, approvals, detail) reads, so they can
+ * never label the same booking differently. Pure; derived on read, never stored:
+ *  - PENDING   → awaiting a decision (a Request-to-Book hold / fresh init)
+ *  - APPROVED  → accepted (payment may still be pending, or already confirmed/complete)
+ *  - REJECTED  → declined in review (cancelled by the HOST/SYSTEM, not the tenant)
+ *  - CANCELLED → the tenant backed out, or the hold lapsed (EXPIRED)
+ */
+export function approvalStatusOf(status: BookingStatus, cancelledBy: CancelledBy | null): BookingApprovalStatus {
+  switch (status) {
+    case "INITIATED":
+    case "PENDING_APPROVAL":
+      return "PENDING";
+    case "TOKEN_PENDING":
+    case "CONFIRMED":
+    case "COMPLETED":
+      return "APPROVED";
+    case "CANCELLED":
+      // A HOST/SYSTEM cancellation is a rejection; a TENANT one (or unknown) is a cancellation.
+      return cancelledBy === "HOST" || cancelledBy === "SYSTEM" ? "REJECTED" : "CANCELLED";
+    case "EXPIRED":
+      return "CANCELLED";
+    default: {
+      // Exhaustiveness guard: a new BookingStatus must be classified here.
+      const _never: never = status;
+      return _never;
+    }
+  }
+}
+
+/**
+ * The full move-in invoice for one booking (§15.6), every figure from this
+ * engine so the detail screen and any receipt agree to the paise. Pro-rata is
+ * null when there is no move-in date (nothing to pro-rate against). The token is
+ * a part-payment of the move-in total, so the balance owed is `moveInTotal −
+ * token` (may be negative if the token over-covers — surfaced honestly, not clamped).
+ */
+export function computeInvoiceBreakdown(input: {
+  monthlyRentPaise: number;
+  depositPaise: number;
+  tokenAmountPaise: number;
+  moveIn: Date | null;
+}): InvoiceBreakdown {
+  assertPaise(input.monthlyRentPaise);
+  assertPaise(input.depositPaise);
+  assertPaise(input.tokenAmountPaise);
+  const proRata = input.moveIn ? proRataFirstMonthRentPaise(input.monthlyRentPaise, input.moveIn) : null;
+  const moveInTotalPaise = proRata === null ? null : proRata + input.depositPaise;
+  const balanceDuePaise = moveInTotalPaise === null ? null : moveInTotalPaise - input.tokenAmountPaise;
+  return {
+    monthlyRentPaise: input.monthlyRentPaise,
+    depositPaise: input.depositPaise,
+    tokenAmountPaise: input.tokenAmountPaise,
+    proRataFirstMonthRentPaise: proRata,
+    moveInTotalPaise,
+    balanceDuePaise,
+  };
 }
 
 /**

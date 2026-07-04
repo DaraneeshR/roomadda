@@ -1,8 +1,10 @@
 import { z } from "zod";
 import {
   adSlotTypeSchema,
+  agentBookingChannelSchema,
   agentVisitStatusSchema,
   amenityCheckSchema,
+  bookingApprovalStatusSchema,
   bookingStatusSchema,
   broadcastAudienceSchema,
   broadcastChannelSchema,
@@ -1141,3 +1143,104 @@ export const bulkMarkCommissionReceivedSchema = z
   .object({ bookingIds: z.array(z.string().uuid()).min(1).max(200) })
   .strict();
 export type BulkMarkCommissionReceivedInput = z.infer<typeof bulkMarkCommissionReceivedSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-2 — bookings ledger, approvals, and booking/KYC detail (§15.3).
+// ---------------------------------------------------------------------------
+
+/** Sortable columns for the bookings ledger (allowlist — nothing else is sortable). */
+export const bookingLedgerSortSchema = z.enum(["createdAt", "moveInDate", "confirmedAt", "monthlyRent"]);
+export type BookingLedgerSort = z.infer<typeof bookingLedgerSortSchema>;
+export const sortOrderSchema = z.enum(["asc", "desc"]);
+
+/**
+ * GET /v1/erp/bookings — the searchable/sortable bookings ledger (§15.3). Every
+ * filter is optional: `approval` (the derived decision state), `listingId` /
+ * `agentId` / `tenantId`, and `q` (a free-text match on the tenant name or the
+ * listing alias). `sort`/`order` pick the column + direction (default: newest
+ * first). Cursor-paginated with an enforced max page size.
+ */
+export const bookingsLedgerQuerySchema = z
+  .object({
+    approval: bookingApprovalStatusSchema.optional(),
+    listingId: z.string().uuid().optional(),
+    agentId: z.string().uuid().optional(),
+    tenantId: z.string().uuid().optional(),
+    q: z.string().trim().min(1).max(120).optional(),
+    sort: bookingLedgerSortSchema.default("createdAt"),
+    order: sortOrderSchema.default("desc"),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type BookingsLedgerQuery = z.infer<typeof bookingsLedgerQuerySchema>;
+
+/** GET /v1/erp/bookings/export — the same filters, no pagination, plus a format. */
+export const bookingsLedgerExportQuerySchema = z
+  .object({
+    format: z.enum(["csv", "xlsx"]),
+    approval: bookingApprovalStatusSchema.optional(),
+    listingId: z.string().uuid().optional(),
+    agentId: z.string().uuid().optional(),
+    tenantId: z.string().uuid().optional(),
+    q: z.string().trim().min(1).max(120).optional(),
+    sort: bookingLedgerSortSchema.default("createdAt"),
+    order: sortOrderSchema.default("desc"),
+  })
+  .strict();
+export type BookingsLedgerExportQuery = z.infer<typeof bookingsLedgerExportQuerySchema>;
+
+/** GET /v1/erp/approvals — the pending-decision queue (cursor-paginated). */
+export const bookingApprovalsQuerySchema = z
+  .object({ cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type BookingApprovalsQuery = z.infer<typeof bookingApprovalsQuerySchema>;
+
+/** Body for rejecting a pending booking in review — a mandatory reason (audited). */
+export const rejectBookingSchema = z.object({ reason: z.string().trim().min(1).max(500) }).strict();
+export type RejectBookingInput = z.infer<typeof rejectBookingSchema>;
+
+/** Body for bulk-approving several clearly-fine pending bookings. */
+export const bulkApproveBookingsSchema = z
+  .object({ bookingIds: z.array(z.string().uuid()).min(1).max(200) })
+  .strict();
+export type BulkApproveBookingsInput = z.infer<typeof bulkApproveBookingsSchema>;
+
+/**
+ * Body for adding a HISTORICAL booking (§15.3) — a back-dated, already-confirmed
+ * booking assigned to an agent that flows into the dashboard / commission ledger /
+ * agent performance exactly like a live one. `moveInDate` must be in the past
+ * (validated server-side against `now`); the booking is created CONFIRMED with
+ * `confirmedAt = moveInDate`. `bedId` is row-locked so the one-live-booking
+ * invariant still holds. Money is integer paise.
+ */
+export const createHistoricalBookingSchema = z
+  .object({
+    bedId: z.string().uuid(),
+    tenantName: z.string().trim().min(1).max(120),
+    tenantPhone: e164Schema,
+    agentId: z.string().uuid(),
+    agentChannel: agentBookingChannelSchema.default("WALK_IN"),
+    moveInDate: z.string().datetime(),
+    monthlyRentPaise: z.number().int().nonnegative(),
+    tokenAmountPaise: z.number().int().nonnegative(),
+    depositPaise: z.number().int().nonnegative().default(0),
+  })
+  .strict();
+export type CreateHistoricalBookingInput = z.infer<typeof createHistoricalBookingSchema>;
+
+/**
+ * Body for editing a booking (§15.3, audited). Only the safe correction fields
+ * are editable — never the token (payment truth) or attribution. At least one
+ * field must be present.
+ */
+export const updateBookingSchema = z
+  .object({
+    moveInDate: z.string().datetime().nullable().optional(),
+    monthlyRentPaise: z.number().int().nonnegative().optional(),
+    depositPaise: z.number().int().nonnegative().optional(),
+    mealPlan: z.string().trim().min(1).max(120).nullable().optional(),
+  })
+  .strict()
+  .refine((b) => Object.keys(b).length > 0, { message: "Provide at least one field to update" });
+export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;

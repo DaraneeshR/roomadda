@@ -3,12 +3,8 @@ import { prisma } from "../../lib/prisma.js";
 import { writeAudit } from "../../lib/audit.js";
 import { AppError } from "../../lib/errors.js";
 import { assertPaise } from "../../lib/money.js";
-import { env } from "../../config/env.js";
-import {
-  computeLedgerFigures,
-  resolveFinancialPeriod,
-  type FinancialPeriod,
-} from "./erp.engine.js";
+import { resolveFinancialPeriod, type FinancialPeriod } from "./erp.engine.js";
+import { LEDGER_BOOKING_STATUSES, priceBookings, type BookingMoney } from "./erp.pricing.js";
 import type {
   CommissionLedgerEntry,
   CommissionLedgerResponse,
@@ -17,15 +13,6 @@ import type {
   MarkCommissionReceivedInput,
   MarkCommissionReceivedResult,
 } from "@roomadda/shared";
-
-/**
- * The bookings that carry commission: a booking earns commission only once it is
- * CONFIRMED (settlement proved the token was fully paid — see settlement.ts), and
- * a COMPLETED stay was necessarily CONFIRMED first. TOKEN_PENDING / CANCELLED /
- * EXPIRED bookings are NEVER in the ledger — this is the "confirmed-paid only"
- * guarantee.
- */
-const LEDGER_BOOKING_STATUSES = ["CONFIRMED", "COMPLETED"] as const;
 
 interface Actor {
   id: string;
@@ -37,10 +24,7 @@ interface LedgerRow {
     Booking,
     "id" | "listingId" | "bookedByAgentId" | "agentChannel" | "status" | "confirmedAt" | "monthlyRentPaise"
   >;
-  paidToPgPaise: number;
-  collectedPaise: number;
-  settlementStatus: "PENDING" | "RECEIVED";
-  receivedAt: Date | null;
+  money: BookingMoney;
   listingAlias: string;
   agentName: string | null;
 }
@@ -62,7 +46,7 @@ export const erpService = {
     // Optional settlement-status filter (received vs pending) applied uniformly to
     // both the rows and the totals below.
     const filtered =
-      query.status === undefined ? rows : rows.filter((r) => r.settlementStatus === query.status);
+      query.status === undefined ? rows : rows.filter((r) => r.money.settlementStatus === query.status);
 
     const entries = filtered
       .map(toEntry)
@@ -238,78 +222,36 @@ type BookingCore = Pick<
 >;
 
 /**
- * Attach to each booking its AUTHORITATIVE `collected` (captured online + collected
- * cash — the identical aggregation settlement.ts uses), its ERP-owned ledger state
- * (paidToPg + received/pending), and display fields (listing alias, agent name).
+ * Attach to each booking its money figures (via the shared {@link priceBookings}
+ * — the identical pricing every ERP screen uses) plus the display fields (listing
+ * alias, agent name) the commission ledger shows.
  */
 async function hydrateRows(bookings: BookingCore[]): Promise<LedgerRow[]> {
   if (bookings.length === 0) return [];
-  const bookingIds = bookings.map((b) => b.id);
   const listingIds = [...new Set(bookings.map((b) => b.listingId))];
   const agentIds = [...new Set(bookings.map((b) => b.bookedByAgentId).filter((id): id is string => id !== null))];
 
-  const [payments, cashGroups, ledgerRows, listings, agents] = await Promise.all([
-    prisma.payment.findMany({ where: { bookingId: { in: bookingIds } }, select: { id: true, bookingId: true } }),
-    prisma.cashCollection.groupBy({
-      by: ["bookingId"],
-      where: { bookingId: { in: bookingIds }, status: { in: ["COLLECTED", "RECONCILED"] } },
-      _sum: { amountPaise: true },
-    }),
-    prisma.commissionLedger.findMany({
-      where: { bookingId: { in: bookingIds } },
-      select: { bookingId: true, paidToPgPaise: true, status: true, receivedAt: true },
-    }),
+  const [money, listings, agents] = await Promise.all([
+    priceBookings(bookings),
     prisma.pgListing.findMany({ where: { id: { in: listingIds } }, select: { id: true, alias: true } }),
     agentIds.length
       ? prisma.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, fullName: true } })
       : Promise.resolve([]),
   ]);
 
-  // Captured-online per booking: sum CAPTURED payment transactions, mapped back
-  // through the (1:1) payment → booking link.
-  const paymentToBooking = new Map(payments.map((p) => [p.id, p.bookingId]));
-  const onlineByBooking = new Map<string, number>();
-  if (payments.length > 0) {
-    const capturedGroups = await prisma.paymentTransaction.groupBy({
-      by: ["paymentId"],
-      where: { paymentId: { in: payments.map((p) => p.id) }, status: "CAPTURED" },
-      _sum: { amountPaise: true },
-    });
-    for (const g of capturedGroups) {
-      const bookingId = paymentToBooking.get(g.paymentId);
-      if (!bookingId) continue;
-      onlineByBooking.set(bookingId, (onlineByBooking.get(bookingId) ?? 0) + (g._sum.amountPaise ?? 0));
-    }
-  }
-
-  const cashByBooking = new Map(cashGroups.map((g) => [g.bookingId, g._sum.amountPaise ?? 0]));
-  const ledgerByBooking = new Map(ledgerRows.map((l) => [l.bookingId, l]));
   const aliasByListing = new Map(listings.map((l) => [l.id, l.alias]));
   const nameByAgent = new Map(agents.map((a) => [a.id, a.fullName]));
 
-  return bookings.map((booking) => {
-    const ledger = ledgerByBooking.get(booking.id);
-    const collectedPaise = (onlineByBooking.get(booking.id) ?? 0) + (cashByBooking.get(booking.id) ?? 0);
-    return {
-      booking,
-      paidToPgPaise: ledger?.paidToPgPaise ?? 0,
-      collectedPaise,
-      settlementStatus: ledger?.status ?? "PENDING",
-      receivedAt: ledger?.receivedAt ?? null,
-      listingAlias: aliasByListing.get(booking.listingId) ?? "",
-      agentName: booking.bookedByAgentId ? (nameByAgent.get(booking.bookedByAgentId) ?? null) : null,
-    };
-  });
+  return bookings.map((booking) => ({
+    booking,
+    money: money.get(booking.id)!,
+    listingAlias: aliasByListing.get(booking.listingId) ?? "",
+    agentName: booking.bookedByAgentId ? (nameByAgent.get(booking.bookedByAgentId) ?? null) : null,
+  }));
 }
 
-/** Turn one gathered row into the wire DTO, pricing it through the money engine. */
+/** Turn one gathered row into the wire DTO, using the engine-priced figures. */
 function toEntry(row: LedgerRow): CommissionLedgerEntry {
-  const { commissionPaise, netPaise } = computeLedgerFigures({
-    monthlyRentPaise: row.booking.monthlyRentPaise,
-    bps: env.AGENT_COMMISSION_BPS,
-    paidToPgPaise: row.paidToPgPaise,
-    collectedPaise: row.collectedPaise,
-  });
   return {
     bookingId: row.booking.id,
     listingId: row.booking.listingId,
@@ -320,12 +262,12 @@ function toEntry(row: LedgerRow): CommissionLedgerEntry {
     bookingStatus: row.booking.status,
     confirmedAt: row.booking.confirmedAt?.toISOString() ?? null,
     monthlyRentPaise: row.booking.monthlyRentPaise,
-    commissionPaise,
-    paidToPgPaise: row.paidToPgPaise,
-    collectedPaise: row.collectedPaise,
-    netPaise,
-    status: row.settlementStatus,
-    receivedAt: row.receivedAt?.toISOString() ?? null,
+    commissionPaise: row.money.commissionPaise,
+    paidToPgPaise: row.money.paidToPgPaise,
+    collectedPaise: row.money.collectedPaise,
+    netPaise: row.money.netPaise,
+    status: row.money.settlementStatus,
+    receivedAt: row.money.receivedAt?.toISOString() ?? null,
   };
 }
 

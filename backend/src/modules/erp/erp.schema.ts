@@ -8,4 +8,12 @@ export {
   bookingIdParamSchema,
   markCommissionReceivedSchema,
   bulkMarkCommissionReceivedSchema,
+  // ERP-2 — bookings ledger, approvals, booking/KYC detail (§15.3).
+  bookingsLedgerQuerySchema,
+  bookingsLedgerExportQuerySchema,
+  bookingApprovalsQuerySchema,
+  createHistoricalBookingSchema,
+  updateBookingSchema,
+  rejectBookingSchema,
+  bulkApproveBookingsSchema,
 } from "@roomadda/shared";

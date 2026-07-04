@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   agentCommissionPaise,
+  approvalStatusOf,
+  computeInvoiceBreakdown,
   computeLedgerFigures,
   daysInUtcMonth,
   financialYearOf,
@@ -109,6 +111,69 @@ describe("erp money engine — composed ledger figures", () => {
     });
     expect(figures.commissionPaise).toBe(100_000);
     expect(figures.netPaise).toBe(100_000 + 2000 - 5000);
+  });
+});
+
+describe("erp ledger — approval status mapping (§15.3)", () => {
+  it("maps a Request-to-Book hold / fresh init to PENDING", () => {
+    expect(approvalStatusOf("PENDING_APPROVAL", null)).toBe("PENDING");
+    expect(approvalStatusOf("INITIATED", null)).toBe("PENDING");
+  });
+
+  it("maps accepted / confirmed / completed to APPROVED", () => {
+    expect(approvalStatusOf("TOKEN_PENDING", null)).toBe("APPROVED");
+    expect(approvalStatusOf("CONFIRMED", null)).toBe("APPROVED");
+    expect(approvalStatusOf("COMPLETED", null)).toBe("APPROVED");
+  });
+
+  it("distinguishes a staff rejection from a tenant cancellation", () => {
+    expect(approvalStatusOf("CANCELLED", "HOST")).toBe("REJECTED");
+    expect(approvalStatusOf("CANCELLED", "SYSTEM")).toBe("REJECTED");
+    expect(approvalStatusOf("CANCELLED", "TENANT")).toBe("CANCELLED");
+    expect(approvalStatusOf("CANCELLED", null)).toBe("CANCELLED");
+    expect(approvalStatusOf("EXPIRED", null)).toBe("CANCELLED");
+  });
+});
+
+describe("erp money engine — invoice breakdown (§15.6)", () => {
+  it("composes pro-rata + deposit − token, all from the engine", () => {
+    // ₹30,000 rent, ₹20,000 deposit, ₹5,000 token, move-in 2026-07-04 (31d, 28 left).
+    const inv = computeInvoiceBreakdown({
+      monthlyRentPaise: 3_000_000,
+      depositPaise: 2_000_000,
+      tokenAmountPaise: 500_000,
+      moveIn: new Date(Date.UTC(2026, 6, 4)),
+    });
+    expect(inv.proRataFirstMonthRentPaise).toBe(2_709_677); // round(3,000,000 × 28/31)
+    expect(inv.moveInTotalPaise).toBe(2_709_677 + 2_000_000); // + deposit
+    expect(inv.balanceDuePaise).toBe(2_709_677 + 2_000_000 - 500_000); // − token
+  });
+
+  it("nulls the pro-rata fields when there is no move-in date", () => {
+    const inv = computeInvoiceBreakdown({
+      monthlyRentPaise: 1_000_000,
+      depositPaise: 500_000,
+      tokenAmountPaise: 100_000,
+      moveIn: null,
+    });
+    expect(inv.proRataFirstMonthRentPaise).toBeNull();
+    expect(inv.moveInTotalPaise).toBeNull();
+    expect(inv.balanceDuePaise).toBeNull();
+    // The known figures still come through.
+    expect(inv.monthlyRentPaise).toBe(1_000_000);
+    expect(inv.depositPaise).toBe(500_000);
+    expect(inv.tokenAmountPaise).toBe(100_000);
+  });
+
+  it("a full-month move-in bills the whole rent (balance = rent + deposit − token)", () => {
+    const inv = computeInvoiceBreakdown({
+      monthlyRentPaise: 3_000_000,
+      depositPaise: 0,
+      tokenAmountPaise: 3_000_000,
+      moveIn: new Date(Date.UTC(2026, 6, 1)),
+    });
+    expect(inv.proRataFirstMonthRentPaise).toBe(3_000_000);
+    expect(inv.balanceDuePaise).toBe(0); // token exactly covers the first month
   });
 });
 

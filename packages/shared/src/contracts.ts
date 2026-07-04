@@ -1788,3 +1788,190 @@ export const markCommissionReceivedResultSchema = z.object({
   bookingIds: z.array(z.string()),
 });
 export type MarkCommissionReceivedResult = z.infer<typeof markCommissionReceivedResultSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-2 — Bookings ledger, approvals, and booking/KYC detail (§15.3). These
+// screens read the SAME money engine (erp.engine.ts) as the commission ledger,
+// so a booking's commission/net can never differ between the ledger, the
+// approvals queue, and the detail. Every figure is integer paise.
+// ---------------------------------------------------------------------------
+
+/**
+ * Approval status — a booking's decision state, DERIVED from the real lifecycle
+ * (never stored), so the §15.3 ledger has one clean column across every screen:
+ *  - PENDING   → PENDING_APPROVAL / INITIATED (a Request-to-Book awaiting a decision)
+ *  - APPROVED  → TOKEN_PENDING / CONFIRMED / COMPLETED (accepted; may still be paying)
+ *  - REJECTED  → CANCELLED by HOST/SYSTEM (declined in review)
+ *  - CANCELLED → CANCELLED by TENANT, or EXPIRED (backed out / lapsed)
+ * The mapping lives in backend `erp.engine.ts` (`approvalStatusOf`) — pure and shared.
+ */
+export const bookingApprovalStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED", "CANCELLED"]);
+export type BookingApprovalStatus = z.infer<typeof bookingApprovalStatusSchema>;
+export const BOOKING_APPROVAL_STATUSES = bookingApprovalStatusSchema.options;
+
+/** The commission summary the ERP engine produces for one confirmed-paid booking.
+ *  Present on a ledger row / detail ONLY when the booking is confirmed-paid (else
+ *  null — an unconfirmed booking has no earned commission). `netPaise` may be
+ *  negative (net = commission + paidToPg − collected). */
+export const bookingCommissionSummarySchema = z.object({
+  commissionPaise: z.number().int().nonnegative(),
+  paidToPgPaise: z.number().int().nonnegative(),
+  collectedPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+  status: commissionSettlementStatusSchema,
+});
+export type BookingCommissionSummary = z.infer<typeof bookingCommissionSummarySchema>;
+
+/** One row in the bookings ledger (§15.3) — every booking, not just confirmed
+ *  ones. `commission` is the engine figure (null unless confirmed-paid). */
+export const bookingLedgerEntrySchema = z.object({
+  bookingId: z.string(),
+  approval: bookingApprovalStatusSchema,
+  bookingStatus: bookingStatusSchema,
+  tenantId: z.string(),
+  tenantName: z.string(),
+  listingId: z.string(),
+  listingAlias: z.string(),
+  agentId: z.string().nullable(),
+  agentName: z.string().nullable(),
+  agentChannel: agentBookingChannelSchema.nullable(),
+  monthlyRentPaise: z.number().int().nonnegative(),
+  tokenAmountPaise: z.number().int().nonnegative(),
+  depositPaise: z.number().int().nonnegative(),
+  moveInDate: z.string().nullable(),
+  confirmedAt: z.string().nullable(),
+  createdAt: z.string(),
+  /** Whether this booking was added by an admin as a historical/back-dated entry. */
+  historical: z.boolean(),
+  commission: bookingCommissionSummarySchema.nullable(),
+});
+export type BookingLedgerEntry = z.infer<typeof bookingLedgerEntrySchema>;
+
+/** Roll-up of the WHOLE filtered ledger set (not just the returned page). The
+ *  commission totals sum ONLY the confirmed-paid rows, so they equal the
+ *  commission ledger's totals for the same filter — the two can never disagree. */
+export const bookingLedgerTotalsSchema = z.object({
+  bookingCount: z.number().int().nonnegative(),
+  pendingCount: z.number().int().nonnegative(),
+  approvedCount: z.number().int().nonnegative(),
+  rejectedCount: z.number().int().nonnegative(),
+  cancelledCount: z.number().int().nonnegative(),
+  /** Confirmed-paid rows only — Σ of the engine figures over those rows. */
+  commissionedBookingCount: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  collectedPaise: z.number().int().nonnegative(),
+  paidToPgPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+});
+export type BookingLedgerTotals = z.infer<typeof bookingLedgerTotalsSchema>;
+
+/** GET /v1/erp/bookings — a page of ledger rows plus the filtered totals. */
+export const bookingLedgerResponseSchema = z.object({
+  items: z.array(bookingLedgerEntrySchema),
+  nextCursor: z.string().nullable(),
+  totals: bookingLedgerTotalsSchema,
+});
+export type BookingLedgerResponse = z.infer<typeof bookingLedgerResponseSchema>;
+
+/** The full move-in invoice, every figure from the money engine (§15.6). The
+ *  pro-rata fields are null when the booking has no move-in date (can't pro-rate). */
+export const invoiceBreakdownSchema = z.object({
+  monthlyRentPaise: z.number().int().nonnegative(),
+  depositPaise: z.number().int().nonnegative(),
+  tokenAmountPaise: z.number().int().nonnegative(),
+  /** monthlyRent pro-rated to the days remaining in the move-in month. */
+  proRataFirstMonthRentPaise: z.number().int().nonnegative().nullable(),
+  /** proRataFirstMonth + deposit — the total due to move in. */
+  moveInTotalPaise: z.number().int().nonnegative().nullable(),
+  /** moveInTotal − token already paid — the balance owed after the token. */
+  balanceDuePaise: z.number().int().nullable(),
+});
+export type InvoiceBreakdown = z.infer<typeof invoiceBreakdownSchema>;
+
+/** One KYC document exposed to an admin via a SHORT-LIVED signed URL (never the
+ *  raw object). `slot` labels which document; `url` expires in `expiresInSeconds`. */
+export const bookingKycDocumentSchema = z.object({
+  slot: z.enum(["AADHAAR_FRONT", "AADHAAR_BACK", "SUPPORTING"]),
+  url: z.string(),
+  expiresInSeconds: z.number().int().positive(),
+});
+export type BookingKycDocument = z.infer<typeof bookingKycDocumentSchema>;
+
+/** The customer + KYC block on the booking detail (admin-only). Documents are
+ *  signed URLs; the underlying keys / raw numbers are never returned. */
+export const bookingKycBlockSchema = z.object({
+  status: kycViewStatusSchema,
+  submittedAt: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  rejectReason: z.string().nullable(),
+  supportingDocType: z.string().nullable(),
+  documents: z.array(bookingKycDocumentSchema),
+});
+export type BookingKycBlock = z.infer<typeof bookingKycBlockSchema>;
+
+/** GET /v1/erp/bookings/:bookingId — one screen: the customer, the full invoice
+ *  breakdown (money engine), the net commission (ERP-1), and the KYC documents
+ *  (signed URLs). ADMIN-only. */
+export const erpBookingDetailResponseSchema = z.object({
+  bookingId: z.string(),
+  approval: bookingApprovalStatusSchema,
+  bookingStatus: bookingStatusSchema,
+  historical: z.boolean(),
+  createdAt: z.string(),
+  confirmedAt: z.string().nullable(),
+  cancelledAt: z.string().nullable(),
+  moveInDate: z.string().nullable(),
+  customer: z.object({
+    userId: z.string(),
+    fullName: z.string(),
+    phone: z.string(),
+    email: z.string().nullable(),
+    gender: userGenderSchema.nullable(),
+    occupationType: occupationTypeSchema.nullable(),
+    college: z.string().nullable(),
+    company: z.string().nullable(),
+  }),
+  listing: z.object({
+    listingId: z.string(),
+    alias: z.string(),
+    /** Admin sees the real name (masking rule exempts admin — /CLAUDE.md #4). */
+    actualName: z.string(),
+    areaLabel: z.string(),
+    city: z.string(),
+  }),
+  agent: z
+    .object({
+      agentId: z.string(),
+      agentName: z.string().nullable(),
+      agentChannel: agentBookingChannelSchema.nullable(),
+    })
+    .nullable(),
+  invoice: invoiceBreakdownSchema,
+  /** Net commission from the ERP-1 engine — null unless the booking is confirmed-paid. */
+  commission: bookingCommissionSummarySchema.nullable(),
+  /** Null when the customer has no KYC record at all. */
+  kyc: bookingKycBlockSchema.nullable(),
+});
+export type ErpBookingDetailResponse = z.infer<typeof erpBookingDetailResponseSchema>;
+
+/** GET /v1/erp/approvals — the queue of bookings awaiting a decision (PENDING). */
+export const bookingApprovalsResponseSchema = z.object({
+  items: z.array(bookingLedgerEntrySchema),
+  nextCursor: z.string().nullable(),
+});
+export type BookingApprovalsResponse = z.infer<typeof bookingApprovalsResponseSchema>;
+
+/** Result of a single approve/reject decision. */
+export const bookingApprovalDecisionSchema = z.object({
+  bookingId: z.string(),
+  approval: bookingApprovalStatusSchema,
+  bookingStatus: bookingStatusSchema,
+});
+export type BookingApprovalDecision = z.infer<typeof bookingApprovalDecisionSchema>;
+
+/** Result of a bulk approve — the ids actually approved (skipping any no longer PENDING). */
+export const bookingBulkApproveResultSchema = z.object({
+  updated: z.number().int().nonnegative(),
+  bookingIds: z.array(z.string()),
+});
+export type BookingBulkApproveResult = z.infer<typeof bookingBulkApproveResultSchema>;
