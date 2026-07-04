@@ -27,6 +27,7 @@ export interface ApiClient {
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
   put<T>(path: string, body?: unknown): Promise<T>;
+  del<T>(path: string): Promise<T>;
 }
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -124,5 +125,6 @@ export function createApiClient(baseUrl: string): ApiClient {
     post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body: serialize(body) }),
     patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body: serialize(body) }),
     put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body: serialize(body) }),
+    del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   };
 }

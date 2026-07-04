@@ -15,4 +15,15 @@ export {
   cashQuerySchema as chatReportsQuerySchema,
   uuidParamSchema as idParamSchema,
   reasonBodySchema as rejectSchema,
+  // Service-request oversight
+  adminResolveServiceRequestSchema,
+  adminContactHostSchema,
+  flagHostSchema,
+  // Host & agent management
+  adminHostsQuerySchema,
+  adminAgentsQuerySchema,
+  moderateUserSchema,
+  updateAgentTerritorySchema,
+  assignVisitSchema,
+  reasonBodySchema as takedownSchema,
 } from "@roomadda/shared";

@@ -18,6 +18,14 @@ export const badgeAdminRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", app.authenticate);
   app.addHook("preHandler", app.requireRole("ADMIN"));
 
+  // View EVERY badge link on a listing (incl. suspended + scheduled) with the
+  // reason each is held ("why") and its live active/inactive standing.
+  app.get("/admin/listings/:id/badges", async (request) => {
+    const { id } = listingIdParamSchema.parse(request.params);
+    const badges = await badgeService.listForListing(id);
+    return { listingId: id, badges };
+  });
+
   // Grant a paid FEATURED placement (rule kinds are rejected by the service).
   app.post("/admin/listings/:id/badges", async (request, reply) => {
     const admin = getAuthUser(request);

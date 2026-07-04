@@ -1468,3 +1468,241 @@ export const agentSummarySchema = z.object({
   createdAt: z.string(),
 });
 export type AgentSummary = z.infer<typeof agentSummarySchema>;
+
+// ---------------------------------------------------------------------------
+// Admin console (webadmin §7). Account standing, host/agent moderation, the
+// trust-badge admin view, CMS/SEO content, and broadcasts. Every state-changing
+// action behind these is ADMIN-only and audited (see /CLAUDE.md).
+// ---------------------------------------------------------------------------
+
+/** Account standing set by ADMIN moderation. */
+export const userStatusSchema = z.enum(["ACTIVE", "SUSPENDED", "BANNED"]);
+export type UserStatus = z.infer<typeof userStatusSchema>;
+export const USER_STATUSES = userStatusSchema.options;
+
+/** Admin oversight detail for one service request (list item + host + thread).
+ *  The host is surfaced so the panel can contact/flag the host — but ONLY the id
+ *  and display name; the host's phone is never exposed on this surface. */
+export const serviceRequestAdminDetailSchema = serviceRequestAdminItemSchema.extend({
+  host: z.object({ id: z.string(), fullName: z.string() }),
+  comments: z.array(serviceRequestCommentSchema),
+});
+export type ServiceRequestAdminDetail = z.infer<typeof serviceRequestAdminDetailSchema>;
+
+/** One host as ADMIN sees it in the management list. */
+export const adminHostListItemSchema = z.object({
+  id: z.string(),
+  fullName: z.string(),
+  phone: z.string(),
+  email: z.string().nullable(),
+  status: userStatusSchema,
+  statusReason: z.string().nullable(),
+  listingCount: z.number().int().nonnegative(),
+  openEscalations: z.number().int().nonnegative(),
+  flagCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type AdminHostListItem = z.infer<typeof adminHostListItemSchema>;
+
+export const adminHostListResponseSchema = z.object({
+  items: z.array(adminHostListItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type AdminHostListResponse = z.infer<typeof adminHostListResponseSchema>;
+
+/** A moderation flag raised against a host (poor-response history). */
+export const hostFlagItemSchema = z.object({
+  id: z.string(),
+  reason: z.string(),
+  serviceRequestId: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type HostFlagItem = z.infer<typeof hostFlagItemSchema>;
+
+/** A host's escalated service request, shown in the profile's escalation history. */
+export const hostEscalationItemSchema = z.object({
+  id: z.string(),
+  ticketNumber: z.string(),
+  category: serviceRequestCategorySchema,
+  priority: serviceRequestPrioritySchema,
+  status: serviceRequestStatusSchema,
+  escalatedAt: z.string().nullable(),
+  createdAt: z.string(),
+  listing: z.object({ id: z.string(), alias: z.string() }),
+});
+export type HostEscalationItem = z.infer<typeof hostEscalationItemSchema>;
+
+/** Full host profile for the admin panel: standing + escalation history + flags. */
+export const adminHostDetailSchema = adminHostListItemSchema.extend({
+  statusUpdatedAt: z.string().nullable(),
+  escalations: z.array(hostEscalationItemSchema),
+  flags: z.array(hostFlagItemSchema),
+});
+export type AdminHostDetail = z.infer<typeof adminHostDetailSchema>;
+
+/** One agent as ADMIN sees it in the management list. */
+export const adminAgentListItemSchema = z.object({
+  id: z.string(),
+  fullName: z.string(),
+  phone: z.string(),
+  email: z.string().nullable(),
+  assignedCity: z.string().nullable(),
+  status: userStatusSchema,
+  statusReason: z.string().nullable(),
+  openVisits: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type AdminAgentListItem = z.infer<typeof adminAgentListItemSchema>;
+
+export const adminAgentListResponseSchema = z.object({
+  items: z.array(adminAgentListItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type AdminAgentListResponse = z.infer<typeof adminAgentListResponseSchema>;
+
+/** An assigned agent visit as returned to the admin after scheduling one. */
+export const adminAgentVisitSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  agentId: z.string(),
+  status: agentVisitStatusSchema,
+  scheduledAt: z.string(),
+  createdAt: z.string(),
+});
+export type AdminAgentVisit = z.infer<typeof adminAgentVisitSchema>;
+
+/** The admin's view of ONE badge link on a listing: standing + a human-readable
+ *  "why" (the rule that earns it, or the paid-placement note for FEATURED). */
+export const adminBadgeViewSchema = z.object({
+  kind: trustBadgeKindSchema,
+  source: trustBadgeSourceSchema,
+  earnedAt: z.string(),
+  startsAt: z.string().nullable(),
+  expiresAt: z.string().nullable(),
+  suspended: z.boolean(),
+  suspendedReason: z.string().nullable(),
+  /** True only when not suspended, started, and unexpired at read time. */
+  active: z.boolean(),
+  /** Plain-English explanation of how the badge is earned/granted. */
+  why: z.string(),
+});
+export type AdminBadgeView = z.infer<typeof adminBadgeViewSchema>;
+
+/** GET /v1/admin/listings/:id/badges — all badge links (incl. suspended/scheduled). */
+export const adminBadgeListResponseSchema = z.object({
+  listingId: z.string(),
+  badges: z.array(adminBadgeViewSchema),
+});
+export type AdminBadgeListResponse = z.infer<typeof adminBadgeListResponseSchema>;
+
+// ---- CMS + SEO -------------------------------------------------------------
+export const blogPostSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  metaTitle: z.string().nullable(),
+  metaDescription: z.string().nullable(),
+  excerpt: z.string().nullable(),
+  body: z.string(),
+  published: z.boolean(),
+  publishedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type BlogPostDTO = z.infer<typeof blogPostSchema>;
+
+export const faqSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  answer: z.string(),
+  category: z.string().nullable(),
+  sortOrder: z.number().int(),
+  published: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type FaqDTO = z.infer<typeof faqSchema>;
+
+export const testimonialSchema = z.object({
+  id: z.string(),
+  authorName: z.string(),
+  authorRole: z.string().nullable(),
+  quote: z.string(),
+  avatarUrl: z.string().nullable(),
+  sortOrder: z.number().int(),
+  published: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TestimonialDTO = z.infer<typeof testimonialSchema>;
+
+export const landingPageKindSchema = z.enum(["CITY", "AREA", "INTENT", "LANDMARK"]);
+export type LandingPageKind = z.infer<typeof landingPageKindSchema>;
+export const LANDING_PAGE_KINDS = landingPageKindSchema.options;
+
+export const landingPageSchema = z.object({
+  id: z.string(),
+  kind: landingPageKindSchema,
+  slug: z.string(),
+  heading: z.string(),
+  bodyCopy: z.string(),
+  metaTitle: z.string().nullable(),
+  metaDescription: z.string().nullable(),
+  ogImageUrl: z.string().nullable(),
+  keywords: z.array(z.string()),
+  published: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type LandingPageDTO = z.infer<typeof landingPageSchema>;
+
+export const homepageFeatureSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  position: z.number().int(),
+  alias: z.string().nullable(),
+  city: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type HomepageFeatureDTO = z.infer<typeof homepageFeatureSchema>;
+
+// ---- Notifications & WhatsApp broadcast ------------------------------------
+export const broadcastChannelSchema = z.enum(["PUSH", "WHATSAPP"]);
+export type BroadcastChannel = z.infer<typeof broadcastChannelSchema>;
+export const BROADCAST_CHANNELS = broadcastChannelSchema.options;
+
+export const broadcastAudienceSchema = z.enum([
+  "ALL_USERS",
+  "TENANTS",
+  "HOSTS",
+  "AGENTS",
+  "CITY",
+  "BEHAVIOUR",
+]);
+export type BroadcastAudience = z.infer<typeof broadcastAudienceSchema>;
+export const BROADCAST_AUDIENCES = broadcastAudienceSchema.options;
+
+export const adminBroadcastStatusSchema = z.enum(["SCHEDULED", "SENT", "CANCELLED"]);
+export type AdminBroadcastStatus = z.infer<typeof adminBroadcastStatusSchema>;
+
+export const adminBroadcastSchema = z.object({
+  id: z.string(),
+  channel: broadcastChannelSchema,
+  audience: broadcastAudienceSchema,
+  audienceValue: z.string().nullable(),
+  title: z.string(),
+  body: z.string(),
+  deepLink: z.string().nullable(),
+  status: adminBroadcastStatusSchema,
+  scheduledAt: z.string(),
+  sentAt: z.string().nullable(),
+  recipientCount: z.number().int().nonnegative(),
+  openCount: z.number().int().nonnegative(),
+  /** openCount / recipientCount as a 0–1 fraction (null when nothing sent). */
+  openRate: z.number().nullable(),
+  createdAt: z.string(),
+});
+export type AdminBroadcastDTO = z.infer<typeof adminBroadcastSchema>;
+
+/** The platform-wide broadcast rate cap (per rolling 7 days). */
+export const BROADCAST_WEEKLY_CAP = 2;

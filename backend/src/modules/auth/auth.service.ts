@@ -37,6 +37,12 @@ const otpLocked = (): AppError =>
   });
 const refreshInvalid = (): AppError =>
   new AppError({ statusCode: 401, code: "REFRESH_INVALID", message: "Invalid refresh token" });
+const accountBlocked = (status: "SUSPENDED" | "BANNED"): AppError =>
+  new AppError({
+    statusCode: 403,
+    code: status === "BANNED" ? "ACCOUNT_BANNED" : "ACCOUNT_SUSPENDED",
+    message: "This account is not permitted to sign in.",
+  });
 
 export interface IssuedSession {
   user: User;
@@ -206,6 +212,19 @@ export const authService = {
       }
     }
 
+    // Account-standing gate: a suspended/banned number cannot obtain a session.
+    // Checked only AFTER the code is validated, so standing never leaks to an
+    // unauthenticated attacker. New numbers (no row) resolve to ACTIVE below.
+    const account = await prisma.user.findUnique({ where: { phone }, select: { status: true } });
+    if (account && account.status !== "ACTIVE") {
+      await writeAudit({
+        action: "auth.login_blocked",
+        ip,
+        metadata: { phoneSuffix: suffix(phone), status: account.status },
+      });
+      throw accountBlocked(account.status);
+    }
+
     // Success: consume the code, upsert the user, issue a fresh session — atomically.
     const result = await prisma.$transaction(async (tx) => {
       await tx.otpRequest.update({ where: { id: record.id }, data: { consumedAt: now } });
@@ -269,6 +288,8 @@ export const authService = {
 
     const user = await prisma.user.findUnique({ where: { id: record.userId } });
     if (!user) throw refreshInvalid();
+    // A user suspended/banned mid-session cannot rotate into a fresh token.
+    if (user.status !== "ACTIVE") throw accountBlocked(user.status);
 
     // Rotate: revoke the presented token and mint a successor in the same family.
     const result = await prisma.$transaction(async (tx) => {

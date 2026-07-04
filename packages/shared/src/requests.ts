@@ -4,11 +4,14 @@ import {
   agentVisitStatusSchema,
   amenityCheckSchema,
   bookingStatusSchema,
+  broadcastAudienceSchema,
+  broadcastChannelSchema,
   e164Schema,
   genderPolicySchema,
   inspectionRecommendationSchema,
   inspectionStatusSchema,
   kycStatusSchema,
+  landingPageKindSchema,
   listingStatusSchema,
   chatMessageKindSchema,
   occupationTypeSchema,
@@ -19,6 +22,7 @@ import {
   trustBadgeKindSchema,
   userGenderSchema,
   userRoleSchema,
+  userStatusSchema,
   walkInPaymentModeSchema,
   weeklyMenuSchema,
 } from "./contracts.js";
@@ -529,14 +533,26 @@ export const listingBadgeParamSchema = z
   .object({ id: z.string().uuid(), kind: trustBadgeKindSchema })
   .strict();
 
-/** Grant a badge. The service permits ONLY kind === "FEATURED"; `durationDays`
- *  time-boxes the paid placement (default 30). */
+/** Grant a badge. The service permits ONLY kind === "FEATURED". The paid
+ *  placement is time-boxed by EITHER an explicit `startDate`/`endDate` window
+ *  (scheduling ahead) OR `durationDays` from now (default 30) when no window is
+ *  given. `startDate` must be before `endDate`. */
 export const grantBadgeSchema = z
   .object({
     kind: trustBadgeKindSchema,
     durationDays: z.coerce.number().int().min(1).max(365).default(30),
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
   })
-  .strict();
+  .strict()
+  .refine((v) => (v.startDate && v.endDate ? v.startDate < v.endDate : true), {
+    message: "startDate must be before endDate",
+    path: ["endDate"],
+  })
+  .refine((v) => (v.endDate ? !!v.startDate : true), {
+    message: "startDate is required when endDate is set",
+    path: ["startDate"],
+  });
 export type GrantBadgeInput = z.infer<typeof grantBadgeSchema>;
 
 /** Suspend a rule badge (logged reason; the badge is retained but hidden). */
@@ -881,3 +897,200 @@ export const agentBookingSchema = z
     message: "exactly one of bedId or roomId is required",
   });
 export type AgentBookingInput = z.infer<typeof agentBookingSchema>;
+
+// ---------------------------------------------------------------------------
+// Admin console (webadmin §7) — request contracts. Every one is ADMIN-only at
+// the route; the mutating ones are audited server-side. `.strict()` throughout.
+// ---------------------------------------------------------------------------
+
+// ---- Service-request oversight ----
+/** Admin marks a request RESOLVED on the host's behalf (mandatory reason logged). */
+export const adminResolveServiceRequestSchema = z
+  .object({ reason: z.string().min(1).max(500) })
+  .strict();
+export type AdminResolveServiceRequestInput = z.infer<typeof adminResolveServiceRequestSchema>;
+
+/** Admin contacts the host about a request WITHOUT exposing the host's phone —
+ *  the message is delivered to the host's queue as an admin note. */
+export const adminContactHostSchema = z.object({ message: z.string().min(1).max(2000) }).strict();
+export type AdminContactHostInput = z.infer<typeof adminContactHostSchema>;
+
+/** Flag a host for poor response (optionally tied to the triggering request). */
+export const flagHostSchema = z
+  .object({
+    reason: z.string().min(1).max(500),
+    serviceRequestId: z.string().uuid().optional(),
+  })
+  .strict();
+export type FlagHostInput = z.infer<typeof flagHostSchema>;
+
+// ---- Host & agent management ----
+export const adminHostsQuerySchema = z
+  .object({
+    status: userStatusSchema.optional(),
+    // Substring match on name/phone (case-insensitive, server-side).
+    search: z.string().trim().min(1).max(120).optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type AdminHostsQuery = z.infer<typeof adminHostsQuerySchema>;
+
+export const adminAgentsQuerySchema = z
+  .object({
+    status: userStatusSchema.optional(),
+    city: z.string().trim().min(1).max(120).optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type AdminAgentsQuery = z.infer<typeof adminAgentsQuerySchema>;
+
+/** Suspend/ban a user (reason mandatory) or reinstate (reason ignored). */
+export const moderateUserSchema = z
+  .object({
+    action: z.enum(["SUSPEND", "BAN", "REINSTATE"]),
+    reason: z.string().min(1).max(500).optional(),
+  })
+  .strict()
+  .refine((v) => v.action === "REINSTATE" || !!v.reason, {
+    message: "reason is required to suspend or ban",
+    path: ["reason"],
+  });
+export type ModerateUserInput = z.infer<typeof moderateUserSchema>;
+
+/** Update an agent's zone (territory). */
+export const updateAgentTerritorySchema = z
+  .object({ assignedCity: z.string().min(1).max(120) })
+  .strict();
+export type UpdateAgentTerritoryInput = z.infer<typeof updateAgentTerritorySchema>;
+
+/** Admin schedules a property-inspection visit for an agent. */
+export const assignVisitSchema = z
+  .object({
+    listingId: z.string().uuid(),
+    agentId: z.string().uuid(),
+    scheduledAt: z.coerce.date(),
+  })
+  .strict();
+export type AssignVisitInput = z.infer<typeof assignVisitSchema>;
+
+// ---- CMS + SEO ----
+const optionalMeta = z.string().max(300).optional();
+
+export const blogPostInputSchema = z
+  .object({
+    slug: z.string().min(1).max(160).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug must be kebab-case"),
+    title: z.string().min(1).max(300),
+    metaTitle: optionalMeta,
+    metaDescription: optionalMeta,
+    excerpt: z.string().max(500).optional(),
+    body: z.string().max(100_000).optional(),
+    published: z.boolean().optional(),
+  })
+  .strict();
+export type BlogPostInput = z.infer<typeof blogPostInputSchema>;
+
+/** Partial update — every field optional; slug cannot be changed here. */
+export const blogPostUpdateSchema = blogPostInputSchema.partial().omit({ slug: true }).strict();
+export type BlogPostUpdateInput = z.infer<typeof blogPostUpdateSchema>;
+
+export const faqInputSchema = z
+  .object({
+    question: z.string().min(1).max(500),
+    answer: z.string().min(1).max(5000),
+    category: z.string().max(120).optional(),
+    sortOrder: z.number().int().min(0).max(10_000).optional(),
+    published: z.boolean().optional(),
+  })
+  .strict();
+export type FaqInput = z.infer<typeof faqInputSchema>;
+export const faqUpdateSchema = faqInputSchema.partial().strict();
+export type FaqUpdateInput = z.infer<typeof faqUpdateSchema>;
+
+export const testimonialInputSchema = z
+  .object({
+    authorName: z.string().min(1).max(160),
+    authorRole: z.string().max(160).optional(),
+    quote: z.string().min(1).max(2000),
+    avatarUrl: z.string().url().max(1000).optional(),
+    sortOrder: z.number().int().min(0).max(10_000).optional(),
+    published: z.boolean().optional(),
+  })
+  .strict();
+export type TestimonialInput = z.infer<typeof testimonialInputSchema>;
+export const testimonialUpdateSchema = testimonialInputSchema.partial().strict();
+export type TestimonialUpdateInput = z.infer<typeof testimonialUpdateSchema>;
+
+export const landingPageInputSchema = z
+  .object({
+    kind: landingPageKindSchema,
+    slug: z.string().min(1).max(160).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug must be kebab-case"),
+    heading: z.string().min(1).max(300),
+    bodyCopy: z.string().max(100_000).optional(),
+    metaTitle: optionalMeta,
+    metaDescription: optionalMeta,
+    ogImageUrl: z.string().url().max(1000).optional(),
+    keywords: z.array(z.string().min(1).max(80)).max(50).optional(),
+    published: z.boolean().optional(),
+  })
+  .strict();
+export type LandingPageInput = z.infer<typeof landingPageInputSchema>;
+
+/** Partial update — kind + slug are the identity and cannot change here. */
+export const landingPageUpdateSchema = landingPageInputSchema
+  .partial()
+  .omit({ kind: true, slug: true })
+  .strict();
+export type LandingPageUpdateInput = z.infer<typeof landingPageUpdateSchema>;
+
+/** Replace the homepage featured ordering with this exact ordered list. */
+export const homepageOrderSchema = z
+  .object({ listingIds: z.array(z.string().uuid()).max(50) })
+  .strict();
+export type HomepageOrderInput = z.infer<typeof homepageOrderSchema>;
+
+/** Public content lookups by human key. */
+export const slugParamSchema = z.object({ slug: z.string().min(1).max(160) }).strict();
+export const landingPageParamSchema = z
+  .object({ kind: landingPageKindSchema, slug: z.string().min(1).max(160) })
+  .strict();
+
+/** Generic published/sort listing query for CMS collections. */
+export const cmsListQuerySchema = z
+  .object({
+    published: z.enum(["true", "false"]).transform((v) => v === "true").optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type CmsListQuery = z.infer<typeof cmsListQuerySchema>;
+
+// ---- Notifications & WhatsApp broadcast ----
+/** Compose a broadcast to a segment; schedule now (omit scheduledAt) or later. */
+export const createBroadcastSchema = z
+  .object({
+    channel: broadcastChannelSchema,
+    audience: broadcastAudienceSchema,
+    // Required only for CITY / BEHAVIOUR audiences (validated below).
+    audienceValue: z.string().min(1).max(120).optional(),
+    title: z.string().min(1).max(200),
+    body: z.string().min(1).max(2000),
+    deepLink: z.string().max(1000).optional(),
+    scheduledAt: z.coerce.date().optional(),
+  })
+  .strict()
+  .refine(
+    (v) => (v.audience === "CITY" || v.audience === "BEHAVIOUR" ? !!v.audienceValue : true),
+    { message: "audienceValue is required for CITY/BEHAVIOUR audiences", path: ["audienceValue"] },
+  );
+export type CreateBroadcastInput = z.infer<typeof createBroadcastSchema>;
+
+export const broadcastsQuerySchema = z
+  .object({
+    status: z.enum(["SCHEDULED", "SENT", "CANCELLED"]).optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type BroadcastsQuery = z.infer<typeof broadcastsQuerySchema>;

@@ -29,6 +29,15 @@ enum UserRole {
   ADMIN
 }
 
+// Account standing, set by ADMIN moderation. ACTIVE is the default; SUSPENDED is
+// a reversible hold and BANNED is a permanent block. Both non-ACTIVE states deny
+// new sessions (auth login + refresh reject them) so a take-down actually bites.
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
 enum KycStatus {
   PENDING
   VERIFIED
@@ -286,6 +295,11 @@ model User {
   // may only ever read/act on leads, visits, and properties in this city. Null for
   // every non-agent role. Enforced server-side on every agent route (zone.ts).
   assignedCity    String?
+  // Account standing (ADMIN moderation). Non-ACTIVE states block new sessions;
+  // `statusReason` is the mandatory reason captured on suspend/ban (audited too).
+  status          UserStatus      @default(ACTIVE)
+  statusReason    String?
+  statusUpdatedAt DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -973,6 +987,10 @@ model TrustTag {
   kind            TrustBadgeKind
   source          TrustBadgeSource @default(RULE)
   earnedAt        DateTime         @default(now())
+  // Scheduled activation for a paid FEATURED placement: the badge is INACTIVE
+  // (hidden by the serializer) until `startsAt`. Null = active immediately (rule
+  // badges never set this). Paired with `expiresAt` to give admins a start/end window.
+  startsAt        DateTime?
   // Null = holds until the rules stop holding; set for time-boxed badges
   // (TRENDING) and paid FEATURED placements. The engine also removes on rule
   // failure, and the serializer hides an expired link.
@@ -1267,4 +1285,174 @@ model AuditLog {
   @@index([action])
   @@index([targetId])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Admin console: host moderation flags, CMS/SEO content, and broadcasts.
+// FK columns here are plain UUIDs (no Prisma relations) on purpose — the admin
+// surface joins to users/listings explicitly and these tables never cascade.
+// ---------------------------------------------------------------------------
+
+// A moderation flag raised by an admin against a host for poor responsiveness
+// (typically off the back of an escalated service request). Append-only; it feeds
+// the "escalation history" panel on the host profile.
+model HostFlag {
+  id               String   @id @default(uuid()) @db.Uuid
+  hostId           String   @db.Uuid
+  reason           String
+  // Optional link to the service request that triggered the flag.
+  serviceRequestId String?  @db.Uuid
+  createdById      String   @db.Uuid
+  createdAt        DateTime @default(now())
+
+  @@index([hostId, createdAt])
+  @@map("host_flags")
+}
+
+// SEO blog post. `body` is markdown/HTML managed by the CMS; `metaTitle`/
+// `metaDescription` drive the page <head>. Published posts are publicly readable.
+model BlogPost {
+  id              String    @id @default(uuid()) @db.Uuid
+  slug            String    @unique
+  title           String
+  metaTitle       String?
+  metaDescription String?
+  excerpt         String?
+  body            String    @default("")
+  published       Boolean   @default(false)
+  publishedAt     DateTime?
+  createdById     String    @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([published, publishedAt])
+  @@map("blog_posts")
+}
+
+// A homepage/support FAQ entry. `sortOrder` sets display order (ascending).
+model Faq {
+  id        String   @id @default(uuid()) @db.Uuid
+  question  String
+  answer    String
+  category  String?
+  sortOrder Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, sortOrder])
+  @@map("faqs")
+}
+
+// A curated testimonial shown on the marketing site.
+model Testimonial {
+  id         String   @id @default(uuid()) @db.Uuid
+  authorName String
+  authorRole String?
+  quote      String
+  avatarUrl  String?
+  sortOrder  Int      @default(0)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([published, sortOrder])
+  @@map("testimonials")
+}
+
+// Editable copy + per-page SEO meta for a city / area / intent / landmark landing
+// page. `keywords` is the meta keywords list; `ogImageUrl` the Open Graph image.
+// One row per (kind, slug); the SEO landing engine reads PUBLISHED rows.
+model LandingPage {
+  id              String          @id @default(uuid()) @db.Uuid
+  kind            LandingPageKind
+  slug            String
+  // Visible page heading + body copy (markdown/HTML).
+  heading         String
+  bodyCopy        String          @default("")
+  metaTitle       String?
+  metaDescription String?
+  ogImageUrl      String?
+  keywords        String[]        @default([])
+  published       Boolean         @default(false)
+  createdById     String          @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([kind, slug])
+  @@index([published])
+  @@map("landing_pages")
+}
+
+enum LandingPageKind {
+  CITY
+  AREA
+  INTENT
+  LANDMARK
+}
+
+// The admin-curated homepage "featured" ordering. Each row pins one listing to a
+// position; the homepage renders these ascending by `position`.
+model HomepageFeature {
+  id          String   @id @default(uuid()) @db.Uuid
+  listingId   String   @unique @db.Uuid
+  position    Int
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([position])
+  @@map("homepage_features")
+}
+
+enum BroadcastChannel {
+  PUSH
+  WHATSAPP
+}
+
+// Who a broadcast targets. ALL_USERS / TENANTS / HOSTS / AGENTS are role segments;
+// CITY narrows by `audienceValue` (a city name), BEHAVIOUR by a behaviour key
+// (e.g. "wishlisted_no_booking") resolved server-side at send time.
+enum BroadcastAudience {
+  ALL_USERS
+  TENANTS
+  HOSTS
+  AGENTS
+  CITY
+  BEHAVIOUR
+}
+
+enum AdminBroadcastStatus {
+  SCHEDULED
+  SENT
+  CANCELLED
+}
+
+// One admin push / WhatsApp broadcast to a user segment. This row is the send
+// ledger: it enforces the platform-wide rate cap (<= MAX per rolling week),
+// records the resolved recipient count and the open count for the open-rate, and
+// is audited on every state change.
+model AdminBroadcast {
+  id             String               @id @default(uuid()) @db.Uuid
+  channel        BroadcastChannel
+  audience       BroadcastAudience
+  // Set only for CITY / BEHAVIOUR audiences (the city name or behaviour key).
+  audienceValue  String?
+  title          String
+  body           String
+  // Optional in-app deep link (e.g. "roomadda://listing/<id>").
+  deepLink       String?
+  status         AdminBroadcastStatus @default(SCHEDULED)
+  // When it should go out (now or later). Drives the scheduler.
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  recipientCount Int                  @default(0)
+  openCount      Int                  @default(0)
+  createdById    String               @db.Uuid
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([createdAt])
+  @@map("admin_broadcasts")
 }

@@ -24,6 +24,12 @@ const NAV_ITEMS: Array<{ to: string; label: string; end?: boolean }> = [
   { to: "/ads", label: "Ads approval" },
   { to: "/ad-pricing", label: "Ad pricing" },
   { to: "/users", label: "Users & roles" },
+  { to: "/hosts", label: "Hosts" },
+  { to: "/agents", label: "Agents" },
+  { to: "/service-requests", label: "Service requests" },
+  { to: "/trust-featured", label: "Trust & Featured" },
+  { to: "/cms", label: "CMS & SEO" },
+  { to: "/broadcasts", label: "Broadcasts" },
 ];
 
 export function AppLayout() {

@@ -9,13 +9,19 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { queryClient } from "./lib/queryClient";
 import { AdPricingPage } from "./pages/AdPricingPage";
 import { AdsApprovalPage } from "./pages/AdsApprovalPage";
+import { AgentsPage } from "./pages/AgentsPage";
 import { BookingsPage } from "./pages/BookingsPage";
+import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { CashReconciliationPage } from "./pages/CashReconciliationPage";
+import { CmsPage } from "./pages/CmsPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { HostsPage } from "./pages/HostsPage";
 import { KycReviewPage } from "./pages/KycReviewPage";
 import { ListingsReviewPage } from "./pages/ListingsReviewPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PaymentsPage } from "./pages/PaymentsPage";
+import { ServiceRequestsPage } from "./pages/ServiceRequestsPage";
+import { TrustFeaturedPage } from "./pages/TrustFeaturedPage";
 import { UsersRolesPage } from "./pages/UsersRolesPage";
 
 const theme = createTheme({ palette: { mode: "light" } });
@@ -42,6 +48,12 @@ export function App() {
                       <Route path="/ads" element={<AdsApprovalPage />} />
                       <Route path="/ad-pricing" element={<AdPricingPage />} />
                       <Route path="/users" element={<UsersRolesPage />} />
+                      <Route path="/hosts" element={<HostsPage />} />
+                      <Route path="/agents" element={<AgentsPage />} />
+                      <Route path="/service-requests" element={<ServiceRequestsPage />} />
+                      <Route path="/trust-featured" element={<TrustFeaturedPage />} />
+                      <Route path="/cms" element={<CmsPage />} />
+                      <Route path="/broadcasts" element={<BroadcastsPage />} />
                     </Route>
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />

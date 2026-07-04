@@ -10,9 +10,14 @@ import { BADGE_PRIORITY } from "./badge.config.js";
  * priority ordering + active-filter are unit-tested.
  */
 
-/** Active = not admin-suspended AND not expired. */
-export function isActiveBadge(tag: { suspended: boolean; expiresAt: Date | null }, now: Date): boolean {
+/** Active = not admin-suspended AND started (scheduled FEATURED) AND not expired. */
+export function isActiveBadge(
+  tag: { suspended: boolean; startsAt?: Date | null; expiresAt: Date | null },
+  now: Date,
+): boolean {
   if (tag.suspended) return false;
+  // A scheduled placement is inactive until its start.
+  if (tag.startsAt != null && tag.startsAt.getTime() > now.getTime()) return false;
   if (tag.expiresAt !== null && tag.expiresAt.getTime() <= now.getTime()) return false;
   return true;
 }
