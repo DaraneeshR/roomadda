@@ -139,6 +139,15 @@ enum CashCollectionStatus {
   RECONCILED
 }
 
+// ERP commission settlement (§15.5). PENDING = RoomAdda has not yet received the
+// commission it is owed on a booking; RECEIVED = an admin has marked it settled
+// (audited). This is the ONLY money-state the ERP owns per booking — commission
+// and collected are DERIVED on read from authoritative rows and never stored.
+enum CommissionSettlementStatus {
+  PENDING
+  RECEIVED
+}
+
 enum RentInvoiceStatus {
   DUE
   PAID
@@ -320,6 +329,7 @@ model User {
   trustedContacts  TrustedContact[]        @relation("UserTrustedContacts")
   deviceTokens     DeviceToken[]           @relation("UserDevices")
   reviews          Review[]                @relation("TenantReviews")
+  commissionReceipts CommissionLedger[]    @relation("CommissionReceivedBy")
 
   @@index([role])
   @@map("users")
@@ -523,9 +533,10 @@ model Booking {
   rentInvoices    RentInvoice[]
   serviceRequests ServiceRequest[]
   leaveNotices    LeaveNotice[]
-  conversation    Conversation?
-  refunds         RefundTransaction[]
-  review          Review?
+  conversation     Conversation?
+  refunds          RefundTransaction[]
+  review           Review?
+  commissionLedger CommissionLedger?
 
   // NOTE: the "one live booking per bed" partial unique index
   // (uniq_live_booking_per_bed) is created in prisma/sql/02_booking_guard.sql —
@@ -625,6 +636,36 @@ model CashCollection {
   @@index([bookingId])
   @@index([agentId])
   @@map("cash_collections")
+}
+
+// ERP commission ledger (§15.5) — the per-booking settlement record the ERP
+// owns. It holds ONLY the two figures that are NOT derivable from authoritative
+// rows: `paidToPgPaise` (what RoomAdda has paid the PG owner for this booking)
+// and the settlement `status` (received vs pending), plus an audit trail. The
+// booking's `commission` (BPS of monthly rent) and `collected` (captured online
+// + collected cash) are recomputed on read by the money engine from the
+// authoritative Booking / PaymentTransaction / CashCollection rows and are NEVER
+// stored here — so no figure can drift or double-count webhook-owned money.
+// One row per booking (created lazily when an admin first settles it).
+model CommissionLedger {
+  id            String                     @id @default(uuid()) @db.Uuid
+  bookingId     String                     @unique @db.Uuid
+  // Payout RoomAdda has made to the PG owner for this booking, in integer paise
+  // (ERP-owned; not gateway/webhook money). Feeds net = commission + paidToPg − collected.
+  paidToPgPaise Int                        @default(0)
+  status        CommissionSettlementStatus @default(PENDING)
+  // Set atomically with status -> RECEIVED (who marked it, when, and any note).
+  receivedAt    DateTime?
+  receivedById  String?                    @db.Uuid
+  note          String?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  receivedBy User?   @relation("CommissionReceivedBy", fields: [receivedById], references: [id])
+
+  @@index([status])
+  @@map("commission_ledger")
 }
 
 // Recurring monthly rent. One invoice per (booking, billing month). RENT IS

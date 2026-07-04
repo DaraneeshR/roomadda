@@ -11,6 +11,7 @@ import { objectStorage, type PresignedUpload } from "../../lib/storage.js";
 import { paymentLinkSender, buildPayUrl } from "../../lib/payment-link.js";
 import { env } from "../../config/env.js";
 import { bookingService } from "../booking/booking.service.js";
+import { agentCommissionPaise } from "../erp/erp.engine.js";
 import type { AgentDashboard, AgentPerformance } from "@roomadda/shared";
 import {
   assertBedInZone,
@@ -61,9 +62,13 @@ function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-/** Commission earned on one confirmed booking = BPS of its monthly rent (paise). */
+/**
+ * Commission earned on one confirmed booking = BPS of its monthly rent (paise).
+ * Delegates to the ERP money engine so the agent scorecard and the ERP commission
+ * ledger share ONE definition of the rate and can never disagree (§15.5).
+ */
 function commissionFor(monthlyRentPaise: number): number {
-  return Math.floor((monthlyRentPaise * env.AGENT_COMMISSION_BPS) / 10_000);
+  return agentCommissionPaise(monthlyRentPaise, env.AGENT_COMMISSION_BPS);
 }
 
 /** Mask a phone for display: keep the +CC + first digit and the last 2 digits. */

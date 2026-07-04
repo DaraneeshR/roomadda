@@ -34,6 +34,7 @@ import { hostRoutes } from "./modules/host/host.route.js";
 import { agentRoutes } from "./modules/agent/agent.route.js";
 import { cmsRoutes } from "./modules/cms/cms.route.js";
 import { broadcastRoutes } from "./modules/notification/broadcast.route.js";
+import { erpRoutes } from "./modules/erp/erp.route.js";
 
 /** 1 MB request body cap. */
 const BODY_LIMIT_BYTES = 1_048_576;
@@ -97,6 +98,7 @@ export async function buildApp() {
       await v1.register(agentRoutes);
       await v1.register(cmsRoutes);
       await v1.register(broadcastRoutes);
+      await v1.register(erpRoutes);
       // Encapsulated: webhook gets its own raw-body parser, scoped to this child.
       await v1.register(webhookRoutes);
     },

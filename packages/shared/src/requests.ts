@@ -6,6 +6,7 @@ import {
   bookingStatusSchema,
   broadcastAudienceSchema,
   broadcastChannelSchema,
+  commissionSettlementStatusSchema,
   e164Schema,
   genderPolicySchema,
   inspectionRecommendationSchema,
@@ -1094,3 +1095,49 @@ export const broadcastsQuerySchema = z
   })
   .strict();
 export type BroadcastsQuery = z.infer<typeof broadcastsQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// ERP — commission ledger (§15). The global finance filter (§15.3): financial
+// year, quarter, month, property (listingId) and agent — set once, applied
+// everywhere. `financialYear` is the Indian FY start year (2026 = 1 Apr 2026 →
+// 31 Mar 2027). `quarter` (1–4) and `month` (calendar 1–12) are mutually
+// exclusive and resolved WITHIN the chosen FY; when none is given the server
+// defaults to the current FY (so the query is always period-bounded).
+// ---------------------------------------------------------------------------
+export const erpCommissionQuerySchema = z
+  .object({
+    financialYear: z.coerce.number().int().min(2000).max(2100).optional(),
+    quarter: z.coerce.number().int().min(1).max(4).optional(),
+    month: z.coerce.number().int().min(1).max(12).optional(),
+    listingId: z.string().uuid().optional(),
+    agentId: z.string().uuid().optional(),
+    status: commissionSettlementStatusSchema.optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict()
+  .refine((q) => !(q.quarter !== undefined && q.month !== undefined), {
+    message: "provide quarter or month, not both",
+    path: ["month"],
+  });
+export type ErpCommissionQuery = z.infer<typeof erpCommissionQuerySchema>;
+
+/** Path param for the single mark-received route. */
+export const bookingIdParamSchema = z.object({ bookingId: z.string().uuid() }).strict();
+
+/** Body for marking ONE booking's commission received. `paidToPgPaise` records
+ *  the payout made to the PG owner at settlement time (optional; omitted keeps
+ *  the existing value). Everything here is integer paise. */
+export const markCommissionReceivedSchema = z
+  .object({
+    paidToPgPaise: z.number().int().nonnegative().optional(),
+    note: z.string().min(1).max(500).optional(),
+  })
+  .strict();
+export type MarkCommissionReceivedInput = z.infer<typeof markCommissionReceivedSchema>;
+
+/** Body for bulk mark-received — an explicit, bounded list of booking ids. */
+export const bulkMarkCommissionReceivedSchema = z
+  .object({ bookingIds: z.array(z.string().uuid()).min(1).max(200) })
+  .strict();
+export type BulkMarkCommissionReceivedInput = z.infer<typeof bulkMarkCommissionReceivedSchema>;

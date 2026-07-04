@@ -1706,3 +1706,85 @@ export type AdminBroadcastDTO = z.infer<typeof adminBroadcastSchema>;
 
 /** The platform-wide broadcast rate cap (per rolling 7 days). */
 export const BROADCAST_WEEKLY_CAP = 2;
+
+// ---------------------------------------------------------------------------
+// ERP — Back-Office Finance (§15). The ERP's numbers all come from ONE money
+// engine so no two screens can disagree (see /CLAUDE.md money rule #1). These
+// DTOs are the wire shape of the commission ledger the engine produces; the
+// pure calculation lives in backend `modules/erp/erp.engine.ts`. Every figure
+// is integer paise. `netPaise` is the ONLY money field that may be negative
+// (net = commission + paidToPg − collected; negative means RoomAdda owes the
+// PG owner — §15.5).
+// ---------------------------------------------------------------------------
+
+/** Per-booking commission settlement state (§15.5). */
+export const commissionSettlementStatusSchema = z.enum(["PENDING", "RECEIVED"]);
+export type CommissionSettlementStatus = z.infer<typeof commissionSettlementStatusSchema>;
+export const COMMISSION_SETTLEMENT_STATUSES = commissionSettlementStatusSchema.options;
+
+/** One booking's row in the commission ledger. `commissionPaise` and
+ *  `collectedPaise` are DERIVED on read from authoritative rows (never stored);
+ *  `paidToPgPaise` and `status` are the ERP-owned settlement state. */
+export const commissionLedgerEntrySchema = z.object({
+  bookingId: z.string(),
+  listingId: z.string(),
+  /** Public alias — admin can see the real name elsewhere; the ledger uses the alias. */
+  listingAlias: z.string(),
+  agentId: z.string().nullable(),
+  agentName: z.string().nullable(),
+  agentChannel: agentBookingChannelSchema.nullable(),
+  bookingStatus: bookingStatusSchema,
+  confirmedAt: z.string().nullable(),
+  monthlyRentPaise: z.number().int().nonnegative(),
+  /** BPS of monthly rent — RoomAdda's commission on this booking (derived). */
+  commissionPaise: z.number().int().nonnegative(),
+  /** What RoomAdda has paid the PG owner for this booking (ERP-owned). */
+  paidToPgPaise: z.number().int().nonnegative(),
+  /** Captured online (webhook) + collected cash (derived; authoritative). */
+  collectedPaise: z.number().int().nonnegative(),
+  /** net = commission + paidToPg − collected. May be negative (RoomAdda owes owner). */
+  netPaise: z.number().int(),
+  status: commissionSettlementStatusSchema,
+  receivedAt: z.string().nullable(),
+});
+export type CommissionLedgerEntry = z.infer<typeof commissionLedgerEntrySchema>;
+
+/** Roll-up of the whole filtered ledger set (not just the returned page). Each
+ *  total equals the sum of the matching per-booking figures, so the dashboard
+ *  headline numbers can never disagree with the ledger rows below them. */
+export const commissionLedgerTotalsSchema = z.object({
+  bookingCount: z.number().int().nonnegative(),
+  receivedCount: z.number().int().nonnegative(),
+  pendingCount: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  paidToPgPaise: z.number().int().nonnegative(),
+  collectedPaise: z.number().int().nonnegative(),
+  /** Σ net over all matching bookings (§15.3 "net commission" headline). */
+  netPaise: z.number().int(),
+  /** Σ net for RECEIVED rows vs PENDING rows (§15.5 received-vs-pending). */
+  receivedNetPaise: z.number().int(),
+  pendingNetPaise: z.number().int(),
+});
+export type CommissionLedgerTotals = z.infer<typeof commissionLedgerTotalsSchema>;
+
+/** GET /v1/erp/commission — a page of ledger rows plus the filtered totals. */
+export const commissionLedgerResponseSchema = z.object({
+  items: z.array(commissionLedgerEntrySchema),
+  nextCursor: z.string().nullable(),
+  totals: commissionLedgerTotalsSchema,
+  /** The resolved period the totals cover (echoes the applied FY/quarter/month). */
+  period: z.object({
+    financialYear: z.number().int(),
+    label: z.string(),
+    fromInclusive: z.string(),
+    toExclusive: z.string(),
+  }),
+});
+export type CommissionLedgerResponse = z.infer<typeof commissionLedgerResponseSchema>;
+
+/** Result of marking commission received (single or bulk). */
+export const markCommissionReceivedResultSchema = z.object({
+  updated: z.number().int().nonnegative(),
+  bookingIds: z.array(z.string()),
+});
+export type MarkCommissionReceivedResult = z.infer<typeof markCommissionReceivedResultSchema>;
