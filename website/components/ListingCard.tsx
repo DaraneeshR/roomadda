@@ -10,6 +10,7 @@ import {
   priceRange,
 } from "../lib/discovery";
 import { WishlistHeart } from "./wishlist/WishlistHeart";
+import { CompareButton } from "./compare/CompareButton";
 import { PhotoCarousel } from "./discovery/PhotoCarousel";
 import { StarRating } from "./discovery/StarRating";
 import { TrustBadges } from "./discovery/TrustBadges";
@@ -31,10 +32,14 @@ export function ListingCard({
   listing,
   social,
   distanceMeters,
+  goodValue,
 }: {
   listing: PublicListing;
   social?: SocialProof | null;
   distanceMeters?: number;
+  /** "18% below the area typical" — shown as a chip when the card is cheaper than
+   *  its area's median (computed from area insights by the caller). */
+  goodValue?: string | null;
 }): React.ReactNode {
   const range = priceRange(listing);
   const amenities = amenityPreview(listing.amenities, 3);
@@ -51,6 +56,7 @@ export function ListingCard({
         overlay={
           <>
             <WishlistHeart listingId={listing.id} />
+            <CompareButton listingId={listing.id} />
             {(listing.badges.length > 0 || listing.featured) && (
               <div className="absolute left-2 top-2 max-w-[75%]">
                 <TrustBadges badges={listing.badges} featured={listing.featured} limit={3} />
@@ -92,6 +98,12 @@ export function ListingCard({
         )}
 
         <SocialProofLine social={social} />
+
+        {goodValue && (
+          <p className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            <span aria-hidden>💸</span> Good value · {goodValue}
+          </p>
+        )}
 
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <p className="text-sm">

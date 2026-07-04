@@ -1230,6 +1230,72 @@ export const metricsSchema = z.object({
 export type MetricsDTO = z.infer<typeof metricsSchema>;
 
 // ---------------------------------------------------------------------------
+// Area insights (GET /v1/areas/:area/insights) — a cached, PUBLISHED-only price
+// snapshot for ONE area, aggregated from live listings' room rents. NOT a new
+// engine: grouped COUNT/MIN/MAX/AVG queries + a rent histogram, cached in Redis.
+// Money is always integer paise; every band is null-safe (null when the area has
+// no priced rooms). Drives the filter histogram, "good value" signals, and the
+// SEO area-guide copy.
+// ---------------------------------------------------------------------------
+
+/**
+ * A price band over a set of room rents: the low / typical / high anchors plus
+ * the mean, all integer paise, and how many rooms fed the band. `typicalPaise`
+ * is the MEDIAN rent (robust to a few luxury outliers), so it reads as the
+ * "usual" price rather than the average.
+ */
+export const priceBandSchema = z.object({
+  minPaise: z.number().int().nonnegative(),
+  typicalPaise: z.number().int().nonnegative(),
+  maxPaise: z.number().int().nonnegative(),
+  avgPaise: z.number().int().nonnegative(),
+  /** Rooms that contributed to this band (the sample size). */
+  roomCount: z.number().int().positive(),
+});
+export type PriceBand = z.infer<typeof priceBandSchema>;
+
+/** One histogram column: the half-open rent range [fromPaise, toPaise] and how
+ *  many rooms fall in it. Bins tile the [min, max] rent span (empty bins kept). */
+export const priceHistogramBinSchema = z.object({
+  fromPaise: z.number().int().nonnegative(),
+  toPaise: z.number().int().nonnegative(),
+  count: z.number().int().nonnegative(),
+});
+export type PriceHistogramBin = z.infer<typeof priceHistogramBinSchema>;
+
+export const areaGenderBandSchema = z.object({ gender: genderPolicySchema, band: priceBandSchema });
+export type AreaGenderBand = z.infer<typeof areaGenderBandSchema>;
+
+export const areaRoomTypeBandSchema = z.object({
+  /** Beds per room (1 = private, 2 = twin, …). */
+  sharingType: z.number().int().positive(),
+  band: priceBandSchema,
+});
+export type AreaRoomTypeBand = z.infer<typeof areaRoomTypeBandSchema>;
+
+export const areaInsightsSchema = z.object({
+  /** The area this snapshot describes (echoed from the request). */
+  area: z.string(),
+  /** City the area was scoped to, or null when queried across cities. */
+  city: z.string().nullable(),
+  /** PUBLISHED, non-paused listings in the area. */
+  listingCount: z.number().int().nonnegative(),
+  /** Priced rooms across those listings (band + histogram sample size). */
+  roomCount: z.number().int().nonnegative(),
+  /** Overall band; null when the area has no priced rooms yet (empty state). */
+  overall: priceBandSchema.nullable(),
+  /** Bands split by listing gender policy — only policies actually present. */
+  byGender: z.array(areaGenderBandSchema),
+  /** Bands split by room sharing type, ascending — only types present. */
+  byRoomType: z.array(areaRoomTypeBandSchema),
+  /** Rent distribution for the filter histogram; empty when no priced rooms. */
+  histogram: z.array(priceHistogramBinSchema),
+  /** When this snapshot was computed (ISO 8601). */
+  generatedAt: z.string(),
+});
+export type AreaInsights = z.infer<typeof areaInsightsSchema>;
+
+// ---------------------------------------------------------------------------
 // AGENT SURFACE (the §9.1 zone-access invariant). Agents are ADMIN-created,
 // zone-scoped, default-deny. Every agent route is enforced server-side against
 // the agent's assigned city — these DTOs only describe the shapes.

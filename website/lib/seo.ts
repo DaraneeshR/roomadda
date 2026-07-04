@@ -30,6 +30,41 @@ export function breadcrumbJsonLd(items: Crumb[]): Record<string, unknown> {
   };
 }
 
+/** schema.org FAQPage for a landing page's question/answer list. */
+export function faqJsonLd(faqs: { q: string; a: string }[]): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+}
+
+/**
+ * schema.org ItemList of listings for a landing/collection page — an ordered set
+ * of links to each masked listing (alias + url only; no PII). Empty-safe.
+ */
+export function itemListJsonLd(
+  listings: Pick<PublicListing, "id" | "alias">[],
+  name: string,
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    numberOfItems: listings.length,
+    itemListElement: listings.map((l, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: l.alias,
+      url: absoluteUrl(`/listing/${l.id}`),
+    })),
+  };
+}
+
 /**
  * schema.org structured data for a listing detail page. Uses only the masked
  * public fields (alias, area, city, price band, rating aggregate) — never the

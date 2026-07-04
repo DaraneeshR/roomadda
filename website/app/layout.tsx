@@ -6,6 +6,8 @@ import { RoomieWidget } from "../components/RoomieWidget";
 import { AuthProvider } from "../components/auth/AuthProvider";
 import { AuthButton } from "../components/auth/AuthButton";
 import { WishlistProvider } from "../components/wishlist/WishlistProvider";
+import { CompareProvider } from "../components/compare/CompareProvider";
+import { CompareTray } from "../components/compare/CompareTray";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://roomadda.example"),
@@ -27,6 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             It never gates rendering — discovery stays open to anonymous visitors. */}
         <AuthProvider>
          <WishlistProvider>
+          <CompareProvider>
           <header className="border-b border-slate-200 bg-white">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
               <Link href="/" className="text-lg font-bold text-teal-700">
@@ -47,6 +50,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             © RoomAdda — PG accommodation across India
           </footer>
           <RoomieWidget />
+          <CompareTray />
+          </CompareProvider>
          </WishlistProvider>
         </AuthProvider>
       </body>

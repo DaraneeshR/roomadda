@@ -1,5 +1,6 @@
 import "server-only";
 import type {
+  AreaInsights,
   NearbyListing,
   Page,
   PublicListing,
@@ -59,4 +60,8 @@ export const publicApi = {
     getJson<{ items: NearbyListing[] }>(`/v1/listings/search/nearby${qs({ lat, lng, radiusM })}`, {
       revalidate: 30,
     }),
+
+  // Cached, PUBLISHED-only price insights for one area (bands + histogram).
+  areaInsights: (area: string, city?: string, revalidate = 300) =>
+    getJson<AreaInsights>(`/v1/areas/${encodeURIComponent(area)}/insights${qs({ city })}`, { revalidate }),
 };

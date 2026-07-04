@@ -9,6 +9,7 @@ import { healthRoutes } from "./modules/health/health.route.js";
 import { authRoutes } from "./modules/auth/auth.route.js";
 import { userRoutes } from "./modules/users/users.route.js";
 import { listingRoutes } from "./modules/listing/listing.route.js";
+import { areaRoutes } from "./modules/area/area.route.js";
 import { bookingRoutes } from "./modules/booking/booking.route.js";
 import { stayRoutes } from "./modules/stay/stay.route.js";
 import { rentRoutes } from "./modules/rent/rent.route.js";
@@ -70,6 +71,7 @@ export async function buildApp() {
       await v1.register(authRoutes);
       await v1.register(userRoutes);
       await v1.register(listingRoutes);
+      await v1.register(areaRoutes);
       await v1.register(bookingRoutes);
       await v1.register(stayRoutes);
       await v1.register(rentRoutes);

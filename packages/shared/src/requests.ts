@@ -356,6 +356,17 @@ export type CreatePhotoInput = z.infer<typeof createPhotoSchema>;
 export type ListFilters = z.infer<typeof listFiltersSchema>;
 export type NearbyQuery = z.infer<typeof nearbyQuerySchema>;
 
+// --- Area insights ----------------------------------------------------------
+/** Path param for GET /v1/areas/:area/insights — the (URL-decoded) area label. */
+export const areaParamSchema = z.object({ area: z.string().min(1).max(120) }).strict();
+export type AreaParam = z.infer<typeof areaParamSchema>;
+
+/** Optional `city` disambiguates a same-named area across cities (e.g. "Sector 5"). */
+export const areaInsightsQuerySchema = z
+  .object({ city: z.string().min(1).max(120).optional() })
+  .strict();
+export type AreaInsightsQuery = z.infer<typeof areaInsightsQuerySchema>;
+
 // ---------------------------------------------------------------------------
 // Booking + token payment
 // ---------------------------------------------------------------------------

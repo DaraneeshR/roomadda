@@ -4,9 +4,12 @@ import { formatPaise, type PublicListing } from "@roomadda/shared";
 import { publicApi } from "../../../lib/api";
 import { formatPriceRange, genderLabel, priceRange, rankSimilar } from "../../../lib/discovery";
 import { listingJsonLd } from "../../../lib/seo";
+import { amenitiesIncludeMeals } from "../../../lib/costOfLiving";
 import { ApproxMap } from "../../../components/ApproxMap";
 import { BookingFlow } from "../../../components/booking/BookingFlow";
 import { Breadcrumb } from "../../../components/Breadcrumb";
+import { CompareButton } from "../../../components/compare/CompareButton";
+import { CostOfLivingPanel } from "../../../components/discovery/CostOfLivingPanel";
 import { JsonLd } from "../../../components/JsonLd";
 import { StarRating } from "../../../components/discovery/StarRating";
 import { TrustBadges } from "../../../components/discovery/TrustBadges";
@@ -89,7 +92,10 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         {/* Book fully on the web — token paid here, confirmed only by the webhook. */}
-        <BookingFlow listing={l} />
+        <div className="flex flex-col items-stretch gap-2">
+          <BookingFlow listing={l} />
+          <CompareButton listingId={l.id} variant="inline" />
+        </div>
       </div>
 
       {/* Honesty-gated social proof — only fields the server actually sent. */}
@@ -134,6 +140,16 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         ) : (
           <p className="p-4 text-sm text-slate-500">No rooms listed yet.</p>
         )}
+      </div>
+
+      <div className="mt-8">
+        <CostOfLivingPanel
+          title={`Cost of living in ${l.areaLabel}`}
+          rentFromPaise={range.fromPaise}
+          rentToPaise={range.toPaise}
+          mealsIncluded={amenitiesIncludeMeals(l.amenities)}
+          city={l.city}
+        />
       </div>
 
       <h2 className="mt-8 text-lg font-semibold text-slate-900">Location</h2>

@@ -11,10 +11,13 @@ export function ListingGrid({
   listings,
   empty,
   socialByListing,
+  goodValueByListing,
 }: {
   listings: PublicListing[];
   empty?: string;
   socialByListing?: Record<string, SocialProof>;
+  /** Per-listing "good value" label (from area insights) shown as a card chip. */
+  goodValueByListing?: Record<string, string>;
 }): React.ReactNode {
   if (listings.length === 0) {
     return <p className="py-10 text-center text-slate-500">{empty ?? "No listings found."}</p>;
@@ -22,7 +25,12 @@ export function ListingGrid({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {listings.map((listing) => (
-        <ListingCard key={listing.id} listing={listing} social={socialByListing?.[listing.id]} />
+        <ListingCard
+          key={listing.id}
+          listing={listing}
+          social={socialByListing?.[listing.id]}
+          goodValue={goodValueByListing?.[listing.id]}
+        />
       ))}
     </div>
   );
