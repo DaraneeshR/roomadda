@@ -50,7 +50,7 @@ export function toActiveStay(booking: ActiveStayBooking, now: Date): ActiveStay 
     host: {
       name: booking.listing.host.fullName,
       // Allowed on the dashboard per PRD (host contact) — never exposed in chat.
-      emergencyContactNumber: booking.listing.host.phone,
+      emergencyContactNumber: booking.listing.host.phone!, // a host is a phone-OTP user
     },
     features: {
       // The meal menu is offered once the tenant has opted into a meal plan.

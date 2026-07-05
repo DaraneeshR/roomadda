@@ -305,10 +305,21 @@ enum WebhookStatus {
 model User {
   id              String          @id @default(uuid()) @db.Uuid
   role            UserRole        @default(TENANT)
-  phone           String          @unique
+  // Phone is the identity for TENANT/HOST/AGENT (phone-OTP signup) and is unique
+  // when present. It is NULLABLE because a §15.7 back-office TEAM login is created
+  // by an admin with email + password and has no phone (Postgres allows many NULLs
+  // under a unique index). Every phone-OTP user still has one.
+  phone           String?         @unique
   email           String?         @unique
   fullName        String
   isPhoneVerified Boolean         @default(false)
+  // §15.7 team logins: a scrypt password hash (never the raw password) + a
+  // forced-first-login flag. Both null/false for phone-OTP users (who never carry
+  // a password). `mustChangePassword` is set true when an admin issues a temp
+  // password and cleared once the user sets their own — enforced at login (a temp
+  // password grants NO session, only the ability to set a new one).
+  passwordHash       String?
+  mustChangePassword Boolean      @default(false)
   // Optional self-managed profile (PATCH /v1/me, self only). `gender` is used
   // ONLY for discovery filter matching and is NEVER returned to hosts
   // (see /CLAUDE.md domain rules + privacy rules).
@@ -1555,4 +1566,39 @@ model AdminBroadcast {
   @@index([status, scheduledAt])
   @@index([createdAt])
   @@map("admin_broadcasts")
+}
+
+// ---------------------------------------------------------------------------
+// ERP Settings (§15.7) — a SINGLETON row holding the company profile, the active
+// financial year, and the operating-mode flags the back-office settings screen
+// manages. The service reads/creates the single row (get-or-create); every write
+// is ADMIN-only and audited. The `financialYear` here is the DEFAULT period the
+// CA compliance pack + finance screens use when no explicit FY is passed.
+// ---------------------------------------------------------------------------
+model OrgSettings {
+  id             String   @id @default(uuid()) @db.Uuid
+  // Company / legal details shown on the compliance pack + invoices header.
+  legalName      String   @default("RoomAdda")
+  displayName    String   @default("RoomAdda")
+  gstin          String?
+  pan            String?
+  addressLine    String?
+  city           String?
+  state          String?
+  pincode        String?
+  contactEmail   String?
+  contactPhone   String?
+  // Active Indian FY start year (2026 = 1 Apr 2026 → 31 Mar 2027). Null = fall
+  // back to the FY of "now" (the finance engine's default).
+  financialYear  Int?
+  // Operating-mode flags — configuration the settings screen manages (stored +
+  // audited). Wiring them into the live booking flow is out of §15.7 scope.
+  onlineBookingsEnabled Boolean @default(true)
+  walkInBookingsEnabled Boolean @default(true)
+  maintenanceMode       Boolean @default(false)
+  updatedById    String?  @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("org_settings")
 }

@@ -9,6 +9,8 @@ export {
   refreshSchema,
   logoutSchema,
   roleChangeBodySchema,
+  passwordLoginSchema,
+  passwordChangeSchema,
   uuidParamSchema as userIdParamSchema,
 } from "@roomadda/shared";
 
@@ -18,4 +20,6 @@ export type {
   OtpRequestInput,
   OtpVerifyInput,
   RefreshInput,
+  PasswordLoginInput,
+  PasswordChangeInput,
 } from "@roomadda/shared";

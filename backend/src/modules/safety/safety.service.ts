@@ -87,7 +87,7 @@ export const safetyService = {
       .sosToAdmin({
         userId,
         userName: user.fullName,
-        userPhone: user.phone,
+        userPhone: user.phone!, // the SOS user is a phone-OTP account
         locationText,
         hasLocation,
         contactsNotified,

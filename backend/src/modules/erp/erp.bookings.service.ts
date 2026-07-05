@@ -136,7 +136,7 @@ export const erpBookingsService = {
       customer: {
         userId: booking.tenant.id,
         fullName: booking.tenant.fullName,
-        phone: booking.tenant.phone,
+        phone: booking.tenant.phone!, // a booking's tenant is a phone-OTP user
         email: booking.tenant.email,
         gender: booking.tenant.gender,
         occupationType: booking.tenant.occupationType,

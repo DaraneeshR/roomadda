@@ -24,4 +24,10 @@ export {
   // ERP-4 — dashboard, money manager, agents (§15.3).
   erpFinanceFilterSchema,
   reassignBookingSchema,
+  // ERP-5 — CA & compliance and settings/users (§15.3/§15.7).
+  caPackQuerySchema,
+  erpReportParamSchema,
+  erpReportQuerySchema,
+  addTeamMemberSchema,
+  updateOrgSettingsSchema,
 } from "@roomadda/shared";

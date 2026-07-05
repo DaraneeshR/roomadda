@@ -52,7 +52,7 @@ export const agentAdminService = {
       page.items.map(async (a) => ({
         id: a.id,
         fullName: a.fullName,
-        phone: a.phone,
+        phone: a.phone!, // an AGENT is always created with a phone
         email: a.email,
         assignedCity: a.assignedCity,
         status: a.status,
@@ -87,7 +87,7 @@ export const agentAdminService = {
     return {
       id: a.id,
       fullName: a.fullName,
-      phone: a.phone,
+      phone: a.phone!, // an AGENT is always created with a phone
       email: a.email,
       assignedCity: a.assignedCity,
       status: a.status,

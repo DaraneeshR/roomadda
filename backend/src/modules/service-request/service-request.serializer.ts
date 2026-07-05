@@ -66,7 +66,8 @@ export function toAdminItem(r: ServiceRequestAdminRow): ServiceRequestAdminItem 
   return {
     ...base(r),
     escalatedAt: r.escalatedAt?.toISOString() ?? null,
-    tenant: r.tenant,
+    // A service-request tenant is a phone-OTP user — phone is always present.
+    tenant: { id: r.tenant.id, fullName: r.tenant.fullName, phone: r.tenant.phone! },
     listing: r.listing,
   };
 }

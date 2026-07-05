@@ -6,8 +6,11 @@ import { erpApprovalsService } from "./erp.approvals.service.js";
 import { erpInvoicesService } from "./erp.invoices.service.js";
 import { erpFinanceService } from "./erp.finance.service.js";
 import { erpAgentsService } from "./erp.agents.service.js";
+import { erpCaService } from "./erp.ca.service.js";
+import { erpSettingsService } from "./erp.settings.service.js";
 import { toCsv, toExcelXml } from "./erp.export.js";
 import {
+  addTeamMemberSchema,
   bookingApprovalsQuerySchema,
   bookingIdParamSchema,
   bookingsLedgerExportQuerySchema,
@@ -15,9 +18,12 @@ import {
   bulkApproveBookingsSchema,
   bulkMarkCommissionReceivedSchema,
   bulkSendInvoicesSchema,
+  caPackQuerySchema,
   createHistoricalBookingSchema,
   erpCommissionQuerySchema,
   erpFinanceFilterSchema,
+  erpReportParamSchema,
+  erpReportQuerySchema,
   invoiceListQuerySchema,
   invoiceTypeQuerySchema,
   markCommissionReceivedSchema,
@@ -25,6 +31,7 @@ import {
   rejectBookingSchema,
   updateBookingSchema,
   updateInvoiceSchema,
+  updateOrgSettingsSchema,
 } from "./erp.schema.js";
 
 /**
@@ -58,6 +65,46 @@ export const erpRoutes: FastifyPluginAsync = async (app) => {
     const { bookingId } = bookingIdParamSchema.parse(request.params);
     const { agentId } = reassignBookingSchema.parse(request.body);
     return { result: await erpAgentsService.reassign(admin, bookingId, agentId, request.ip) };
+  });
+
+  // ---- ERP-5 CA & Compliance (§15.3): ONE-click multi-sheet .xlsx pack, FY-scoped ----
+  app.get("/erp/ca-pack", async (request, reply) => {
+    const query = caPackQuerySchema.parse(request.query);
+    const { buffer, financialYear } = await erpCaService.caPack(query);
+    return reply
+      .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .header("Content-Disposition", `attachment; filename="roomadda-ca-pack-FY${financialYear}.xlsx"`)
+      .send(buffer);
+  });
+
+  // ---- The six report exports (xlsx default, or csv), FY-scoped ----
+  app.get("/erp/reports/:report", async (request, reply) => {
+    const { report } = erpReportParamSchema.parse(request.params);
+    const query = erpReportQuerySchema.parse(request.query);
+    const { body, contentType, filename } = await erpCaService.report(report, query);
+    return reply
+      .header("Content-Type", contentType)
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(body);
+  });
+
+  // ---- ERP-5 Settings (§15.7): company details, operating modes, financial year ----
+  app.get("/erp/settings", async () => ({ settings: await erpSettingsService.getSettings() }));
+
+  app.put("/erp/settings", async (request) => {
+    const admin = getAuthUser(request);
+    const body = updateOrgSettingsSchema.parse(request.body);
+    return { settings: await erpSettingsService.updateSettings(admin, body, request.ip) };
+  });
+
+  // ---- ERP-5 Team (§15.7/§15.8): view the team + add a team login (server-side, audited) ----
+  app.get("/erp/team", async () => erpSettingsService.listTeam());
+
+  app.post("/erp/team", async (request, reply) => {
+    const admin = getAuthUser(request);
+    const body = addTeamMemberSchema.parse(request.body);
+    const member = await erpSettingsService.addTeamMember(admin, body, request.ip);
+    return reply.status(201).send({ member });
   });
 
   // ---- Commission ledger (received vs pending), filterable by FY/quarter/month/property/agent ----

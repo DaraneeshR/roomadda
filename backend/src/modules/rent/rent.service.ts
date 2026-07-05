@@ -233,7 +233,7 @@ export const rentService = {
 
       try {
         await rentReminderNotifier.sendRentReminder({
-          toPhone: inv.booking.tenant.phone,
+          toPhone: inv.booking.tenant.phone!, // a booking's tenant is a phone-OTP user
           tenantName: inv.booking.tenant.fullName,
           listingAlias: inv.booking.listing.alias,
           periodLabel: periodLabel(inv.periodMonth),

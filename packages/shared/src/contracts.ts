@@ -788,7 +788,9 @@ export type KycSubmitResponse = z.infer<typeof kycSubmitResponseSchema>;
 export const selfUserSchema = z.object({
   id: z.string(),
   role: userRoleSchema,
-  phone: z.string(),
+  // Null for a §15.7 back-office team login (email/password, no phone); always
+  // present for a phone-OTP user.
+  phone: z.string().nullable(),
   fullName: z.string(),
   isPhoneVerified: z.boolean(),
   createdAt: z.string(),
@@ -2276,3 +2278,66 @@ export const reassignBookingResultSchema = z.object({
   commission: bookingCommissionSummarySchema.nullable(),
 });
 export type ReassignBookingResult = z.infer<typeof reassignBookingResultSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-5 — CA & Compliance and Settings / Users (§15.3 / §15.7). The CA pack + the
+// six report exports are engine-sourced and reconcile to the §15.3 dashboard for
+// the same FY. Settings hold the company profile / operating modes / active FY;
+// team logins are back-office (ADMIN) accounts created server-side with a forced
+// first-login password change. Every write is ADMIN-only and audited.
+// ---------------------------------------------------------------------------
+
+/** A back-office team login as the settings screen sees it (never the password). */
+export const teamMemberSchema = z.object({
+  id: z.string(),
+  fullName: z.string(),
+  email: z.string().nullable(),
+  role: userRoleSchema,
+  status: userStatusSchema,
+  /** True until the user completes their forced first-login password change. */
+  mustChangePassword: z.boolean(),
+  createdAt: z.string(),
+});
+export type TeamMember = z.infer<typeof teamMemberSchema>;
+
+/** GET /v1/erp/team — the back-office team roster. */
+export const teamListResponseSchema = z.object({
+  items: z.array(teamMemberSchema),
+});
+export type TeamListResponse = z.infer<typeof teamListResponseSchema>;
+
+/** The operating-mode flags the settings screen manages (stored config). */
+export const operatingModesSchema = z.object({
+  onlineBookingsEnabled: z.boolean(),
+  walkInBookingsEnabled: z.boolean(),
+  maintenanceMode: z.boolean(),
+});
+export type OperatingModes = z.infer<typeof operatingModesSchema>;
+
+/** GET/PUT /v1/erp/settings — the singleton org settings (§15.7). `financialYear`
+ *  is the active Indian FY start year (null = fall back to the FY of now).
+ *  `availableRoles` is the reference set the "add team login" form assigns from. */
+export const orgSettingsSchema = z.object({
+  legalName: z.string(),
+  displayName: z.string(),
+  gstin: z.string().nullable(),
+  pan: z.string().nullable(),
+  addressLine: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  pincode: z.string().nullable(),
+  contactEmail: z.string().nullable(),
+  contactPhone: z.string().nullable(),
+  financialYear: z.number().int().nullable(),
+  operatingModes: operatingModesSchema,
+  availableRoles: z.array(userRoleSchema),
+  updatedAt: z.string(),
+});
+export type OrgSettings = z.infer<typeof orgSettingsSchema>;
+
+/** The change-password challenge returned by the password-login route when an
+ *  account still holds a temp password — NO session is issued until it is changed. */
+export const passwordChangeRequiredSchema = z.object({
+  mustChangePassword: z.literal(true),
+});
+export type PasswordChangeRequired = z.infer<typeof passwordChangeRequiredSchema>;

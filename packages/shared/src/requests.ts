@@ -97,6 +97,42 @@ export const logoutSchema = z.object({ refreshToken: z.string().min(1).optional(
 
 export const roleChangeBodySchema = z.object({ role: userRoleSchema }).strict();
 
+// Password auth for §15.7 back-office TEAM logins (email + password), distinct
+// from the phone-OTP flow the apps use. A password must be reasonably strong; the
+// server never returns or logs it.
+export const passwordPolicySchema = z
+  .string()
+  .min(10, "Password must be at least 10 characters")
+  .max(200);
+
+/** POST /v1/auth/password/login — email + password. When the account still has a
+ *  temp password the server returns a change challenge (no session issued). */
+export const passwordLoginSchema = z
+  .object({
+    email: z.string().email().toLowerCase(),
+    password: z.string().min(1).max(200),
+    client: clientTypeSchema,
+  })
+  .strict();
+export type PasswordLoginInput = z.infer<typeof passwordLoginSchema>;
+
+/** POST /v1/auth/password/change — set a new password using the current one. Used
+ *  for the forced first-login change (proves knowledge of the temp password) and
+ *  for ordinary rotations. Issues a fresh session on success. */
+export const passwordChangeSchema = z
+  .object({
+    email: z.string().email().toLowerCase(),
+    currentPassword: z.string().min(1).max(200),
+    newPassword: passwordPolicySchema,
+    client: clientTypeSchema,
+  })
+  .strict()
+  .refine((b) => b.currentPassword !== b.newPassword, {
+    message: "New password must differ from the current one",
+    path: ["newPassword"],
+  });
+export type PasswordChangeInput = z.infer<typeof passwordChangeSchema>;
+
 export type OtpRequestInput = z.infer<typeof otpRequestSchema>;
 export type OtpVerifyInput = z.infer<typeof otpVerifySchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
@@ -1341,3 +1377,85 @@ export type ErpFinanceFilter = z.infer<typeof erpFinanceFilterSchema>;
  */
 export const reassignBookingSchema = z.object({ agentId: z.string().uuid() }).strict();
 export type ReassignBookingInput = z.infer<typeof reassignBookingSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-5 — CA & Compliance and Settings / Users (§15.3 / §15.7).
+// ---------------------------------------------------------------------------
+
+/** The six standard report exports (also the CA pack's six sheets). */
+export const erpReportKindSchema = z.enum([
+  "bookings-ledger",
+  "commission-ledger",
+  "customer-invoices",
+  "commission-invoices",
+  "collections-settlements",
+  "summary",
+]);
+export type ErpReportKind = z.infer<typeof erpReportKindSchema>;
+
+/** GET /v1/erp/ca-pack — the one-click multi-sheet compliance workbook, scoped to
+ *  a financial year. When `financialYear` is omitted the server uses the active FY
+ *  from settings (else the FY of now). */
+export const caPackQuerySchema = z
+  .object({ financialYear: z.coerce.number().int().min(2000).max(2100).optional() })
+  .strict();
+export type CaPackQuery = z.infer<typeof caPackQuerySchema>;
+
+/** Path param for GET /v1/erp/reports/:report. */
+export const erpReportParamSchema = z.object({ report: erpReportKindSchema }).strict();
+
+/** GET /v1/erp/reports/:report — one report, as xlsx (default) or csv, FY-scoped. */
+export const erpReportQuerySchema = z
+  .object({
+    financialYear: z.coerce.number().int().min(2000).max(2100).optional(),
+    format: z.enum(["xlsx", "csv"]).default("xlsx"),
+  })
+  .strict();
+export type ErpReportQuery = z.infer<typeof erpReportQuerySchema>;
+
+/** The only role a §15.7 team login may hold: back-office access is ADMIN. Kept as
+ *  an enum so the assignable set can grow without changing the route contract. */
+export const erpTeamRoleSchema = z.enum(["ADMIN"]);
+export type ErpTeamRole = z.infer<typeof erpTeamRoleSchema>;
+
+/**
+ * POST /v1/erp/team — add a back-office team login (§15.7/§15.8, server-side).
+ * The admin supplies a temp password; the account is created with a forced
+ * first-login password change. Email is the login identity (lower-cased, unique).
+ */
+export const addTeamMemberSchema = z
+  .object({
+    fullName: z.string().trim().min(1).max(120),
+    email: z.string().email().toLowerCase(),
+    tempPassword: z.string().min(8, "Temp password must be at least 8 characters").max(200),
+    role: erpTeamRoleSchema.default("ADMIN"),
+  })
+  .strict();
+export type AddTeamMemberInput = z.infer<typeof addTeamMemberSchema>;
+
+/**
+ * PUT /v1/erp/settings — update the singleton org settings (§15.7): company
+ * details, the active financial year, and the operating-mode flags. Every field
+ * is optional; at least one must be present. Strings can be cleared with null.
+ */
+// ---------------------------------------------------------------------------
+export const updateOrgSettingsSchema = z
+  .object({
+    legalName: z.string().trim().min(1).max(200).optional(),
+    displayName: z.string().trim().min(1).max(200).optional(),
+    gstin: z.string().trim().max(30).nullable().optional(),
+    pan: z.string().trim().max(20).nullable().optional(),
+    addressLine: z.string().trim().max(300).nullable().optional(),
+    city: z.string().trim().max(120).nullable().optional(),
+    state: z.string().trim().max(120).nullable().optional(),
+    pincode: z.string().trim().max(12).nullable().optional(),
+    contactEmail: z.string().email().nullable().optional(),
+    contactPhone: z.string().trim().max(20).nullable().optional(),
+    financialYear: z.number().int().min(2000).max(2100).nullable().optional(),
+    onlineBookingsEnabled: z.boolean().optional(),
+    walkInBookingsEnabled: z.boolean().optional(),
+    maintenanceMode: z.boolean().optional(),
+  })
+  .strict()
+  .refine((b) => Object.keys(b).length > 0, { message: "Provide at least one field to update" });
+export type UpdateOrgSettingsInput = z.infer<typeof updateOrgSettingsSchema>;

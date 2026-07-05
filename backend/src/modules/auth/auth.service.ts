@@ -12,6 +12,7 @@ import {
   hashOtpCode,
   signAccessToken,
 } from "../../lib/tokens.js";
+import { hashPassword, verifyPassword } from "../../lib/password.js";
 import { acquireCooldown, hitFixedWindow } from "../../lib/rate-limit.js";
 import type { AppAudience } from "@roomadda/shared";
 import {
@@ -37,6 +38,8 @@ const otpLocked = (): AppError =>
   });
 const refreshInvalid = (): AppError =>
   new AppError({ statusCode: 401, code: "REFRESH_INVALID", message: "Invalid refresh token" });
+const passwordInvalid = (): AppError =>
+  new AppError({ statusCode: 401, code: "PASSWORD_INVALID", message: "Invalid email or password" });
 const accountBlocked = (status: "SUSPENDED" | "BANNED"): AppError =>
   new AppError({
     statusCode: 403,
@@ -49,6 +52,15 @@ export interface IssuedSession {
   accessToken: string;
   refreshToken: string;
 }
+
+/** Password login either issues a session or (for a temp password) demands a change. */
+export type PasswordLoginResult =
+  | { kind: "session"; session: IssuedSession }
+  | { kind: "must_change_password" };
+
+/** A well-formed scrypt hash verified against when the email is unknown, so a
+ *  missing account and a wrong password cost roughly the same (anti-enumeration). */
+const DUMMY_HASH = `scrypt$32768$8$1$${"0".repeat(32)}$${"0".repeat(128)}`;
 
 /** Create a refresh token row (in `familyId`) and a matching access token. */
 async function issueSession(
@@ -326,6 +338,116 @@ export const authService = {
       ip,
       metadata: { familyId: record.familyId },
     });
+  },
+
+  /**
+   * Password login for a §15.7 back-office team account (email + password). The
+   * password is verified FIRST (so account state never leaks to a wrong password);
+   * then, if the account still holds an admin-issued temp password
+   * (`mustChangePassword`), NO session is issued — the caller must change it first.
+   * Suspended/banned accounts are refused. Generic "invalid email or password" on
+   * any failure to avoid user enumeration.
+   */
+  async passwordLogin({
+    email,
+    password,
+    ip,
+  }: {
+    email: string;
+    password: string;
+    ip?: string;
+  }): Promise<PasswordLoginResult> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Always run a verify (against the stored hash, or a throwaway) so a missing
+    // account and a wrong password take a similar amount of work.
+    const ok = user?.passwordHash
+      ? await verifyPassword(password, user.passwordHash)
+      : (await verifyPassword(password, DUMMY_HASH), false);
+    if (!user || !user.passwordHash || !ok) {
+      await writeAudit({ action: "auth.password.login_failed", ip, metadata: { email } });
+      throw passwordInvalid();
+    }
+
+    if (user.status !== "ACTIVE") {
+      await writeAudit({
+        actorId: user.id,
+        action: "auth.login_blocked",
+        targetId: user.id,
+        ip,
+        metadata: { status: user.status, method: "password" },
+      });
+      throw accountBlocked(user.status);
+    }
+
+    if (user.mustChangePassword) {
+      await writeAudit({
+        actorId: user.id,
+        action: "auth.password.change_required",
+        targetId: user.id,
+        ip,
+      });
+      return { kind: "must_change_password" };
+    }
+
+    const session = await prisma.$transaction(async (tx) =>
+      issueSession(tx, user.id, user.role, randomUUID()),
+    );
+    await writeAudit({
+      actorId: user.id,
+      action: "auth.login",
+      targetId: user.id,
+      ip,
+      metadata: { method: "password" },
+    });
+    return { kind: "session", session: { user, ...session } };
+  },
+
+  /**
+   * Set a new password using the current one (the forced first-login change, and
+   * ordinary rotations). Verifies the current password, then atomically stores the
+   * new hash, clears `mustChangePassword`, revokes ALL existing sessions (a temp
+   * password can never be reused), and issues one fresh session.
+   */
+  async changePassword({
+    email,
+    currentPassword,
+    newPassword,
+    ip,
+  }: {
+    email: string;
+    currentPassword: string;
+    newPassword: string;
+    ip?: string;
+  }): Promise<IssuedSession> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.passwordHash || !(await verifyPassword(currentPassword, user.passwordHash))) {
+      await writeAudit({ action: "auth.password.change_failed", ip, metadata: { email } });
+      throw passwordInvalid();
+    }
+    if (user.status !== "ACTIVE") throw accountBlocked(user.status);
+
+    const newHash = await hashPassword(newPassword);
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash: newHash, mustChangePassword: false },
+      });
+      // Kill every prior session (the temp-password one included).
+      await tx.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      const session = await issueSession(tx, user.id, user.role, randomUUID());
+      return { user, ...session };
+    });
+
+    await writeAudit({
+      actorId: user.id,
+      action: "auth.password.changed",
+      targetId: user.id,
+      ip,
+    });
+    return result;
   },
 
   /** Admin role change. Revokes the target's sessions so the new role takes hold. */

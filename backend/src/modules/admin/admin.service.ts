@@ -291,7 +291,7 @@ export const adminService = {
       return {
         id: agent.id,
         fullName: agent.fullName,
-        phone: agent.phone,
+        phone: agent.phone!, // an AGENT is always created with a phone
         assignedCity: agent.assignedCity,
         role: agent.role,
         createdAt: agent.createdAt.toISOString(),

@@ -63,7 +63,7 @@ export const hostAdminService = {
   async decorate(h: {
     id: string;
     fullName: string;
-    phone: string;
+    phone: string | null; // a HOST always has one; the column is nullable for team logins
     email: string | null;
     status: AdminHostListItem["status"];
     statusReason: string | null;
@@ -79,7 +79,7 @@ export const hostAdminService = {
     return {
       id: h.id,
       fullName: h.fullName,
-      phone: h.phone,
+      phone: h.phone!, // a HOST is a phone-OTP account
       email: h.email,
       status: h.status,
       statusReason: h.statusReason,

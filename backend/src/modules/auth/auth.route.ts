@@ -7,6 +7,8 @@ import {
   logoutSchema,
   otpRequestSchema,
   otpVerifySchema,
+  passwordChangeSchema,
+  passwordLoginSchema,
   refreshSchema,
   type ClientType,
 } from "./auth.schema.js";
@@ -74,6 +76,33 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       });
     }
     const session = await authService.rotateRefresh({ presentedToken: presented, ip: request.ip });
+    return sendSession(reply, body.client, session);
+  });
+
+  // §15.7 back-office team login (email + password). A temp-password account gets
+  // a change challenge (200, no tokens); a normal account gets a session.
+  app.post("/auth/password/login", async (request, reply) => {
+    const body = passwordLoginSchema.parse(request.body);
+    const result = await authService.passwordLogin({
+      email: body.email,
+      password: body.password,
+      ip: request.ip,
+    });
+    if (result.kind === "must_change_password") {
+      return reply.send({ mustChangePassword: true });
+    }
+    return sendSession(reply, body.client, result.session);
+  });
+
+  // Set a new password with the current one (forced first-login change + rotations).
+  app.post("/auth/password/change", async (request, reply) => {
+    const body = passwordChangeSchema.parse(request.body);
+    const session = await authService.changePassword({
+      email: body.email,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      ip: request.ip,
+    });
     return sendSession(reply, body.client, session);
   });
 

@@ -482,14 +482,17 @@ function bookingInput(input: AgentBookingInput) {
   };
 }
 
-/** Find a tenant by phone, or create an unverified TENANT (the agent vouches). */
+/** Find a tenant by phone, or create an unverified TENANT (the agent vouches).
+ *  `phone` is the lookup key so it is always present — we return it directly
+ *  rather than the now-nullable column. */
 async function resolveTenantUser(name: string, phone: string): Promise<{ id: string; phone: string; fullName: string }> {
-  const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true, phone: true, fullName: true } });
-  if (existing) return existing;
-  return prisma.user.create({
+  const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true, fullName: true } });
+  if (existing) return { id: existing.id, phone, fullName: existing.fullName };
+  const created = await prisma.user.create({
     data: { phone, fullName: name, role: "TENANT", isPhoneVerified: false },
-    select: { id: true, phone: true, fullName: true },
+    select: { id: true, fullName: true },
   });
+  return { id: created.id, phone, fullName: created.fullName };
 }
 
 /**

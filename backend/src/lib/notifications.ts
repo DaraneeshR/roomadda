@@ -53,9 +53,9 @@ export async function notifyBookingConfirmed(bookingId: string): Promise<void> {
     await bookingNotifier.bookingConfirmed({
       bookingId: b.id,
       tenantName: b.tenant.fullName,
-      tenantPhone: b.tenant.phone,
+      tenantPhone: b.tenant.phone!, // tenant/host are phone-OTP users — always present
       hostName: b.listing.host.fullName,
-      hostPhone: b.listing.host.phone,
+      hostPhone: b.listing.host.phone!,
       listingName: b.listing.alias,
       moveInDate: b.moveInDate,
     });
