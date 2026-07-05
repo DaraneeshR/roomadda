@@ -15,9 +15,14 @@ import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { CashReconciliationPage } from "./pages/CashReconciliationPage";
 import { CmsPage } from "./pages/CmsPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ErpAgentsFinancePage } from "./pages/ErpAgentsFinancePage";
 import { ErpApprovalsPage } from "./pages/ErpApprovalsPage";
 import { ErpBookingsPage } from "./pages/ErpBookingsPage";
+import { ErpCaPage } from "./pages/ErpCaPage";
 import { ErpDashboardPage } from "./pages/ErpDashboardPage";
+import { ErpInvoicesPage } from "./pages/ErpInvoicesPage";
+import { ErpMoneyManagerPage } from "./pages/ErpMoneyManagerPage";
+import { ErpSettingsPage } from "./pages/ErpSettingsPage";
 import { HostsPage } from "./pages/HostsPage";
 import { KycReviewPage } from "./pages/KycReviewPage";
 import { ListingsReviewPage } from "./pages/ListingsReviewPage";
@@ -60,6 +65,11 @@ export function App() {
                       <Route path="/erp" element={<ErpDashboardPage />} />
                       <Route path="/erp/bookings" element={<ErpBookingsPage />} />
                       <Route path="/erp/approvals" element={<ErpApprovalsPage />} />
+                      <Route path="/erp/invoices" element={<ErpInvoicesPage />} />
+                      <Route path="/erp/money" element={<ErpMoneyManagerPage />} />
+                      <Route path="/erp/agents-finance" element={<ErpAgentsFinancePage />} />
+                      <Route path="/erp/ca" element={<ErpCaPage />} />
+                      <Route path="/erp/settings" element={<ErpSettingsPage />} />
                     </Route>
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />

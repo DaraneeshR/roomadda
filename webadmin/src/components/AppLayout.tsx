@@ -67,6 +67,11 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/erp", label: "ERP dashboard", end: true },
       { to: "/erp/bookings", label: "Bookings ledger" },
       { to: "/erp/approvals", label: "Approvals" },
+      { to: "/erp/invoices", label: "Invoice center" },
+      { to: "/erp/money", label: "Money manager" },
+      { to: "/erp/agents-finance", label: "Agents (finance)" },
+      { to: "/erp/ca", label: "CA & compliance" },
+      { to: "/erp/settings", label: "Settings" },
     ],
   },
 ];

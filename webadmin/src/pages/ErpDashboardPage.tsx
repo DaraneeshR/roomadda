@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Box,
@@ -17,10 +17,10 @@ import {
 } from "@mui/material";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { formatPaise, type ErpFinanceFilter as ErpFilter } from "@roomadda/shared";
-import { adminApi } from "../api/admin";
 import { erpApi } from "../api/erp";
 import { BarList, type BarDatum } from "../components/erp/BarList";
-import { ErpFinanceFilter, type FilterOption } from "../components/erp/ErpFinanceFilter";
+import { ErpFinanceFilter } from "../components/erp/ErpFinanceFilter";
+import { useErpFilterOptions } from "../components/erp/useErpFilterOptions";
 import { formatSignedPaise } from "../lib/money";
 
 interface Headline {
@@ -44,29 +44,7 @@ export function ErpDashboardPage() {
     placeholderData: keepPreviousData,
   });
 
-  // Agents for the scope dropdown (stable list, independent of the finance filter).
-  const agents = useQuery({
-    queryKey: ["erp", "agent-options"],
-    queryFn: () => adminApi.listAgents(undefined, 50),
-    staleTime: 5 * 60_000,
-  });
-  const agentOptions: FilterOption[] = useMemo(
-    () => (agents.data?.items ?? []).map((a) => ({ id: a.id, label: a.fullName })),
-    [agents.data],
-  );
-
-  // Property options accumulate across fetches so a property stays selectable even
-  // once the filter narrows the dashboard to a single property.
-  const [propertyOptions, setPropertyOptions] = useState<FilterOption[]>([]);
-  useEffect(() => {
-    const seen = dashboard.data?.commissionByProperty;
-    if (!seen) return;
-    setPropertyOptions((prev) => {
-      const byId = new Map(prev.map((p) => [p.id, p]));
-      for (const p of seen) byId.set(p.listingId, { id: p.listingId, label: p.listingAlias });
-      return [...byId.values()];
-    });
-  }, [dashboard.data]);
+  const { propertyOptions, agentOptions } = useErpFilterOptions(filter.financialYear);
 
   const d = dashboard.data;
   const headlines: Headline[] = d
