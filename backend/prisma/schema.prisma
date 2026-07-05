@@ -157,6 +157,24 @@ enum RentInvoiceStatus {
   OVERDUE
 }
 
+// ERP Invoice Center (§15.6/§15.7). The two invoice types both derive from ONE
+// booking: CUSTOMER (for the tenant — deposit + pro-rata first-month rent +
+// maintenance + electricity) and COMMISSION (for the PG owner — commission,
+// paidToPg, collected, net, settlement).
+enum InvoiceType {
+  CUSTOMER
+  COMMISSION
+}
+
+// An ERP invoice is DRAFT until an admin sends it (or marks it sent), at which
+// point it is SENT with a `sentAt` stamp. There is no PAID state here: the
+// customer invoice's "amount paid" is engine-owned (captured payments + cash),
+// not a state this row flips.
+enum InvoiceStatus {
+  DRAFT
+  SENT
+}
+
 enum ServiceRequestCategory {
   PLUMBING
   ELECTRICAL
@@ -330,6 +348,7 @@ model User {
   deviceTokens     DeviceToken[]           @relation("UserDevices")
   reviews          Review[]                @relation("TenantReviews")
   commissionReceipts CommissionLedger[]    @relation("CommissionReceivedBy")
+  invoicesSent     Invoice[]               @relation("InvoiceSentBy")
 
   @@index([role])
   @@map("users")
@@ -537,6 +556,7 @@ model Booking {
   refunds          RefundTransaction[]
   review           Review?
   commissionLedger CommissionLedger?
+  invoices         Invoice[]
 
   // NOTE: the "one live booking per bed" partial unique index
   // (uniq_live_booking_per_bed) is created in prisma/sql/02_booking_guard.sql —
@@ -666,6 +686,45 @@ model CommissionLedger {
 
   @@index([status])
   @@map("commission_ledger")
+}
+
+// ERP Invoice Center (§15.6/§15.7) — the persisted record for one generated
+// invoice (CUSTOMER or COMMISSION) off a single booking. CRITICAL: this row
+// stores ONLY what the ERP-1 money engine does NOT own:
+//  - `lineItems` (JSON) holds the NON-DERIVABLE manual figures — maintenance and
+//    electricity (customer invoices) — plus an override for the amount already
+//    paid. The engine-sourced lines (deposit, pro-rata rent, commission,
+//    paidToPg, collected, net) are NEVER stored here; they are recomputed from
+//    the authoritative Booking / payment / commission-ledger rows on every read,
+//    so an edit here can never corrupt an engine figure.
+//  - `totalPaise` / `paidPaise` / `balancePaise` are a display SNAPSHOT refreshed
+//    on every write. The read path recomposes them from the engine + the manual
+//    lines, so the snapshot can drift without ever being trusted for a figure.
+// One row per (booking, type); created lazily on the first edit/send. All money
+// is integer paise; `totalPaise` / `balancePaise` are signed because a
+// commission invoice's net can be negative (RoomAdda owes the owner — §15.5).
+model Invoice {
+  id           String        @id @default(uuid()) @db.Uuid
+  bookingId    String        @db.Uuid
+  type         InvoiceType
+  // Manual (non-engine) figures + the amount-paid override. See the model note.
+  lineItems    Json          @default("{}")
+  totalPaise   Int
+  paidPaise    Int
+  balancePaise Int
+  status       InvoiceStatus @default(DRAFT)
+  sentAt       DateTime?
+  sentById     String?       @db.Uuid
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sentBy  User?   @relation("InvoiceSentBy", fields: [sentById], references: [id])
+
+  // One invoice of each type per booking.
+  @@unique([bookingId, type])
+  @@index([type, status])
+  @@map("invoices")
 }
 
 // Recurring monthly rent. One invoice per (booking, billing month). RENT IS

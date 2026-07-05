@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   agentCommissionPaise,
   approvalStatusOf,
+  composeCommissionInvoice,
+  composeCustomerInvoice,
   computeInvoiceBreakdown,
   computeLedgerFigures,
   daysInUtcMonth,
@@ -214,5 +216,47 @@ describe("erp money engine — financial period resolution (§15.3)", () => {
 
   it("rejects quarter and month together", () => {
     expect(() => resolveFinancialPeriod({ financialYear: 2026, quarter: 1, month: 4 }, now)).toThrow(RangeError);
+  });
+});
+
+describe("erp money engine — invoice composers (§15.6)", () => {
+  const breakdown = computeInvoiceBreakdown({
+    monthlyRentPaise: 3_000_000,
+    depositPaise: 2_000_000,
+    tokenAmountPaise: 1_000_000,
+    moveIn: new Date(Date.UTC(2026, 5, 15)), // 15 Jun 2026 → 16/30 pro-rata = 1,600,000
+  });
+
+  it("customer invoice: deposit + pro-rata (from the engine) + manual lines, total/paid/balance", () => {
+    const inv = composeCustomerInvoice({ breakdown, maintenancePaise: 50_000, electricityPaise: 30_000, paidPaise: 1_500_000 });
+    const line = (code: string) => inv.lineItems.find((l) => l.code === code)!;
+    expect(line("DEPOSIT").amountPaise).toBe(2_000_000);
+    expect(line("DEPOSIT").source).toBe("ENGINE");
+    expect(line("PRO_RATA_RENT").amountPaise).toBe(1_600_000); // == the engine's pro-rata
+    expect(line("MAINTENANCE").source).toBe("MANUAL");
+    expect(inv.totalPaise).toBe(2_000_000 + 1_600_000 + 50_000 + 30_000);
+    expect(inv.paidPaise).toBe(1_500_000);
+    expect(inv.balancePaise).toBe(inv.totalPaise - 1_500_000);
+  });
+
+  it("customer invoice with no move-in has a zero pro-rata line", () => {
+    const noMoveIn = computeInvoiceBreakdown({ monthlyRentPaise: 3_000_000, depositPaise: 2_000_000, tokenAmountPaise: 0, moveIn: null });
+    const inv = composeCustomerInvoice({ breakdown: noMoveIn, maintenancePaise: 0, electricityPaise: 0, paidPaise: 0 });
+    expect(inv.lineItems.find((l) => l.code === "PRO_RATA_RENT")!.amountPaise).toBe(0);
+    expect(inv.totalPaise).toBe(2_000_000);
+  });
+
+  it("commission invoice: total is the net position; settled mirrors net into paid", () => {
+    const net = netCommissionPaise({ commissionPaise: 300_000, paidToPgPaise: 0, collectedPaise: 1_500_000 });
+    const pending = composeCommissionInvoice({ commissionPaise: 300_000, paidToPgPaise: 0, collectedPaise: 1_500_000, netPaise: net, settlementStatus: "PENDING" });
+    expect(pending.lineItems.find((l) => l.code === "NET")!.amountPaise).toBe(net); // -1,200,000
+    expect(pending.totalPaise).toBe(net);
+    expect(pending.paidPaise).toBe(0);
+    expect(pending.balancePaise).toBe(net);
+
+    const settled = composeCommissionInvoice({ commissionPaise: 300_000, paidToPgPaise: 0, collectedPaise: 1_500_000, netPaise: net, settlementStatus: "RECEIVED" });
+    expect(settled.paidPaise).toBe(net); // whole net settled
+    expect(settled.balancePaise).toBe(0);
+    expect(settled.lineItems.every((l) => l.source === "ENGINE")).toBe(true);
   });
 });

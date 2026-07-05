@@ -13,6 +13,8 @@ import {
   genderPolicySchema,
   inspectionRecommendationSchema,
   inspectionStatusSchema,
+  invoiceStatusSchema,
+  invoiceTypeSchema,
   kycStatusSchema,
   landingPageKindSchema,
   listingStatusSchema,
@@ -1244,3 +1246,57 @@ export const updateBookingSchema = z
   .strict()
   .refine((b) => Object.keys(b).length > 0, { message: "Provide at least one field to update" });
 export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-3 — Invoice Center (§15.6/§15.7).
+// ---------------------------------------------------------------------------
+
+/** Which invoice a Review / PDF / send request targets. Query param; defaults to
+ *  the CUSTOMER invoice (the Invoice Center's primary surface). */
+export const invoiceTypeQuerySchema = z
+  .object({ type: invoiceTypeSchema.default("CUSTOMER") })
+  .strict();
+export type InvoiceTypeQuery = z.infer<typeof invoiceTypeQuerySchema>;
+
+/**
+ * GET /v1/erp/invoices — the Invoice Center list (§15.7). `type` picks which
+ * invoice (customer/commission); `status` optionally filters DRAFT vs SENT; `q`
+ * matches the recipient name or listing alias. Cursor-paginated, capped page.
+ */
+export const invoiceListQuerySchema = z
+  .object({
+    type: invoiceTypeSchema.default("CUSTOMER"),
+    status: invoiceStatusSchema.optional(),
+    q: z.string().trim().min(1).max(120).optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+
+/**
+ * PATCH /v1/erp/invoices/:bookingId — edit a CUSTOMER invoice's NON-DERIVABLE
+ * figures: the maintenance / electricity line items and/or the amount-paid
+ * override. The engine-owned deposit / pro-rata rent are NOT editable here — they
+ * always come from ERP-1 — so an edit can never corrupt an engine figure. At
+ * least one field is required. All money is integer paise.
+ */
+export const updateInvoiceSchema = z
+  .object({
+    maintenancePaise: z.number().int().nonnegative().optional(),
+    electricityPaise: z.number().int().nonnegative().optional(),
+    paidPaise: z.number().int().nonnegative().optional(),
+  })
+  .strict()
+  .refine((b) => Object.keys(b).length > 0, { message: "Provide at least one field to update" });
+export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
+
+/** POST /v1/erp/invoices/send — bulk-send invoices of one type to their
+ *  recipients (an explicit, bounded list of bookings). */
+export const bulkSendInvoicesSchema = z
+  .object({
+    type: invoiceTypeSchema,
+    bookingIds: z.array(z.string().uuid()).min(1).max(200),
+  })
+  .strict();
+export type BulkSendInvoicesInput = z.infer<typeof bulkSendInvoicesSchema>;

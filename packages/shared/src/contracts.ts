@@ -1975,3 +1975,100 @@ export const bookingBulkApproveResultSchema = z.object({
   bookingIds: z.array(z.string()),
 });
 export type BookingBulkApproveResult = z.infer<typeof bookingBulkApproveResultSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-3 — Invoice Center (§15.6/§15.7). Two invoices come off ONE booking, both
+// priced by the SAME ERP-1 money engine so they can never disagree with the
+// commission ledger or booking detail:
+//  - CUSTOMER (for the tenant): deposit + pro-rata first-month rent + maintenance
+//    + electricity → total, amount paid, balance due. Pro-rata is the engine's
+//    (never recomputed here).
+//  - COMMISSION (for the PG owner): commission, paidToPg, collected, net,
+//    settlement → the net position + settlement state (net may be negative).
+// Every ENGINE line is recomputed from authoritative rows on read; only the
+// non-derivable MANUAL figures (maintenance/electricity) and the amount-paid
+// override are persisted, so an edit can never corrupt an engine figure.
+// ---------------------------------------------------------------------------
+
+/** Which of the two invoices a booking's data is rendered into. */
+export const invoiceTypeSchema = z.enum(["CUSTOMER", "COMMISSION"]);
+export type InvoiceType = z.infer<typeof invoiceTypeSchema>;
+export const INVOICE_TYPES = invoiceTypeSchema.options;
+
+/** DRAFT until an admin sends it (or marks it sent), then SENT with a `sentAt`. */
+export const invoiceStatusSchema = z.enum(["DRAFT", "SENT"]);
+export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
+export const INVOICE_STATUSES = invoiceStatusSchema.options;
+
+/** Source of a line's figure: ENGINE = from the ERP-1 money engine (read-only,
+ *  recomputed on every read); MANUAL = an admin-entered non-derivable amount
+ *  (maintenance / electricity), the only figures the Invoice row persists. */
+export const invoiceLineSourceSchema = z.enum(["ENGINE", "MANUAL"]);
+export type InvoiceLineSource = z.infer<typeof invoiceLineSourceSchema>;
+
+/** One line on an invoice. `amountPaise` is signed only for the COMMISSION net line. */
+export const invoiceLineItemSchema = z.object({
+  code: z.string(),
+  label: z.string(),
+  amountPaise: z.number().int(),
+  source: invoiceLineSourceSchema,
+});
+export type InvoiceLineItem = z.infer<typeof invoiceLineItemSchema>;
+
+/** Who the invoice is for: the tenant (CUSTOMER) or the PG owner (COMMISSION). */
+export const invoiceRecipientSchema = z.object({
+  name: z.string(),
+  phone: z.string(),
+});
+export type InvoiceRecipient = z.infer<typeof invoiceRecipientSchema>;
+
+/** The full invoice returned by Review / after an edit / for the PDF. The ENGINE
+ *  lines are recomputed from ERP-1 on read; `totalPaise` / `paidPaise` are the
+ *  live recomputed figures and `balancePaise = total − paid` (may be negative). */
+export const invoiceSchema = z.object({
+  bookingId: z.string(),
+  type: invoiceTypeSchema,
+  recipient: invoiceRecipientSchema,
+  /** Public alias — admin sees the real name on the booking detail, not here. */
+  listingAlias: z.string(),
+  lineItems: z.array(invoiceLineItemSchema),
+  totalPaise: z.number().int(),
+  /** Signed: a CUSTOMER invoice's amount-paid is always ≥ 0, but a settled
+   *  COMMISSION invoice mirrors its net, which may be negative (RoomAdda owes the owner). */
+  paidPaise: z.number().int(),
+  balancePaise: z.number().int(),
+  status: invoiceStatusSchema,
+  sentAt: z.string().nullable(),
+});
+export type Invoice = z.infer<typeof invoiceSchema>;
+
+/** One row in the Invoice Center list (§15.7): recipient name + number, total,
+ *  balance, sent status. */
+export const invoiceListEntrySchema = z.object({
+  bookingId: z.string(),
+  type: invoiceTypeSchema,
+  recipientName: z.string(),
+  recipientPhone: z.string(),
+  listingAlias: z.string(),
+  totalPaise: z.number().int(),
+  balancePaise: z.number().int(),
+  status: invoiceStatusSchema,
+  sentAt: z.string().nullable(),
+});
+export type InvoiceListEntry = z.infer<typeof invoiceListEntrySchema>;
+
+/** GET /v1/erp/invoices — a page of Invoice Center rows. */
+export const invoiceListResponseSchema = z.object({
+  items: z.array(invoiceListEntrySchema),
+  nextCursor: z.string().nullable(),
+});
+export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
+
+/** Result of a bulk send / mark-sent — the booking ids actually transitioned.
+ *  `delivered` is false for mark-sent (status flipped, nothing re-sent). */
+export const invoiceSendResultSchema = z.object({
+  sent: z.number().int().nonnegative(),
+  bookingIds: z.array(z.string()),
+  delivered: z.boolean(),
+});
+export type InvoiceSendResult = z.infer<typeof invoiceSendResultSchema>;

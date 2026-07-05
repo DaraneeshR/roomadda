@@ -8,7 +8,13 @@
  * the webhook already owns — it only combines authoritative amounts.
  */
 import type { BookingStatus, CancelledBy } from "@prisma/client";
-import type { BookingApprovalStatus, InvoiceBreakdown } from "@roomadda/shared";
+import type {
+  BookingApprovalStatus,
+  CommissionSettlementStatus,
+  InvoiceBreakdown,
+  InvoiceLineItem,
+  InvoiceType,
+} from "@roomadda/shared";
 import { assertPaise } from "../../lib/money.js";
 
 /** Indian financial year starts on 1 April. FY 2026 = 1 Apr 2026 → 31 Mar 2027. */
@@ -134,6 +140,88 @@ export function computeInvoiceBreakdown(input: {
     moveInTotalPaise,
     balanceDuePaise,
   };
+}
+
+/**
+ * The composed invoice both Invoice-Center screens render: the line items plus
+ * the total / amount-paid / balance triple. Produced by the pure composers below
+ * so the list row, the review screen, and the PDF are the identical code path.
+ * `balancePaise` is signed (over-payment or a negative commission net surfaced
+ * honestly, never clamped).
+ */
+export interface ComposedInvoice {
+  type: InvoiceType;
+  lineItems: InvoiceLineItem[];
+  totalPaise: number;
+  paidPaise: number;
+  balancePaise: number;
+}
+
+/**
+ * Compose the CUSTOMER invoice (§15.6) from the engine's move-in breakdown plus
+ * the two NON-DERIVABLE manual figures (maintenance, electricity). The deposit
+ * and the pro-rata first-month rent are ENGINE lines — taken straight from
+ * {@link computeInvoiceBreakdown}, NEVER recomputed here — so they can never
+ * drift from the booking detail. `total = deposit + proRata + maintenance +
+ * electricity`; `paid` is what the tenant has paid (the engine-collected amount,
+ * or an admin override); `balance = total − paid` (may be negative if over-paid).
+ * Pure. A booking with no move-in has no pro-rata line (0).
+ */
+export function composeCustomerInvoice(input: {
+  breakdown: InvoiceBreakdown;
+  maintenancePaise: number;
+  electricityPaise: number;
+  paidPaise: number;
+}): ComposedInvoice {
+  assertPaise(input.maintenancePaise);
+  assertPaise(input.electricityPaise);
+  assertPaise(input.paidPaise);
+  const depositPaise = input.breakdown.depositPaise;
+  const proRataPaise = input.breakdown.proRataFirstMonthRentPaise ?? 0;
+  const lineItems: InvoiceLineItem[] = [
+    { code: "DEPOSIT", label: "Security deposit", amountPaise: depositPaise, source: "ENGINE" },
+    { code: "PRO_RATA_RENT", label: "First month rent (pro-rata)", amountPaise: proRataPaise, source: "ENGINE" },
+    { code: "MAINTENANCE", label: "Maintenance", amountPaise: input.maintenancePaise, source: "MANUAL" },
+    { code: "ELECTRICITY", label: "Electricity", amountPaise: input.electricityPaise, source: "MANUAL" },
+  ];
+  const totalPaise = depositPaise + proRataPaise + input.maintenancePaise + input.electricityPaise;
+  return { type: "CUSTOMER", lineItems, totalPaise, paidPaise: input.paidPaise, balancePaise: totalPaise - input.paidPaise };
+}
+
+/**
+ * Compose the COMMISSION invoice (§15.6) for the PG owner from the engine's
+ * per-booking money — commission, paidToPg, collected, net — plus the settlement
+ * state. EVERY line is ENGINE (nothing is manual or editable). `total` is the NET
+ * POSITION (`net = commission + paidToPg − collected`; may be negative — RoomAdda
+ * owes the owner). `paid` is the net already settled (the whole net once RECEIVED,
+ * else 0); `balance` is the outstanding net. Pure — `netPaise` is passed in from
+ * {@link netCommissionPaise} so this composer never re-derives the net itself.
+ */
+export function composeCommissionInvoice(input: {
+  commissionPaise: number;
+  paidToPgPaise: number;
+  collectedPaise: number;
+  netPaise: number;
+  settlementStatus: CommissionSettlementStatus;
+}): ComposedInvoice {
+  assertPaise(input.commissionPaise);
+  assertPaise(input.paidToPgPaise);
+  assertPaise(input.collectedPaise);
+  const settled = input.settlementStatus === "RECEIVED";
+  const paidPaise = settled ? input.netPaise : 0;
+  const lineItems: InvoiceLineItem[] = [
+    { code: "COMMISSION", label: "RoomAdda commission", amountPaise: input.commissionPaise, source: "ENGINE" },
+    { code: "PAID_TO_PG", label: "Paid to PG owner", amountPaise: input.paidToPgPaise, source: "ENGINE" },
+    { code: "COLLECTED", label: "Collected (online + cash)", amountPaise: input.collectedPaise, source: "ENGINE" },
+    { code: "NET", label: "Net position", amountPaise: input.netPaise, source: "ENGINE" },
+    {
+      code: "SETTLEMENT",
+      label: settled ? "Settlement (received)" : "Settlement (pending)",
+      amountPaise: paidPaise,
+      source: "ENGINE",
+    },
+  ];
+  return { type: "COMMISSION", lineItems, totalPaise: input.netPaise, paidPaise, balancePaise: input.netPaise - paidPaise };
 }
 
 /**

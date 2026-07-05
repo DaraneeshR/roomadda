@@ -49,6 +49,12 @@ const envSchema = z.object({
   MSG91_WHATSAPP_NUMBER: z.string().optional(),
   MSG91_WHATSAPP_RENT_TEMPLATE: z.string().optional(),
   MSG91_RENT_REMINDER_TEMPLATE_ID: z.string().optional(),
+  // ERP Invoice Center (§15.7): the approved WhatsApp DOCUMENT template used to
+  // deliver customer / commission invoice PDFs (the "customer" and "pgowner"
+  // campaigns). When set (with MSG91_WHATSAPP_NUMBER) prod sends the real WhatsApp
+  // document; otherwise the delivery seam logs a stub. Optional so dev/test never
+  // need a live BSP key — the seam is isolated and tested via the stub.
+  MSG91_WHATSAPP_INVOICE_TEMPLATE: z.string().optional(),
   // Walk-in app-invite SMS (prod): a host records a walk-in tenant and the tenant
   // is SMSed a single-use pre-registration token to claim their RoomAdda account.
   // Live sender only; the dev stub logs instead. Optional locally.

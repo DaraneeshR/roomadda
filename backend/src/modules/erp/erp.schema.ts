@@ -16,4 +16,9 @@ export {
   updateBookingSchema,
   rejectBookingSchema,
   bulkApproveBookingsSchema,
+  // ERP-3 — Invoice Center (§15.6/§15.7).
+  invoiceListQuerySchema,
+  invoiceTypeQuerySchema,
+  updateInvoiceSchema,
+  bulkSendInvoicesSchema,
 } from "@roomadda/shared";

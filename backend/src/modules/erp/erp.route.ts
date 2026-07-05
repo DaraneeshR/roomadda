@@ -3,6 +3,7 @@ import { getAuthUser } from "../../plugins/auth.js";
 import { erpService } from "./erp.service.js";
 import { erpBookingsService } from "./erp.bookings.service.js";
 import { erpApprovalsService } from "./erp.approvals.service.js";
+import { erpInvoicesService } from "./erp.invoices.service.js";
 import { toCsv, toExcelXml } from "./erp.export.js";
 import {
   bookingApprovalsQuerySchema,
@@ -11,11 +12,15 @@ import {
   bookingsLedgerQuerySchema,
   bulkApproveBookingsSchema,
   bulkMarkCommissionReceivedSchema,
+  bulkSendInvoicesSchema,
   createHistoricalBookingSchema,
   erpCommissionQuerySchema,
+  invoiceListQuerySchema,
+  invoiceTypeQuerySchema,
   markCommissionReceivedSchema,
   rejectBookingSchema,
   updateBookingSchema,
+  updateInvoiceSchema,
 } from "./erp.schema.js";
 
 /**
@@ -98,6 +103,70 @@ export const erpRoutes: FastifyPluginAsync = async (app) => {
     const admin = getAuthUser(request);
     const { bookingId } = bookingIdParamSchema.parse(request.params);
     return erpBookingsService.remove(admin, bookingId, request.ip);
+  });
+
+  // ---- Invoice Center (§15.6/§15.7): two invoices from one booking, engine-priced ----
+
+  // List: recipient name + number, total, balance, sent status (per type).
+  app.get("/erp/invoices", async (request) =>
+    erpInvoicesService.list(invoiceListQuerySchema.parse(request.query)),
+  );
+
+  // Bulk-send invoices of one type (static path — declared before :bookingId).
+  app.post("/erp/invoices/send", async (request) => {
+    const admin = getAuthUser(request);
+    const { type, bookingIds } = bulkSendInvoicesSchema.parse(request.body);
+    return erpInvoicesService.sendBulk(admin, type, bookingIds, request.ip);
+  });
+
+  // Review one invoice: line items + total / amount-paid / balance (engine-sourced).
+  app.get("/erp/invoices/:bookingId", async (request) => {
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    const { type } = invoiceTypeQuerySchema.parse(request.query);
+    return { invoice: await erpInvoicesService.review(bookingId, type) };
+  });
+
+  // Generate the invoice PDF (reuses the receipt-PDF approach).
+  app.get("/erp/invoices/:bookingId/pdf", async (request, reply) => {
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    const { type } = invoiceTypeQuerySchema.parse(request.query);
+    const pdf = await erpInvoicesService.pdf(bookingId, type);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="roomadda-invoice-${type.toLowerCase()}-${bookingId}.pdf"`)
+      .send(Buffer.from(pdf));
+  });
+
+  // Edit a CUSTOMER invoice's line item / amount-paid; balance recomputes live (audited).
+  app.patch("/erp/invoices/:bookingId", async (request) => {
+    const admin = getAuthUser(request);
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    const { type } = invoiceTypeQuerySchema.parse(request.query);
+    const body = updateInvoiceSchema.parse(request.body);
+    return { invoice: await erpInvoicesService.update(admin, bookingId, type, body, request.ip) };
+  });
+
+  // Send one invoice (generate PDF + deliver over WhatsApp; audited).
+  app.post("/erp/invoices/:bookingId/send", async (request) => {
+    const admin = getAuthUser(request);
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    const { type } = invoiceTypeQuerySchema.parse(request.query);
+    return { invoice: await erpInvoicesService.send(admin, bookingId, type, true, request.ip) };
+  });
+
+  // Mark sent WITHOUT resending (existing customers); audited.
+  app.post("/erp/invoices/:bookingId/mark-sent", async (request) => {
+    const admin = getAuthUser(request);
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    const { type } = invoiceTypeQuerySchema.parse(request.query);
+    return { invoice: await erpInvoicesService.send(admin, bookingId, type, false, request.ip) };
+  });
+
+  // "Comm": generate + send the COMMISSION invoice PDF to the PG owner (pgowner campaign).
+  app.post("/erp/invoices/:bookingId/comm", async (request) => {
+    const admin = getAuthUser(request);
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    return { invoice: await erpInvoicesService.send(admin, bookingId, "COMMISSION", true, request.ip) };
   });
 
   // ---- Approvals queue (§15.3): pending bookings awaiting a decision ----
