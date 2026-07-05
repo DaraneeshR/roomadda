@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { getAuthUser } from "../../plugins/auth.js";
 import { agentService } from "./agent.service.js";
+import { agentErpService } from "./agent.erp.service.js";
 import { getAgentCity } from "./zone.js";
 import { toAgentBookingStatus, toAgentVisit, toInspection } from "./agent.serializer.js";
 import {
@@ -8,6 +9,10 @@ import {
   agentBookingIdParamSchema,
   agentBookingSchema,
   agentCheckInSchema,
+  agentErpBookingIdParamSchema,
+  agentErpBookingsQuerySchema,
+  agentErpUploadUrlSchema,
+  agentSubmitBookingSchema,
   agentVisitsQuerySchema,
   inspectionDraftSchema,
   inspectionPhotoUrlSchema,
@@ -141,5 +146,57 @@ export const agentRoutes: FastifyPluginAsync = async (app) => {
     const { id } = agentBookingIdParamSchema.parse(request.params);
     const booking = await agentService.getAttributedBooking(user.id, city, id);
     return reply.send(toAgentBookingStatus(booking));
+  });
+
+  // ---- ERP-6: the scoped agent ERP view (§15.4). Self + zone scoped; the agent
+  // sees ONLY their own bookings/commission/rank — never another agent's data nor
+  // any company-finance figure. getAgentCity is called so a zoneless agent is
+  // default-denied (403) on every ERP route too. ----
+
+  // Home: my bookings / approved / commission / monthly leaderboard rank.
+  app.get("/agent/erp/home", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    await getAgentCity(user.id);
+    return reply.send(await agentErpService.home(user.id));
+  });
+
+  // My bookings ledger (own only), each with the gross commission I earned.
+  app.get("/agent/erp/bookings", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    await getAgentCity(user.id);
+    const query = agentErpBookingsQuerySchema.parse(request.query);
+    return reply.send(await agentErpService.listBookings(user.id, query));
+  });
+
+  // My performance scorecard: totals, conversion %, commission, incentive, rank.
+  app.get("/agent/erp/performance", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    const city = await getAgentCity(user.id);
+    return reply.send(await agentErpService.performance(user.id, city));
+  });
+
+  // Presign a PUT URL for one camera-KYC / payment-proof image (before submit).
+  app.post("/agent/erp/uploads/url", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    await getAgentCity(user.id);
+    const { purpose, contentType } = agentErpUploadUrlSchema.parse(request.body);
+    return reply.send(await agentErpService.presignUpload(user.id, purpose, contentType));
+  });
+
+  // Submit an offline booking → PENDING_APPROVAL → the SHARED admin approval queue.
+  app.post("/agent/erp/submissions", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    const city = await getAgentCity(user.id);
+    const body = agentSubmitBookingSchema.parse(request.body);
+    return reply.status(201).send(await agentErpService.submit(user.id, city, body, request.ip));
+  });
+
+  // Open one of MY bookings in full (customer, docs, room, commission earned).
+  // Not my booking / out-of-zone → 404 (existence never leaked).
+  app.get("/agent/erp/bookings/:bookingId", guard, async (request, reply) => {
+    const user = getAuthUser(request);
+    const city = await getAgentCity(user.id);
+    const { bookingId } = agentErpBookingIdParamSchema.parse(request.params);
+    return reply.send(await agentErpService.bookingDetail(user.id, city, bookingId, request.ip));
   });
 };

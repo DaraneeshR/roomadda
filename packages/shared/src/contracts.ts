@@ -29,6 +29,10 @@ export const kycStatusSchema = z.enum(["PENDING", "VERIFIED", "REJECTED"]);
 export type KycStatus = z.infer<typeof kycStatusSchema>;
 export const KYC_STATUSES = kycStatusSchema.options;
 
+export const kycDocTypeSchema = z.enum(["AADHAAR", "PASSPORT", "DRIVING_LICENSE", "VOTER_ID"]);
+export type KycDocType = z.infer<typeof kycDocTypeSchema>;
+export const KYC_DOC_TYPES = kycDocTypeSchema.options;
+
 export const listingStatusSchema = z.enum(["DRAFT", "PENDING_REVIEW", "PUBLISHED", "SUSPENDED"]);
 export type ListingStatus = z.infer<typeof listingStatusSchema>;
 export const LISTING_STATUSES = listingStatusSchema.options;
@@ -2341,3 +2345,121 @@ export const passwordChangeRequiredSchema = z.object({
   mustChangePassword: z.literal(true),
 });
 export type PasswordChangeRequired = z.infer<typeof passwordChangeRequiredSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-6 — the scoped, mobile-first AGENT ERP view (§15.4). An agent sees ONLY
+// their OWN work. These DTOs deliberately carry the agent's GROSS commission
+// (BPS of rent, the ONE engine definition via `agentCommissionPaise`) and NOTHING
+// else money-wise: NO `collected` / `paidToPg` / `net` / settlement (company
+// finance) and NO other agent's data. The §15.4 privacy invariant is enforced
+// server-side (self + zone scoping); the shapes below simply cannot express a
+// company-finance figure. Every money field is integer paise.
+// ---------------------------------------------------------------------------
+
+/** One of the agent's own bookings, with the gross commission THEY earned. */
+export const agentErpBookingRowSchema = z.object({
+  bookingId: z.string(),
+  approval: bookingApprovalStatusSchema,
+  bookingStatus: bookingStatusSchema,
+  tenantName: z.string(),
+  listingId: z.string(),
+  listingAlias: z.string(),
+  agentChannel: agentBookingChannelSchema.nullable(),
+  monthlyRentPaise: z.number().int().nonnegative(),
+  tokenAmountPaise: z.number().int().nonnegative(),
+  depositPaise: z.number().int().nonnegative(),
+  moveInDate: z.string().nullable(),
+  confirmedAt: z.string().nullable(),
+  createdAt: z.string(),
+  /** Gross commission (BPS of rent, engine) — null until the booking is confirmed-paid. */
+  commissionEarnedPaise: z.number().int().nonnegative().nullable(),
+});
+export type AgentErpBookingRow = z.infer<typeof agentErpBookingRowSchema>;
+
+/** GET /v1/agent/erp/bookings — the agent's OWN bookings ledger, cursor-paginated. */
+export const agentErpBookingsResponseSchema = z.object({
+  items: z.array(agentErpBookingRowSchema),
+  nextCursor: z.string().nullable(),
+});
+export type AgentErpBookingsResponse = z.infer<typeof agentErpBookingsResponseSchema>;
+
+/** GET /v1/agent/erp/home — the agent's month snapshot: my bookings / approved /
+ *  commission / leaderboard rank, own data only. */
+export const agentErpHomeSchema = z.object({
+  periodMonth: z.string(),
+  periodLabel: z.string(),
+  bookingCount: z.number().int().nonnegative(),
+  approvedCount: z.number().int().nonnegative(),
+  commissionEarnedPaise: z.number().int().nonnegative(),
+  /** The agent's rank in the monthly commission leaderboard (1 = top); null if no
+   *  commission this month. Only the agent's OWN position — never others' figures. */
+  rank: z.number().int().positive().nullable(),
+  totalAgents: z.number().int().nonnegative(),
+  generatedAt: z.string(),
+});
+export type AgentErpHome = z.infer<typeof agentErpHomeSchema>;
+
+/** GET /v1/agent/erp/performance — the agent's scorecard: totals, conversion,
+ *  commission, incentive tier, and monthly rank. Own data only. */
+export const agentErpPerformanceSchema = z.object({
+  periodMonth: z.string(),
+  periodLabel: z.string(),
+  submitted: z.number().int().nonnegative(),
+  approved: z.number().int().nonnegative(),
+  conversionRate: z.number().min(0).max(1),
+  visitsCompleted: z.number().int().nonnegative(),
+  commissionEarnedPaise: z.number().int().nonnegative(),
+  tier: erpAgentTierSchema,
+  rank: z.number().int().positive().nullable(),
+  totalAgents: z.number().int().nonnegative(),
+  generatedAt: z.string(),
+});
+export type AgentErpPerformance = z.infer<typeof agentErpPerformanceSchema>;
+
+/** GET /v1/agent/erp/bookings/:bookingId — one of the agent's OWN bookings in
+ *  full: customer, listing (unmasked — the agent is privileged in-zone), room,
+ *  stay, the gross commission earned, KYC docs + payment proof as signed URLs.
+ *  A booking the agent did not create, or one out-of-zone, is a 404. */
+export const agentErpBookingDetailSchema = z.object({
+  bookingId: z.string(),
+  approval: bookingApprovalStatusSchema,
+  bookingStatus: bookingStatusSchema,
+  agentChannel: agentBookingChannelSchema.nullable(),
+  createdAt: z.string(),
+  confirmedAt: z.string().nullable(),
+  moveInDate: z.string().nullable(),
+  customer: z.object({ fullName: z.string(), phone: z.string() }),
+  listing: z.object({
+    listingId: z.string(),
+    alias: z.string(),
+    actualName: z.string(),
+    areaLabel: z.string(),
+    city: z.string(),
+  }),
+  room: z.object({ bedId: z.string(), bedLabel: z.string(), roomName: z.string() }),
+  stay: z.object({
+    monthlyRentPaise: z.number().int().nonnegative(),
+    depositPaise: z.number().int().nonnegative(),
+    tokenAmountPaise: z.number().int().nonnegative(),
+    moveInDate: z.string().nullable(),
+  }),
+  commissionEarnedPaise: z.number().int().nonnegative().nullable(),
+  kyc: z
+    .object({ status: kycStatusSchema, documents: z.array(bookingKycDocumentSchema) })
+    .nullable(),
+  paymentProof: z.object({ url: z.string(), expiresInSeconds: z.number().int().positive() }).nullable(),
+});
+export type AgentErpBookingDetail = z.infer<typeof agentErpBookingDetailSchema>;
+
+/** POST /v1/agent/erp/uploads/url — a presigned PUT for one KYC/proof image. */
+export const agentErpUploadUrlResponseSchema = z.object({
+  key: z.string(),
+  url: z.string(),
+  expiresInSeconds: z.number().int().positive(),
+});
+export type AgentErpUploadUrlResponse = z.infer<typeof agentErpUploadUrlResponseSchema>;
+
+/** POST /v1/agent/erp/submissions — the created booking (PENDING_APPROVAL), now in
+ *  the shared admin approval queue. */
+export const agentSubmitBookingResultSchema = z.object({ booking: agentErpBookingRowSchema });
+export type AgentSubmitBookingResult = z.infer<typeof agentSubmitBookingResultSchema>;

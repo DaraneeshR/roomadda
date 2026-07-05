@@ -551,6 +551,11 @@ model Booking {
   refundReason     String?
   // Hold expiry: TOKEN_PENDING beyond this is swept to EXPIRED by the job.
   holdExpiresAt    DateTime?
+  // §15.4 agent offline submission: the private object key of the payment-proof
+  // image the agent attached (cash/UPI receipt). Evidence for the admin review —
+  // NOT a confirmation trigger (payment truth is still the verified webhook). Only
+  // the key is stored; it is surfaced solely as a short-lived signed URL.
+  paymentProofKey  String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 

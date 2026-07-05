@@ -65,6 +65,8 @@ Env can also come from a `.env` file (copy `.env.example`, then list it under
 
 ## Backend dependency
 
-The booking-status poll calls `GET /v1/bookings/:id` (tenant-scoped). The backend
+The booking-status poll calls `GET /v1/boo
+
+kings/:id` (tenant-scoped). The backend
 service has `bookingService.getForTenant` but does not yet expose that route —
 add it so the payment screen can read the webhook-confirmed status.

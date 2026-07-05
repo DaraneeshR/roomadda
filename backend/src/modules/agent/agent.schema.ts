@@ -12,6 +12,11 @@ export {
   inspectionPhotoUrlSchema,
   addInspectionPhotoSchema,
   agentBookingSchema,
+  // ERP-6 — scoped agent ERP view (§15.4).
+  agentErpBookingsQuerySchema,
+  agentErpBookingIdParamSchema,
+  agentErpUploadUrlSchema,
+  agentSubmitBookingSchema,
 } from "@roomadda/shared";
 
 export type {
@@ -21,4 +26,7 @@ export type {
   InspectionPhotoUrlInput,
   AddInspectionPhotoInput,
   AgentBookingInput,
+  AgentErpBookingsQuery,
+  AgentErpUploadUrlInput,
+  AgentSubmitBookingInput,
 } from "@roomadda/shared";

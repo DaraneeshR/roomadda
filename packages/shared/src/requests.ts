@@ -15,6 +15,7 @@ import {
   inspectionStatusSchema,
   invoiceStatusSchema,
   invoiceTypeSchema,
+  kycDocTypeSchema,
   kycStatusSchema,
   landingPageKindSchema,
   listingStatusSchema,
@@ -1439,6 +1440,67 @@ export type AddTeamMemberInput = z.infer<typeof addTeamMemberSchema>;
  * is optional; at least one must be present. Strings can be cleared with null.
  */
 // ---------------------------------------------------------------------------
+// ERP-6 — the scoped AGENT ERP view (§15.4). Self + zone scoping is enforced in
+// the service/route; these only validate the input shapes.
+// ---------------------------------------------------------------------------
+
+/** GET /v1/agent/erp/bookings — the agent's own bookings, optionally by approval. */
+export const agentErpBookingsQuerySchema = z
+  .object({
+    approval: bookingApprovalStatusSchema.optional(),
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict();
+export type AgentErpBookingsQuery = z.infer<typeof agentErpBookingsQuerySchema>;
+
+/** Path param for the agent's booking detail. */
+export const agentErpBookingIdParamSchema = z.object({ bookingId: z.string().uuid() }).strict();
+
+/** POST /v1/agent/erp/uploads/url — presign a KYC/proof image upload. */
+export const agentErpUploadPurposeSchema = z.enum(["KYC_FRONT", "KYC_BACK", "KYC_SUPPORTING", "PAYMENT_PROOF"]);
+export type AgentErpUploadPurpose = z.infer<typeof agentErpUploadPurposeSchema>;
+export const agentErpUploadUrlSchema = z
+  .object({ purpose: agentErpUploadPurposeSchema, contentType: z.enum(["image/jpeg", "image/png"]) })
+  .strict();
+export type AgentErpUploadUrlInput = z.infer<typeof agentErpUploadUrlSchema>;
+
+/**
+ * POST /v1/agent/erp/submissions — submit an offline booking (§15.4): guest +
+ * property (bed/room, in-zone) + stay + financial terms + camera KYC keys +
+ * a payment-proof key. Creates a PENDING_APPROVAL booking attributed to the agent
+ * that flows into the SAME admin approval queue (ERP-2). The KYC/proof keys must
+ * already be uploaded via the presign endpoint. Money is integer paise.
+ */
+export const agentSubmitBookingSchema = z
+  .object({
+    tenantName: z.string().trim().min(1).max(120),
+    tenantPhone: e164Schema,
+    bedId: z.string().uuid().optional(),
+    roomId: z.string().uuid().optional(),
+    moveInDate: z.string().datetime(),
+    monthlyRentPaise: z.number().int().nonnegative(),
+    depositPaise: z.number().int().nonnegative().default(0),
+    tokenAmountPaise: z.number().int().positive(),
+    agentChannel: agentBookingChannelSchema.default("WALK_IN"),
+    kyc: z
+      .object({
+        docType: kycDocTypeSchema,
+        aadhaarFrontKey: z.string().min(1).max(512),
+        aadhaarBackKey: z.string().min(1).max(512).optional(),
+        supportingDocKey: z.string().min(1).max(512).optional(),
+        supportingDocType: z.string().trim().min(1).max(60).optional(),
+      })
+      .strict(),
+    paymentProofKey: z.string().min(1).max(512),
+  })
+  .strict()
+  .refine((b) => (b.bedId ? !b.roomId : !!b.roomId), {
+    message: "Provide exactly one of bedId or roomId",
+    path: ["bedId"],
+  });
+export type AgentSubmitBookingInput = z.infer<typeof agentSubmitBookingSchema>;
+
 export const updateOrgSettingsSchema = z
   .object({
     legalName: z.string().trim().min(1).max(200).optional(),

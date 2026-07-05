@@ -67,6 +67,7 @@ function makeBooking(overrides: Partial<BookingWithRelations> = {}): BookingWith
     refundPaise: null,
     refundReason: null,
     holdExpiresAt: new Date(NOW.getTime() + 15 * 60 * 1000),
+    paymentProofKey: null,
     createdAt: NOW,
     updatedAt: NOW,
     payment: null,
