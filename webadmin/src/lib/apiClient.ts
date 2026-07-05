@@ -28,6 +28,8 @@ export interface ApiClient {
   patch<T>(path: string, body?: unknown): Promise<T>;
   put<T>(path: string, body?: unknown): Promise<T>;
   del<T>(path: string): Promise<T>;
+  /** Authenticated GET that returns the raw body as a Blob (file downloads/exports). */
+  getBlob(path: string): Promise<Blob>;
 }
 
 async function toApiError(res: Response): Promise<ApiError> {
@@ -90,7 +92,8 @@ export function createApiClient(baseUrl: string): ApiClient {
     return refreshing;
   }
 
-  async function request<T>(path: string, init: RequestInit): Promise<T> {
+  /** Send with the auth+refresh dance, returning the raw ok Response (throws otherwise). */
+  async function send(path: string, init: RequestInit): Promise<Response> {
     let res = await rawFetch(path, init, true);
 
     if (res.status === 401) {
@@ -106,6 +109,11 @@ export function createApiClient(baseUrl: string): ApiClient {
     }
 
     if (!res.ok) throw await toApiError(res);
+    return res;
+  }
+
+  async function request<T>(path: string, init: RequestInit): Promise<T> {
+    const res = await send(path, init);
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
   }
@@ -126,5 +134,6 @@ export function createApiClient(baseUrl: string): ApiClient {
     patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body: serialize(body) }),
     put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body: serialize(body) }),
     del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+    getBlob: (path) => send(path, { method: "GET" }).then((res) => res.blob()),
   };
 }

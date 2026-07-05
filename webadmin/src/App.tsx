@@ -15,6 +15,9 @@ import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { CashReconciliationPage } from "./pages/CashReconciliationPage";
 import { CmsPage } from "./pages/CmsPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ErpApprovalsPage } from "./pages/ErpApprovalsPage";
+import { ErpBookingsPage } from "./pages/ErpBookingsPage";
+import { ErpDashboardPage } from "./pages/ErpDashboardPage";
 import { HostsPage } from "./pages/HostsPage";
 import { KycReviewPage } from "./pages/KycReviewPage";
 import { ListingsReviewPage } from "./pages/ListingsReviewPage";
@@ -54,6 +57,9 @@ export function App() {
                       <Route path="/trust-featured" element={<TrustFeaturedPage />} />
                       <Route path="/cms" element={<CmsPage />} />
                       <Route path="/broadcasts" element={<BroadcastsPage />} />
+                      <Route path="/erp" element={<ErpDashboardPage />} />
+                      <Route path="/erp/bookings" element={<ErpBookingsPage />} />
+                      <Route path="/erp/approvals" element={<ErpApprovalsPage />} />
                     </Route>
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />

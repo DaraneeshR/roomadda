@@ -6,6 +6,7 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  ListSubheader,
   Toolbar,
   Typography,
 } from "@mui/material";
@@ -14,22 +15,60 @@ import { useAuth } from "../auth/AuthProvider";
 
 const DRAWER_WIDTH = 230;
 
-const NAV_ITEMS: Array<{ to: string; label: string; end?: boolean }> = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/kyc", label: "KYC review" },
-  { to: "/listings", label: "Listings review" },
-  { to: "/bookings", label: "Bookings" },
-  { to: "/payments", label: "Payments" },
-  { to: "/cash", label: "Cash reconciliation" },
-  { to: "/ads", label: "Ads approval" },
-  { to: "/ad-pricing", label: "Ad pricing" },
-  { to: "/users", label: "Users & roles" },
-  { to: "/hosts", label: "Hosts" },
-  { to: "/agents", label: "Agents" },
-  { to: "/service-requests", label: "Service requests" },
-  { to: "/trust-featured", label: "Trust & Featured" },
-  { to: "/cms", label: "CMS & SEO" },
-  { to: "/broadcasts", label: "Broadcasts" },
+interface NavItem {
+  to: string;
+  label: string;
+  end?: boolean;
+}
+
+interface NavSection {
+  heading: string;
+  items: NavItem[];
+}
+
+/**
+ * The sidebar as an ordered list of headed sections. Grouping (over one flat
+ * list) keeps the growing surface navigable and gives each area a natural seam
+ * to role-gate later — a section can be filtered out by role without touching
+ * the pages it points at.
+ */
+const NAV_SECTIONS: NavSection[] = [
+  {
+    heading: "Overview",
+    items: [{ to: "/", label: "Dashboard", end: true }],
+  },
+  {
+    heading: "Governance",
+    items: [
+      { to: "/kyc", label: "KYC review" },
+      { to: "/listings", label: "Listings review" },
+      { to: "/users", label: "Users & roles" },
+      { to: "/hosts", label: "Hosts" },
+      { to: "/agents", label: "Agents" },
+      { to: "/service-requests", label: "Service requests" },
+      { to: "/trust-featured", label: "Trust & Featured" },
+      { to: "/cms", label: "CMS & SEO" },
+      { to: "/broadcasts", label: "Broadcasts" },
+    ],
+  },
+  {
+    heading: "Operations",
+    items: [
+      { to: "/bookings", label: "Bookings" },
+      { to: "/payments", label: "Payments" },
+      { to: "/cash", label: "Cash reconciliation" },
+      { to: "/ads", label: "Ads approval" },
+      { to: "/ad-pricing", label: "Ad pricing" },
+    ],
+  },
+  {
+    heading: "Finance / ERP",
+    items: [
+      { to: "/erp", label: "ERP dashboard", end: true },
+      { to: "/erp/bookings", label: "Bookings ledger" },
+      { to: "/erp/approvals", label: "Approvals" },
+    ],
+  },
 ];
 
 export function AppLayout() {
@@ -60,19 +99,31 @@ export function AppLayout() {
         }}
       >
         <Toolbar />
-        <List>
-          {NAV_ITEMS.map((item) => (
-            <ListItemButton
-              key={item.to}
-              component={NavLink}
-              to={item.to}
-              end={item.end}
-              sx={{ "&.active": { bgcolor: "action.selected", fontWeight: 600 } }}
+        <Box sx={{ overflow: "auto" }}>
+          {NAV_SECTIONS.map((section) => (
+            <List
+              key={section.heading}
+              dense
+              subheader={
+                <ListSubheader disableSticky sx={{ bgcolor: "transparent", lineHeight: "2.2em" }}>
+                  {section.heading}
+                </ListSubheader>
+              }
             >
-              <ListItemText primary={item.label} />
-            </ListItemButton>
+              {section.items.map((item) => (
+                <ListItemButton
+                  key={item.to}
+                  component={NavLink}
+                  to={item.to}
+                  end={item.end}
+                  sx={{ "&.active": { bgcolor: "action.selected", fontWeight: 600 } }}
+                >
+                  <ListItemText primary={item.label} />
+                </ListItemButton>
+              ))}
+            </List>
           ))}
-        </List>
+        </Box>
       </Drawer>
 
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: `calc(100% - ${DRAWER_WIDTH}px)` }}>

@@ -5,10 +5,14 @@ import type { Page } from "@roomadda/shared";
 /**
  * Server-driven cursor pagination. Keeps a stack of page cursors so Previous
  * works; the current cursor is part of the query key so each page is cached.
+ *
+ * The response type `R` defaults to `Page<T>` but can be widened (e.g. a ledger
+ * response that also carries filtered `totals`) — pass it as the second type
+ * param and read the extra fields off the returned `data`.
  */
-export function usePaginatedQuery<T>(
+export function usePaginatedQuery<T, R extends Page<T> = Page<T>>(
   key: QueryKey,
-  fetcher: (cursor: string | undefined, limit: number) => Promise<Page<T>>,
+  fetcher: (cursor: string | undefined, limit: number) => Promise<R>,
   limit = 20,
 ) {
   const [stack, setStack] = useState<Array<string | undefined>>([undefined]);
@@ -37,6 +41,10 @@ export function usePaginatedQuery<T>(
 
   return {
     items: query.data?.items ?? [],
+    /** The full page response (e.g. for a ledger's `totals`); undefined until loaded. */
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
     isFetching: query.isFetching,
     refetch: query.refetch,
     next,
