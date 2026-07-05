@@ -2072,3 +2072,207 @@ export const invoiceSendResultSchema = z.object({
   delivered: z.boolean(),
 });
 export type InvoiceSendResult = z.infer<typeof invoiceSendResultSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-4 — Dashboard, Money Manager, and Agents (§15.3). All three roll up the
+// SAME engine-priced confirmed-paid booking set (the one the commission ledger
+// uses), scoped by the ONE §15.3 global filter, so no headline can disagree with
+// the ledger rows beneath it. Every money figure is integer paise and
+// engine-sourced (priced through erp.pricing → the money engine); `netPaise` is
+// the only field that may be negative (net = commission + paidToPg − collected).
+// ---------------------------------------------------------------------------
+
+/** The resolved finance period every ERP-4 surface echoes back (so the client can
+ *  label the numbers with the FY/quarter/month that produced them). */
+export const erpFinancePeriodSchema = z.object({
+  financialYear: z.number().int(),
+  label: z.string(),
+  fromInclusive: z.string(),
+  toExclusive: z.string(),
+});
+export type ErpFinancePeriod = z.infer<typeof erpFinancePeriodSchema>;
+
+/**
+ * AMC (Annual Maintenance Contract) headline — the KNOWN §15.3 gap. There is no
+ * annual-contract model in the schema yet, so AMC revenue cannot be computed and
+ * is NEVER fabricated: `supported` is false, `paise` is null, and `note` explains
+ * the gap. When the annual-contract model lands this becomes a real engine figure.
+ */
+export const erpAmcHeadlineSchema = z.object({
+  supported: z.literal(false),
+  paise: z.null(),
+  note: z.string(),
+});
+export type ErpAmcHeadline = z.infer<typeof erpAmcHeadlineSchema>;
+
+/** Dashboard headline numbers (§15.3) — Σ over the filtered confirmed-paid set. */
+export const erpDashboardHeadlineSchema = z.object({
+  bookingCount: z.number().int().nonnegative(),
+  /** Σ net commission over the filtered set (the §15.3 "net commission" headline). */
+  netCommissionPaise: z.number().int(),
+  /** Σ collected (captured online + collected cash) — the "total collection" headline. */
+  totalCollectionPaise: z.number().int().nonnegative(),
+  /** Σ gross commission (BPS of rent) over the filtered set. */
+  commissionPaise: z.number().int().nonnegative(),
+  /** Σ paid to PG owners over the filtered set. */
+  paidToPgPaise: z.number().int().nonnegative(),
+  /** The "pending" headline: unsettled (PENDING) net + how many bookings it spans. */
+  pendingNetPaise: z.number().int(),
+  pendingBookingCount: z.number().int().nonnegative(),
+  /** Already-settled (RECEIVED) net, for the received-vs-pending split. */
+  receivedNetPaise: z.number().int(),
+  receivedBookingCount: z.number().int().nonnegative(),
+  /** The flagged AMC gap — never fabricated (see {@link erpAmcHeadlineSchema}). */
+  amc: erpAmcHeadlineSchema,
+});
+export type ErpDashboardHeadline = z.infer<typeof erpDashboardHeadlineSchema>;
+
+/** One bar of the "commission by property" chart — Σ over that property's rows. */
+export const erpCommissionByPropertySchema = z.object({
+  listingId: z.string(),
+  listingAlias: z.string(),
+  bookingCount: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+});
+export type ErpCommissionByProperty = z.infer<typeof erpCommissionByPropertySchema>;
+
+/** One bar of the "bookings by month" chart. Every month in the period appears
+ *  (zero-filled) so the axis is continuous. Bucketed by `confirmedAt`. */
+export const erpBookingsByMonthSchema = z.object({
+  month: z.string(), // "YYYY-MM"
+  label: z.string(), // "Apr 2026"
+  bookingCount: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+});
+export type ErpBookingsByMonth = z.infer<typeof erpBookingsByMonthSchema>;
+
+/** A row in the dashboard's top-agents mini leaderboard (Σ over the agent's rows). */
+export const erpTopAgentSchema = z.object({
+  agentId: z.string(),
+  agentName: z.string().nullable(),
+  bookingCount: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+});
+export type ErpTopAgent = z.infer<typeof erpTopAgentSchema>;
+
+/** GET /v1/erp/dashboard — the §15.3 dashboard: headline numbers + two charts +
+ *  a top-agents mini leaderboard, all obeying the one global filter. */
+export const erpDashboardResponseSchema = z.object({
+  period: erpFinancePeriodSchema,
+  headline: erpDashboardHeadlineSchema,
+  commissionByProperty: z.array(erpCommissionByPropertySchema),
+  bookingsByMonth: z.array(erpBookingsByMonthSchema),
+  topAgents: z.array(erpTopAgentSchema),
+  generatedAt: z.string(),
+});
+export type ErpDashboardResponse = z.infer<typeof erpDashboardResponseSchema>;
+
+/** One month row in the Money Manager (§15.3). `runningBalancePaise` is the
+ *  cumulative net across the period up to and including this month. */
+export const erpMoneyMonthSchema = z.object({
+  month: z.string(), // "YYYY-MM"
+  label: z.string(), // "Apr 2026"
+  bookingCount: z.number().int().nonnegative(),
+  collectionPaise: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  /** Payouts made to PG owners in the month (Σ paidToPg). */
+  payoutPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+  /** Σ net of RECEIVED rows this month (settlements booked). */
+  settledNetPaise: z.number().int(),
+  pendingNetPaise: z.number().int(),
+  /** Cumulative net across the period through this month. */
+  runningBalancePaise: z.number().int(),
+});
+export type ErpMoneyMonth = z.infer<typeof erpMoneyMonthSchema>;
+
+/** The Money Manager customer drill-down (§15.3) — who paid what. Grouped by
+ *  tenant over the whole filtered set; `collectionPaise` is what they actually paid. */
+export const erpMoneyCustomerSchema = z.object({
+  tenantId: z.string(),
+  tenantName: z.string(),
+  bookingCount: z.number().int().nonnegative(),
+  collectionPaise: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+});
+export type ErpMoneyCustomer = z.infer<typeof erpMoneyCustomerSchema>;
+
+/** Money Manager totals — Σ over every month (== the dashboard headline sums). */
+export const erpMoneyTotalsSchema = z.object({
+  bookingCount: z.number().int().nonnegative(),
+  collectionPaise: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  payoutPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+  settledNetPaise: z.number().int(),
+  pendingNetPaise: z.number().int(),
+});
+export type ErpMoneyTotals = z.infer<typeof erpMoneyTotalsSchema>;
+
+/** GET /v1/erp/money-manager — the month-by-month finance view + customer drill-down. */
+export const erpMoneyManagerResponseSchema = z.object({
+  period: erpFinancePeriodSchema,
+  months: z.array(erpMoneyMonthSchema),
+  totals: erpMoneyTotalsSchema,
+  customers: z.array(erpMoneyCustomerSchema),
+  generatedAt: z.string(),
+});
+export type ErpMoneyManagerResponse = z.infer<typeof erpMoneyManagerResponseSchema>;
+
+/** An agent incentive tier (§15.3). A pure VOLUME classification (like a badge) —
+ *  it labels an agent's confirmed-paid volume; it does NOT compute or promise any
+ *  payout (the earned money is the engine commission figure). */
+export const erpAgentTierSchema = z.object({
+  name: z.string(),
+  minBookings: z.number().int().nonnegative(),
+  /** The next tier's name + how many more approved bookings to reach it (null at the top). */
+  nextTierName: z.string().nullable(),
+  bookingsToNextTier: z.number().int().nonnegative().nullable(),
+});
+export type ErpAgentTier = z.infer<typeof erpAgentTierSchema>;
+
+/** One agent's §15.3 scorecard. `submitted` counts bookings the agent is
+ *  attributed to that were CREATED in the period (all statuses); `approved` counts
+ *  the confirmed-paid subset; `conversionRate` is approved/submitted in [0,1].
+ *  Money is Σ over the agent's confirmed-paid rows (engine-priced). */
+export const erpAgentScorecardSchema = z.object({
+  agentId: z.string(),
+  agentName: z.string(),
+  assignedCity: z.string().nullable(),
+  submitted: z.number().int().nonnegative(),
+  approved: z.number().int().nonnegative(),
+  /** approved / submitted, rounded to 4 dp; 0 when nothing was submitted. */
+  conversionRate: z.number().min(0).max(1),
+  collectionPaise: z.number().int().nonnegative(),
+  commissionPaise: z.number().int().nonnegative(),
+  netPaise: z.number().int(),
+  tier: erpAgentTierSchema,
+});
+export type ErpAgentScorecard = z.infer<typeof erpAgentScorecardSchema>;
+
+/** GET /v1/erp/agents — every agent's scorecard plus the commission leaderboard
+ *  (the same scorecards, ranked by commission earned). Both obey the global filter. */
+export const erpAgentsResponseSchema = z.object({
+  period: erpFinancePeriodSchema,
+  agents: z.array(erpAgentScorecardSchema),
+  leaderboard: z.array(erpAgentScorecardSchema),
+  generatedAt: z.string(),
+});
+export type ErpAgentsResponse = z.infer<typeof erpAgentsResponseSchema>;
+
+/** POST /v1/erp/agents/bookings/:bookingId/reassign — the result of moving a
+ *  booking's attribution. `commission` is the booking's commission RECOMPUTED by
+ *  the engine after the move (null unless confirmed-paid); it now belongs to the
+ *  new agent. Re-fetch GET /v1/erp/agents to see the leaderboard recalculated. */
+export const reassignBookingResultSchema = z.object({
+  bookingId: z.string(),
+  previousAgentId: z.string().nullable(),
+  agentId: z.string(),
+  agentName: z.string(),
+  commission: bookingCommissionSummarySchema.nullable(),
+});
+export type ReassignBookingResult = z.infer<typeof reassignBookingResultSchema>;

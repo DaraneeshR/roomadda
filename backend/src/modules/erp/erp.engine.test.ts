@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  AGENT_INCENTIVE_TIERS,
   agentCommissionPaise,
+  agentIncentiveTier,
   approvalStatusOf,
   composeCommissionInvoice,
   composeCustomerInvoice,
   computeInvoiceBreakdown,
   computeLedgerFigures,
   daysInUtcMonth,
+  enumerateMonths,
   financialYearOf,
+  monthKeyOf,
   netCommissionPaise,
   proRataFirstMonthRentPaise,
   resolveFinancialPeriod,
@@ -258,5 +262,56 @@ describe("erp money engine — invoice composers (§15.6)", () => {
     expect(settled.paidPaise).toBe(net); // whole net settled
     expect(settled.balancePaise).toBe(0);
     expect(settled.lineItems.every((l) => l.source === "ENGINE")).toBe(true);
+  });
+});
+
+describe("erp money engine — ERP-4 §15.3 finance helpers", () => {
+  it("monthKeyOf buckets a UTC date to a zero-padded YYYY-MM key", () => {
+    expect(monthKeyOf(new Date(Date.UTC(2026, 0, 5)))).toBe("2026-01");
+    expect(monthKeyOf(new Date(Date.UTC(2026, 11, 31)))).toBe("2026-12");
+  });
+
+  it("enumerateMonths spans a whole FY as 12 ordered Apr→Mar months", () => {
+    const period = resolveFinancialPeriod({ financialYear: 2026 }, new Date());
+    const months = enumerateMonths(period);
+    expect(months).toHaveLength(12);
+    expect(months[0]!.key).toBe("2026-04");
+    expect(months[0]!.label).toBe("Apr 2026");
+    expect(months[11]!.key).toBe("2027-03");
+    // Contiguous: each month's toExclusive is the next month's fromInclusive.
+    for (let i = 1; i < months.length; i += 1) {
+      expect(months[i]!.fromInclusive.getTime()).toBe(months[i - 1]!.toExclusive.getTime());
+    }
+  });
+
+  it("enumerateMonths spans a quarter as 3 months and a single month as 1", () => {
+    expect(enumerateMonths(resolveFinancialPeriod({ financialYear: 2026, quarter: 1 }, new Date()))).toHaveLength(3);
+    expect(enumerateMonths(resolveFinancialPeriod({ financialYear: 2026, month: 5 }, new Date()))).toHaveLength(1);
+  });
+
+  it("agentIncentiveTier classifies volume with the shared thresholds and next-tier gap", () => {
+    expect(agentIncentiveTier(0).name).toBe("Bronze");
+    expect(agentIncentiveTier(4).name).toBe("Bronze");
+    const silver = agentIncentiveTier(5);
+    expect(silver.name).toBe("Silver");
+    expect(silver.nextTierName).toBe("Gold");
+    expect(silver.bookingsToNextTier).toBe(5); // Gold at 10
+    expect(agentIncentiveTier(10).name).toBe("Gold");
+
+    // Top tier has no next.
+    const top = agentIncentiveTier(50);
+    expect(top.name).toBe("Platinum");
+    expect(top.nextTierName).toBeNull();
+    expect(top.bookingsToNextTier).toBeNull();
+
+    // The tiers are ascending by threshold (the one source of truth).
+    for (let i = 1; i < AGENT_INCENTIVE_TIERS.length; i += 1) {
+      expect(AGENT_INCENTIVE_TIERS[i]!.minBookings).toBeGreaterThan(AGENT_INCENTIVE_TIERS[i - 1]!.minBookings);
+    }
+  });
+
+  it("agentIncentiveTier rejects a negative or non-integer count", () => {
+    expect(() => agentIncentiveTier(-1)).toThrow(RangeError);
+    expect(() => agentIncentiveTier(1.5)).toThrow(RangeError);
   });
 });

@@ -1300,3 +1300,44 @@ export const bulkSendInvoicesSchema = z
   })
   .strict();
 export type BulkSendInvoicesInput = z.infer<typeof bulkSendInvoicesSchema>;
+
+// ---------------------------------------------------------------------------
+// ERP-4 — Dashboard, Money Manager, and Agents (§15.3). All three obey the ONE
+// §15.3 global finance filter (FY / quarter / month / property / agent), so a
+// single filter scopes every screen identically. The filter mirrors the
+// commission-ledger query (same FY/quarter/month semantics, same property/agent
+// scoping) minus pagination — these are roll-up surfaces, not paged lists. Every
+// money figure they return is engine-sourced (priced through erp.pricing); the
+// schema only carries the filter, never a figure.
+// ---------------------------------------------------------------------------
+
+/** The §15.3 global finance filter shared by dashboard / money-manager / agents.
+ *  `financialYear` is the Indian FY start year; `quarter` (1–4) and `month`
+ *  (calendar 1–12) are mutually exclusive and resolved WITHIN the FY. `listingId`
+ *  scopes to one property, `agentId` to one agent. All optional; when no period is
+ *  given the server defaults to the current FY (always period-bounded). */
+export const erpFinanceFilterSchema = z
+  .object({
+    financialYear: z.coerce.number().int().min(2000).max(2100).optional(),
+    quarter: z.coerce.number().int().min(1).max(4).optional(),
+    month: z.coerce.number().int().min(1).max(12).optional(),
+    listingId: z.string().uuid().optional(),
+    agentId: z.string().uuid().optional(),
+  })
+  .strict()
+  .refine((q) => !(q.quarter !== undefined && q.month !== undefined), {
+    message: "provide quarter or month, not both",
+    path: ["month"],
+  });
+export type ErpFinanceFilter = z.infer<typeof erpFinanceFilterSchema>;
+
+/**
+ * POST /v1/erp/agents/bookings/:bookingId/reassign — ADMIN back-office correction
+ * that moves a booking's agent attribution to a different AGENT (§15.3). Because
+ * commission is DERIVED on read by the money engine from the booking's rent + its
+ * agent link (never stored per-agent), moving the link automatically moves the
+ * commission, the agent's performance, and the leaderboard — there is no separate
+ * commission path to update. ADMIN-only and audited (records the before/after agent).
+ */
+export const reassignBookingSchema = z.object({ agentId: z.string().uuid() }).strict();
+export type ReassignBookingInput = z.infer<typeof reassignBookingSchema>;

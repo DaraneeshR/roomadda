@@ -4,6 +4,8 @@ import { erpService } from "./erp.service.js";
 import { erpBookingsService } from "./erp.bookings.service.js";
 import { erpApprovalsService } from "./erp.approvals.service.js";
 import { erpInvoicesService } from "./erp.invoices.service.js";
+import { erpFinanceService } from "./erp.finance.service.js";
+import { erpAgentsService } from "./erp.agents.service.js";
 import { toCsv, toExcelXml } from "./erp.export.js";
 import {
   bookingApprovalsQuerySchema,
@@ -15,9 +17,11 @@ import {
   bulkSendInvoicesSchema,
   createHistoricalBookingSchema,
   erpCommissionQuerySchema,
+  erpFinanceFilterSchema,
   invoiceListQuerySchema,
   invoiceTypeQuerySchema,
   markCommissionReceivedSchema,
+  reassignBookingSchema,
   rejectBookingSchema,
   updateBookingSchema,
   updateInvoiceSchema,
@@ -32,6 +36,29 @@ import {
 export const erpRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", app.authenticate);
   app.addHook("preHandler", app.requireRole("ADMIN"));
+
+  // ---- ERP-4 Dashboard (§15.3): headline numbers + charts + top-agents, one global filter ----
+  app.get("/erp/dashboard", async (request) =>
+    erpFinanceService.dashboard(erpFinanceFilterSchema.parse(request.query)),
+  );
+
+  // ---- ERP-4 Money Manager (§15.3): month-by-month + running balance + customer drill-down ----
+  app.get("/erp/money-manager", async (request) =>
+    erpFinanceService.moneyManager(erpFinanceFilterSchema.parse(request.query)),
+  );
+
+  // ---- ERP-4 Agents (§15.3): per-agent scorecards + commission leaderboard ----
+  app.get("/erp/agents", async (request) =>
+    erpAgentsService.overview(erpFinanceFilterSchema.parse(request.query)),
+  );
+
+  // ---- Reassign a booking's agent attribution → commission/leaderboard recalc (audited) ----
+  app.post("/erp/agents/bookings/:bookingId/reassign", async (request) => {
+    const admin = getAuthUser(request);
+    const { bookingId } = bookingIdParamSchema.parse(request.params);
+    const { agentId } = reassignBookingSchema.parse(request.body);
+    return { result: await erpAgentsService.reassign(admin, bookingId, agentId, request.ip) };
+  });
 
   // ---- Commission ledger (received vs pending), filterable by FY/quarter/month/property/agent ----
   app.get("/erp/commission", async (request) =>

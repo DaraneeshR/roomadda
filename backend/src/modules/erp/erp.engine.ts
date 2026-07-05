@@ -310,10 +310,95 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ] as const;
 
+const MONTH_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
 function addMonthsToFyStart(fy: number, months: number): Date {
   return new Date(Date.UTC(fy, FY_START_MONTH_INDEX + months, 1));
 }
 
 function twoDigit(year: number): string {
   return String(year % 100).padStart(2, "0");
+}
+
+/** The calendar month `date` falls in, as a stable "YYYY-MM" bucket key (UTC). */
+export function monthKeyOf(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** One calendar month inside a finance period: its bucket key, display label, and
+ *  its own `[fromInclusive, toExclusive)` UTC range. */
+export interface PeriodMonth {
+  key: string; // "YYYY-MM"
+  label: string; // "Apr 2026"
+  fromInclusive: Date;
+  toExclusive: Date;
+}
+
+/**
+ * Enumerate EVERY calendar month spanned by a resolved finance period, in order —
+ * so the Money Manager / bookings-by-month chart shows a continuous axis (zero-fill
+ * the empty months) and the running balance is unbroken. A whole FY yields 12
+ * months, a quarter 3, a single month 1. Pure — derived from the period's bounds.
+ */
+export function enumerateMonths(period: FinancialPeriod): PeriodMonth[] {
+  const months: PeriodMonth[] = [];
+  let cursor = new Date(
+    Date.UTC(period.fromInclusive.getUTCFullYear(), period.fromInclusive.getUTCMonth(), 1),
+  );
+  while (cursor.getTime() < period.toExclusive.getTime()) {
+    const next = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+    months.push({
+      key: monthKeyOf(cursor),
+      label: `${MONTH_ABBR[cursor.getUTCMonth()]} ${cursor.getUTCFullYear()}`,
+      fromInclusive: cursor,
+      toExclusive: next,
+    });
+    cursor = next;
+  }
+  return months;
+}
+
+/**
+ * Agent incentive tiers (§15.3) — a pure VOLUME ladder keyed on the number of
+ * confirmed-paid bookings an agent closed in the period. This is a PERFORMANCE
+ * classification (like a trust badge), NOT a money figure: it neither computes nor
+ * promises any payout — an agent's earned money is always the engine commission.
+ * Ordered ascending by threshold; the thresholds are the one source of truth for
+ * every agent screen so a tier label can never disagree with the leaderboard.
+ */
+export const AGENT_INCENTIVE_TIERS = [
+  { name: "Bronze", minBookings: 0 },
+  { name: "Silver", minBookings: 5 },
+  { name: "Gold", minBookings: 10 },
+  { name: "Platinum", minBookings: 20 },
+] as const;
+
+export interface AgentTier {
+  name: string;
+  minBookings: number;
+  nextTierName: string | null;
+  bookingsToNextTier: number | null;
+}
+
+/** Classify an agent's approved-booking volume into its incentive tier, plus how
+ *  far to the next tier (null at the top). Pure. */
+export function agentIncentiveTier(approvedBookings: number): AgentTier {
+  if (!Number.isInteger(approvedBookings) || approvedBookings < 0) {
+    throw new RangeError(`approvedBookings must be a non-negative integer, got ${approvedBookings}`);
+  }
+  let index = 0;
+  for (let i = 0; i < AGENT_INCENTIVE_TIERS.length; i += 1) {
+    if (approvedBookings >= AGENT_INCENTIVE_TIERS[i]!.minBookings) index = i;
+  }
+  const current = AGENT_INCENTIVE_TIERS[index]!;
+  const next = AGENT_INCENTIVE_TIERS[index + 1] ?? null;
+  return {
+    name: current.name,
+    minBookings: current.minBookings,
+    nextTierName: next?.name ?? null,
+    bookingsToNextTier: next ? next.minBookings - approvedBookings : null,
+  };
 }

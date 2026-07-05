@@ -21,4 +21,7 @@ export {
   invoiceTypeQuerySchema,
   updateInvoiceSchema,
   bulkSendInvoicesSchema,
+  // ERP-4 — dashboard, money manager, agents (§15.3).
+  erpFinanceFilterSchema,
+  reassignBookingSchema,
 } from "@roomadda/shared";
