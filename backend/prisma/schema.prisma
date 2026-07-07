@@ -404,6 +404,7 @@ model User {
   reviews          Review[]                @relation("TenantReviews")
   commissionReceipts CommissionLedger[]    @relation("CommissionReceivedBy")
   invoicesSent     Invoice[]               @relation("InvoiceSentBy")
+  hotelReservations HotelReservation[]     @relation("GuestHotelReservations")
 
   @@index([role])
   @@map("users")
@@ -671,6 +672,20 @@ model HotelReservation {
   perNightPaise Int
   nights        Int
   roomTotalPaise Int
+  // The securing payment due now to confirm the hold (integer paise, server-owned).
+  // B2C hotel is full-stay prepay, so this equals roomTotalPaise — kept as its own
+  // field so a future token policy (e.g. first-night) can lower it without a migration.
+  tokenAmountPaise Int                 @default(0)
+  // Razorpay refs live directly on the reservation (like RentInvoice/AdSlot): a
+  // HotelReservation is NOT a Booking, so it does NOT use the Payment model (Payment
+  // is 1:1 with Booking). The verified webhook matches by `razorpayOrderId` and is the
+  // ONLY thing that flips the reservation to CONFIRMED (/CLAUDE.md money rule #2).
+  razorpayOrderId   String?            @unique
+  razorpayPaymentId String?            @unique
+  // Links the CONFIRMED transition to the verified webhook that produced it.
+  webhookEventId    String?            @db.Uuid
+  // Opaque check-in code minted ONLY on CONFIRMED (the client renders it as a QR).
+  qrCodeToken       String?            @unique
   // Hold expiry: a HELD reservation past this is swept to EXPIRED (mirrors bookings).
   holdExpiresAt DateTime?
   confirmedAt   DateTime?
@@ -678,8 +693,11 @@ model HotelReservation {
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
 
-  hotelRoom HotelRoom          @relation(fields: [hotelRoomId], references: [id], onDelete: Cascade)
-  category  HotelRoomCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  hotelRoom    HotelRoom           @relation(fields: [hotelRoomId], references: [id], onDelete: Cascade)
+  category     HotelRoomCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  guest        User?               @relation("GuestHotelReservations", fields: [guestId], references: [id])
+  webhookEvent WebhookEvent?       @relation(fields: [webhookEventId], references: [id])
+  refunds      RefundTransaction[]
 
   // NOTE: the "no overlapping live reservation per room" EXCLUDE constraint
   // (no_overlapping_hotel_reservation) lives in prisma/sql/03_hotel_guard.sql —
@@ -687,6 +705,7 @@ model HotelReservation {
   @@index([hotelRoomId])
   @@index([categoryId, status])
   @@index([listingId, status])
+  @@index([guestId])
   @@map("hotel_reservations")
 }
 
@@ -802,11 +821,21 @@ model PaymentTransaction {
 // `refund.processed`/`refund.failed` webhook is the ONLY thing that settles it
 // to PROCESSED/FAILED (refund truth = the webhook, see /CLAUDE.md domain rule
 // #2). `razorpayRefundId` is unique so a replayed webhook is a no-op.
+// A refund against a captured payment. It is POLYMORPHIC over what it refunds so
+// the SAME policy-gated, webhook-settled path serves both surfaces (never forked):
+//  - a PG BOOKING token (paymentId + bookingId set), or
+//  - a B2C HOTEL reservation (hotelReservationId set).
+// Exactly one owner is populated. Whichever it is, the row is created INITIATED and
+// ONLY the verified refund.processed/failed webhook settles it (refund truth =
+// webhook, /CLAUDE.md rule #2), matched by the unique `razorpayRefundId`.
 model RefundTransaction {
   id               String       @id @default(uuid()) @db.Uuid
-  paymentId        String       @db.Uuid
-  // Denormalised so the webhook can find the booking without a join.
-  bookingId        String       @db.Uuid
+  // Booking-refund owner (a booking token refund). Null for a hotel refund.
+  paymentId        String?      @db.Uuid
+  // Denormalised so the webhook can find the booking without a join. Null for hotel.
+  bookingId        String?      @db.Uuid
+  // Hotel-refund owner (a hotel reservation refund). Null for a booking refund.
+  hotelReservationId String?    @db.Uuid
   amountPaise      Int
   status           RefundStatus @default(INITIATED)
   // The gateway refund id (rfnd_…). Null only in the tiny window between the
@@ -818,12 +847,14 @@ model RefundTransaction {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  payment      Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  webhookEvent WebhookEvent? @relation(fields: [webhookEventId], references: [id])
+  payment          Payment?          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  booking          Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  hotelReservation HotelReservation? @relation(fields: [hotelReservationId], references: [id], onDelete: Cascade)
+  webhookEvent     WebhookEvent?     @relation(fields: [webhookEventId], references: [id])
 
   @@index([paymentId])
   @@index([bookingId])
+  @@index([hotelReservationId])
   @@index([status])
   @@map("refund_transactions")
 }
@@ -1517,6 +1548,7 @@ model WebhookEvent {
   transactions       PaymentTransaction[]
   rentInvoices       RentInvoice[]
   refundTransactions RefundTransaction[]
+  hotelReservations  HotelReservation[]
 
   @@unique([provider, eventId])
   @@index([status])

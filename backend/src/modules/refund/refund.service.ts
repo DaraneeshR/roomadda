@@ -66,6 +66,79 @@ export const refundService = {
     if (!CANCELLABLE.has(booking.status)) throw notCancellable();
     return performCancellation({ booking, cancelledBy: "HOST", actorId: actor.id, reason });
   },
+
+  /**
+   * Cancel a B2C HOTEL reservation. Reuses the EXACT same machinery as a booking
+   * cancellation — the tiered refund policy (computeRefundPaise, counting to
+   * `checkIn`), the INITIATED RefundTransaction (its hotel-owner variant), the
+   * gateway refund call, and — crucially — settlement ONLY via the verified
+   * refund webhook (applyRefundWebhook). Nothing is forked. Cancelling a
+   * reservation drops it out of the live set, which frees the room for the
+   * overbooking guard automatically. Ownership is enforced (non-owner -> 404).
+   */
+  async cancelHotelReservationByGuest(
+    guestId: string,
+    reservationId: string,
+    reason?: string,
+  ): Promise<CancelBookingResponse> {
+    const reservation = await prisma.hotelReservation.findUnique({ where: { id: reservationId } });
+    if (!reservation || reservation.guestId !== guestId) {
+      throw new AppError({ statusCode: 404, code: "RESERVATION_NOT_FOUND", message: "Reservation not found" });
+    }
+    // HELD (unpaid hold) or CONFIRMED (paid) can be cancelled; EXPIRED/CANCELLED cannot.
+    if (reservation.status !== "HELD" && reservation.status !== "CONFIRMED") {
+      throw new AppError({ statusCode: 409, code: "RESERVATION_NOT_CANCELLABLE", message: "This reservation can no longer be cancelled" });
+    }
+
+    const now = new Date();
+    const decision = computeRefundPaise({
+      tokenPaise: reservation.tokenAmountPaise,
+      moveInDate: reservation.checkIn,
+      now,
+      cancelledBy: "TENANT",
+    });
+
+    // Refundable online = the captured stay payment (present only once CONFIRMED).
+    const capturedOnlinePaise =
+      reservation.status === "CONFIRMED" && reservation.razorpayPaymentId ? reservation.tokenAmountPaise : 0;
+    const refundPaise = Math.min(decision.refundPaise, capturedOnlinePaise);
+    const willRefund = refundPaise > 0 && Boolean(reservation.razorpayPaymentId);
+
+    const refundTxId = await prisma.$transaction(async (tx) => {
+      await tx.hotelReservation.update({
+        where: { id: reservation.id },
+        data: { status: "CANCELLED", cancelledAt: now },
+      });
+      if (willRefund) {
+        const created = await tx.refundTransaction.create({
+          data: { hotelReservationId: reservation.id, amountPaise: refundPaise, status: "INITIATED" },
+        });
+        return created.id;
+      }
+      return null;
+    });
+
+    const refundStatus = willRefund ? "PENDING" : "NONE";
+    await writeAudit({
+      actorId: guestId,
+      action: "hotel.reservation.cancelled",
+      targetId: reservation.id,
+      metadata: { cancelledBy: "TENANT", refundPaise, refundReason: decision.reason, refundStatus, reason: reason ?? null },
+    });
+
+    // Gateway call AFTER commit; only records the refund id — the RefundTransaction
+    // stays INITIATED until the verified webhook settles it (refund truth = webhook).
+    if (willRefund && refundTxId && reservation.razorpayPaymentId) {
+      try {
+        const { id: razorpayRefundId } = await razorpay.refund(reservation.razorpayPaymentId, refundPaise);
+        await prisma.refundTransaction.update({ where: { id: refundTxId }, data: { razorpayRefundId } });
+      } catch (err) {
+        logger.error({ err, reservationId: reservation.id, refundTxId }, "hotel refund gateway call failed; left INITIATED to reconcile");
+      }
+    }
+
+    return { status: "CANCELLED", refundPaise, refundReason: decision.reason, refundStatus };
+  },
 };
 
 /**

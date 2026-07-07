@@ -50,6 +50,18 @@ export const listingVisibilitySchema = z.enum(["USER_ONLY", "CORPORATE_ONLY", "B
 export type ListingVisibility = z.infer<typeof listingVisibilitySchema>;
 export const LISTING_VISIBILITIES = listingVisibilitySchema.options;
 
+/** Which pool a hotel room / nightly reservation belongs to (B2C vs the ring-fenced
+ *  corporate allotment). B2C booking only ever touches B2C. */
+export const hotelBookingChannelSchema = z.enum(["B2C", "CORPORATE"]);
+export type HotelBookingChannel = z.infer<typeof hotelBookingChannelSchema>;
+
+/** Lifecycle of a nightly hotel reservation. HELD|CONFIRMED are LIVE (occupy the
+ *  room + participate in the overbooking guard); a reservation reaches CONFIRMED
+ *  ONLY via the verified Razorpay webhook. */
+export const hotelReservationStatusSchema = z.enum(["HELD", "CONFIRMED", "CANCELLED", "EXPIRED"]);
+export type HotelReservationStatus = z.infer<typeof hotelReservationStatusSchema>;
+export const HOTEL_RESERVATION_STATUSES = hotelReservationStatusSchema.options;
+
 export const bookingStatusSchema = z.enum([
   "INITIATED",
   // Request-to-Book: held, awaiting host acceptance before payment unlocks.
@@ -271,6 +283,84 @@ export const privateListingSchema = commonListingSchema.extend({
 export type PrivateListing = z.infer<typeof privateListingSchema>;
 
 export type NearbyListing = PublicListing & { distanceMeters: number };
+
+// ---------------------------------------------------------------------------
+// Hotel B2C booking (H1). Availability + price are SERVER-OWNED: the client sends
+// only the date range + guests and the server computes `nights`, the per-night
+// price snapshot, and the REAL number of free B2C rooms for that range (units not
+// already reserved, respecting the corporate carve-out). The listing itself is the
+// MASKED public shape (same masking as PG pre-booking — no actualName/exact geo).
+// ---------------------------------------------------------------------------
+
+/** One hotel room tier with its price + real availability for the searched range. */
+export const hotelCategoryAvailabilitySchema = z.object({
+  categoryId: z.string(),
+  tier: z.string(),
+  /** Base nightly rate (integer paise), server-owned. */
+  perNightPaise: z.number().int().nonnegative(),
+  /** Nights in the searched range (checkOut − checkIn). */
+  nights: z.number().int().positive(),
+  /** perNightPaise × nights — the stay price the server will charge. Never client math. */
+  totalPaise: z.number().int().nonnegative(),
+  /** REAL count of B2C rooms free for the whole range (corporate rooms excluded). */
+  availableRooms: z.number().int().nonnegative(),
+  photos: z.array(z.string()),
+  amenities: z.array(z.string()),
+});
+export type HotelCategoryAvailability = z.infer<typeof hotelCategoryAvailabilitySchema>;
+
+/** A hotel listing (masked) plus its bookable categories for the searched range. */
+export const hotelSearchResultSchema = z.object({
+  listing: publicListingSchema,
+  categories: z.array(hotelCategoryAvailabilitySchema),
+});
+export type HotelSearchResult = z.infer<typeof hotelSearchResultSchema>;
+
+export const hotelSearchResponseSchema = z.object({
+  items: z.array(hotelSearchResultSchema),
+  nextCursor: z.string().nullable(),
+  /** Echo of the resolved search window (ISO date, server-parsed). */
+  checkIn: z.string(),
+  checkOut: z.string(),
+  nights: z.number().int().positive(),
+  guests: z.number().int().positive(),
+});
+export type HotelSearchResponse = z.infer<typeof hotelSearchResponseSchema>;
+
+/** A guest's nightly reservation. `qrCodeToken` is present ONLY once CONFIRMED. */
+export const hotelReservationSchema = z.object({
+  id: z.string(),
+  listingId: z.string(),
+  categoryId: z.string(),
+  status: hotelReservationStatusSchema,
+  checkIn: z.string(),
+  checkOut: z.string(),
+  nights: z.number().int().positive(),
+  perNightPaise: z.number().int().nonnegative(),
+  /** perNightPaise × nights, snapshot at hold time (server-owned). */
+  roomTotalPaise: z.number().int().nonnegative(),
+  /** Amount due now to confirm the hold (integer paise, server-owned). */
+  tokenAmountPaise: z.number().int().nonnegative(),
+  holdExpiresAt: z.string().nullable(),
+  confirmedAt: z.string().nullable(),
+  /** Opaque check-in code (render as a QR). Null until CONFIRMED. */
+  qrCodeToken: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type HotelReservation = z.infer<typeof hotelReservationSchema>;
+
+/** POST /v1/hotels/reservations/:id/payment — the server-owned Razorpay order. */
+export const hotelPaymentResponseSchema = z.object({
+  reservationId: z.string(),
+  amountPaise: z.number().int().nonnegative(),
+  razorpayOrder: z.object({
+    orderId: z.string(),
+    amount: z.number().int().nonnegative(),
+    currency: z.string(),
+    keyId: z.string(),
+  }),
+});
+export type HotelPaymentResponse = z.infer<typeof hotelPaymentResponseSchema>;
 
 /**
  * POST /v1/listings/:id/photos/upload-url response — a presigned PUT to the

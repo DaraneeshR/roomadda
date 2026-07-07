@@ -447,6 +447,49 @@ export const cancelBookingSchema = z.object({ reason: z.string().min(1).max(500)
 export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
 
 // ---------------------------------------------------------------------------
+// Hotel B2C booking (H1). The client sends ONLY the date range + guests; the
+// server owns nights, price, and availability. No price field is accepted here
+// (`.strict()` rejects one) — the amount can never be client-computed.
+// ---------------------------------------------------------------------------
+/** Half-open stay range shared by search + hold: checkOut strictly after checkIn. */
+const stayRangeShape = {
+  checkIn: z.coerce.date(),
+  checkOut: z.coerce.date(),
+  guests: z.coerce.number().int().min(1).max(20).default(1),
+};
+const afterCheckIn = (d: { checkIn: Date; checkOut: Date }) => d.checkOut.getTime() > d.checkIn.getTime();
+const rangeError = { message: "checkOut must be after checkIn", path: ["checkOut"] };
+
+/** GET /v1/hotels/search — availability for a city (+ optional area) and date range. */
+export const hotelSearchQuerySchema = z
+  .object({
+    city: z.string().min(1).max(120),
+    area: z.string().min(1).max(120).optional(),
+    ...stayRangeShape,
+    cursor: cursorParam,
+    limit: limitSchema,
+  })
+  .strict()
+  .refine(afterCheckIn, rangeError);
+export type HotelSearchQuery = z.infer<typeof hotelSearchQuerySchema>;
+
+/** POST /v1/hotels/reservations — hold a room in a category for a date range. */
+export const createHotelReservationSchema = z
+  .object({
+    categoryId: z.string().uuid(),
+    ...stayRangeShape,
+  })
+  .strict()
+  .refine(afterCheckIn, rangeError);
+export type CreateHotelReservationInput = z.infer<typeof createHotelReservationSchema>;
+
+/** List the caller's own hotel reservations. */
+export const listHotelReservationsQuerySchema = z
+  .object({ cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type ListHotelReservationsQuery = z.infer<typeof listHotelReservationsQuerySchema>;
+
+// ---------------------------------------------------------------------------
 // Recurring monthly rent. The pay endpoint takes NO amount — the server always
 // orders the FULL invoice amount, so a partial payment cannot be requested.
 // ---------------------------------------------------------------------------

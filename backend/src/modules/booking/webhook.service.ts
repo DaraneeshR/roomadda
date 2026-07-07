@@ -8,6 +8,7 @@ import { settleBookingTx } from "./settlement.js";
 import { notifyBookingConfirmed } from "../../lib/notifications.js";
 import { markAdPaidByOrder } from "../ad/ad.payment.js";
 import { markRentInvoicePaidByOrder } from "../rent/rent.payment.js";
+import { markHotelReservationPaidByOrder } from "../hotel/hotel.payment.js";
 import { applyRefundWebhook } from "../refund/refund.payment.js";
 
 export interface WebhookResult {
@@ -102,7 +103,7 @@ export const webhookService = {
 };
 
 interface CaptureResult {
-  kind: "booking" | "rent" | "ad" | "refund";
+  kind: "booking" | "rent" | "ad" | "hotel" | "refund";
   targetId: string;
   meta: Record<string, unknown>;
 }
@@ -114,6 +115,8 @@ function auditActionFor(processed: CaptureResult): string {
       return "ad.paid";
     case "rent":
       return "rent.paid";
+    case "hotel":
+      return "hotel.reservation.confirmed";
     case "refund":
       // "refund.failed" IS the admin flag — money did not move; reconcile.
       return processed.meta.refundStatus === "PROCESSED" ? "refund.processed" : "refund.failed";
@@ -144,8 +147,13 @@ async function handleRefundEvent(
     if (!outcome) return null;
     return {
       kind: "refund",
-      targetId: outcome.bookingId,
-      meta: { refundStatus: outcome.status, refundTransactionId: outcome.refundTransactionId, razorpayRefundId: entity.id },
+      targetId: outcome.targetId,
+      meta: {
+        refundStatus: outcome.status,
+        refundOwner: outcome.ownerKind,
+        refundTransactionId: outcome.refundTransactionId,
+        razorpayRefundId: entity.id,
+      },
     };
   });
 }
@@ -193,6 +201,10 @@ async function handlePaymentCaptured(
     // A recurring rent invoice? (RENT IS MONEY — only a full capture pays it.)
     const rentInvoiceId = await markRentInvoicePaidByOrder(tx, orderId, entity, webhookEvent?.id ?? null);
     if (rentInvoiceId) return { kind: "rent", targetId: rentInvoiceId, meta: {} };
+
+    // A B2C hotel reservation? (only a full capture confirms the stay; mints the QR)
+    const hotelReservationId = await markHotelReservationPaidByOrder(tx, orderId, entity, webhookEvent?.id ?? null);
+    if (hotelReservationId) return { kind: "hotel", targetId: hotelReservationId, meta: {} };
 
     // Otherwise an ad-slot payment?
     const adSlotId = await markAdPaidByOrder(tx, orderId);
