@@ -6,6 +6,7 @@ import { AppError } from "../../lib/errors.js";
 import { objectStorage, type PublicPresignedUpload } from "../../lib/storage.js";
 import { toPage, type Page } from "../../lib/pagination.js";
 import { listingInclude, type ListingWithRelations } from "./serializer.js";
+import { visibilityWhere, visibilitySqlFilter } from "./visibility.js";
 import type {
   CreateBedInput,
   CreateListingInput,
@@ -205,7 +206,14 @@ export const listingService = {
   /** Public, PUBLISHED-only, filtered + cursor-paginated listing browse. */
   async listPublished(filters: ListFilters): Promise<Page<ListingWithRelations>> {
     // Paused listings stay PUBLISHED but are hidden from tenant discovery.
-    const where: Prisma.PgListingWhereInput = { status: "PUBLISHED", paused: false };
+    // Visibility filter (server-side, never client-side): B2C discovery returns
+    // only USER_ONLY|BOTH, so a CORPORATE_ONLY listing is never leaked. Existing
+    // PG listings are USER_ONLY, so this is a no-op for them.
+    const where: Prisma.PgListingWhereInput = {
+      status: "PUBLISHED",
+      paused: false,
+      ...visibilityWhere("B2C"),
+    };
     if (filters.city) where.city = { equals: filters.city, mode: "insensitive" };
     if (filters.area) where.areaLabel = { contains: filters.area, mode: "insensitive" };
     if (filters.gender) where.gender = filters.gender;
@@ -276,6 +284,7 @@ export const listingService = {
       FROM pg_listings
       WHERE status = 'PUBLISHED'
         AND paused = false
+        AND ${visibilitySqlFilter("B2C")}
         AND location IS NOT NULL
         AND ST_DWithin(location, ${point}, ${radiusM})
         ${keyset}

@@ -26,6 +26,8 @@ function makeListing(): BookingWithRelations["listing"] {
     latitude: 12.9352,
     longitude: 77.6245,
     status: "PUBLISHED",
+    propertyType: "PG",
+    visibility: "USER_ONLY",
     gender: "COED",
     instantBook: true,
     mealsOffered: false,

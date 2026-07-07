@@ -31,6 +31,7 @@ function editableSnapshot(l: HostListingRow): ListingEditable {
     longitude: l.longitude,
     gender: l.gender,
     amenities: l.amenities,
+    visibility: l.visibility,
     houseRules: l.houseRules,
     mealsOffered: l.mealsOffered,
     mealChargesPaise: l.mealChargesPaise,

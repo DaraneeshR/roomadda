@@ -37,6 +37,19 @@ export const listingStatusSchema = z.enum(["DRAFT", "PENDING_REVIEW", "PUBLISHED
 export type ListingStatus = z.infer<typeof listingStatusSchema>;
 export const LISTING_STATUSES = listingStatusSchema.options;
 
+/** A listing's property kind (the Hotel B2C add-on extends the PG model, it does
+ *  not fork it). PG is the DEFAULT so every existing listing is unchanged. */
+export const propertyTypeSchema = z.enum(["PG", "HOTEL", "FLAT"]);
+export type PropertyType = z.infer<typeof propertyTypeSchema>;
+export const PROPERTY_TYPES = propertyTypeSchema.options;
+
+/** Which surface a listing appears on. USER_ONLY (the DEFAULT — consumer/B2C only)
+ *  keeps existing listings unchanged; CORPORATE_ONLY is visible ONLY to the corporate
+ *  surface and NEVER in a B2C response; BOTH appears on both. Enforced server-side. */
+export const listingVisibilitySchema = z.enum(["USER_ONLY", "CORPORATE_ONLY", "BOTH"]);
+export type ListingVisibility = z.infer<typeof listingVisibilitySchema>;
+export const LISTING_VISIBILITIES = listingVisibilitySchema.options;
+
 export const bookingStatusSchema = z.enum([
   "INITIATED",
   // Request-to-Book: held, awaiting host acceptance before payment unlocks.

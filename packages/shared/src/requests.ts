@@ -19,6 +19,8 @@ import {
   kycStatusSchema,
   landingPageKindSchema,
   listingStatusSchema,
+  listingVisibilitySchema,
+  propertyTypeSchema,
   chatMessageKindSchema,
   occupationTypeSchema,
   paymentStatusSchema,
@@ -159,6 +161,12 @@ export const createListingSchema = z
     longitude,
     gender: genderPolicySchema.default("COED"),
     amenities: amenities.default([]),
+    // Property kind + distribution channel (Hotel B2C add-on). Both DEFAULT so an
+    // existing caller that omits them creates a PG + USER_ONLY listing exactly as
+    // before. `propertyType` is set at creation only (no update path); a
+    // `visibility` change later re-queues for admin approval (see edit-classify).
+    propertyType: propertyTypeSchema.default("PG"),
+    visibility: listingVisibilitySchema.default("USER_ONLY"),
     // Optional create-step fields (meals, house rules, token + booking-type). All
     // editable later via the host listing edit endpoint.
     houseRules: z.array(z.string().min(1).max(200)).max(50).default([]),
@@ -727,6 +735,10 @@ export const updateHostListingSchema = z
     longitude,
     gender: genderPolicySchema,
     amenities,
+    // A visibility (distribution-channel) change re-queues the listing for admin
+    // approval, exactly like an address change (see edit-classify REQUEUE_FIELDS).
+    // propertyType is deliberately NOT editable here (set at creation only).
+    visibility: listingVisibilitySchema,
     houseRules: z.array(z.string().min(1).max(200)).max(50),
     mealsOffered: z.boolean(),
     mealChargesPaise: paise.nullable(),

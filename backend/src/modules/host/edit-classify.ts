@@ -5,13 +5,20 @@ import type { UpdateHostListingInput, UpdateHostRoomInput } from "@roomadda/shar
  * immediately (a "minor" edit) or RE-QUEUES the listing for approval. Per the
  * lifecycle spec, a change re-queues when:
  *   - the ADDRESS changes (fullAddress / pincode / latitude / longitude), or
+ *   - the VISIBILITY (distribution channel) changes — the admin must re-vet which
+ *     surface a listing appears on (Hotel B2C add-on), or
  *   - a room's monthly rent changes by MORE than 20%.
  * Everything else is a minor edit. This module only decides; the service applies
  * the status transition and writes the edit-history log.
  */
 
-/** Fields whose change re-queues a listing for re-approval. */
+/** Address fields whose change re-queues a listing for re-approval. */
 export const ADDRESS_FIELDS = ["fullAddress", "pincode", "latitude", "longitude"] as const;
+
+/** All listing-field changes that re-queue for approval: an address change OR a
+ *  visibility (distribution-channel) change. A CORPORATE_ONLY/BOTH re-tag must be
+ *  admin-approved, so it flows through the SAME approval queue as PG address edits. */
+export const REQUEUE_FIELDS = [...ADDRESS_FIELDS, "visibility"] as const;
 
 /** A rent change strictly greater than this fraction re-queues for approval. */
 export const RENT_REQUEUE_THRESHOLD = 0.2;
@@ -45,7 +52,7 @@ export function classifyListingEdit(before: ListingEditable, patch: UpdateHostLi
   for (const key of Object.keys(patch) as (keyof UpdateHostListingInput)[]) {
     if (valueChanged(before[key], patch[key])) changedFields.push(key);
   }
-  const requeue = changedFields.some((f) => (ADDRESS_FIELDS as readonly string[]).includes(f));
+  const requeue = changedFields.some((f) => (REQUEUE_FIELDS as readonly string[]).includes(f));
   return { changedFields, requeue };
 }
 

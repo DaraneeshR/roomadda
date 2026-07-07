@@ -58,6 +58,50 @@ enum ListingStatus {
   SUSPENDED
 }
 
+// A listing is now one of three property kinds (the Hotel B2C add-on extends the
+// PG model rather than forking it). PG is the DEFAULT so every existing listing
+// keeps its exact meaning; HOTEL uses the nightly, date-range inventory model
+// (HotelRoomCategory/HotelRoom/HotelReservation); FLAT is reserved for whole-unit
+// stays (no bed/nightly sub-inventory built yet).
+enum PropertyType {
+  PG
+  HOTEL
+  FLAT
+}
+
+// Distribution channel a listing may appear in. USER_ONLY is the DEFAULT so every
+// existing PG listing is unchanged — visible only on the consumer (B2C) surface.
+// CORPORATE_ONLY is visible ONLY to the (future) corporate surface and MUST NEVER
+// appear in a B2C response; BOTH appears on both. Enforced server-side in the
+// query/serializer (see modules/listing/visibility.ts) — never client-side, exactly
+// like listing masking (/CLAUDE.md domain rule #4).
+enum ListingVisibility {
+  USER_ONLY
+  CORPORATE_ONLY
+  BOTH
+}
+
+// Which channel a hotel room / nightly reservation belongs to. B2C is the consumer
+// pool; CORPORATE is the ring-fenced allotment (HotelRoomCategory.corporateReservedRooms).
+// The channel physically partitions a category's rooms so a corporate allotment can
+// never be sold into the B2C pool and vice-versa.
+enum HotelBookingChannel {
+  B2C
+  CORPORATE
+}
+
+// Lifecycle of a nightly hotel reservation. HELD | CONFIRMED are the LIVE statuses
+// that occupy a room over a date range (they participate in the overbooking-guard
+// exclusion constraint — prisma/sql/03_hotel_guard.sql); CANCELLED | EXPIRED free
+// it. Money truth is unchanged: a reservation only becomes CONFIRMED via the
+// signature-verified Razorpay webhook (booking flow is out of this schema gate).
+enum HotelReservationStatus {
+  HELD
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
 enum GenderPolicy {
   MALE
   FEMALE
@@ -417,6 +461,12 @@ model PgListing {
   // queried via raw SQL. Kept out of the Prisma schema so migrations stay
   // relational and portable.
   status           ListingStatus @default(DRAFT)
+  // Property kind + distribution channel for the Hotel B2C add-on. Both default so
+  // every existing PG listing is byte-for-byte unchanged: PG + USER_ONLY = today's
+  // behaviour. HOTEL listings hang their nightly inventory off `hotelCategories`;
+  // `visibility` is enforced server-side in every B2C read (see visibility.ts).
+  propertyType     PropertyType      @default(PG)
+  visibility       ListingVisibility @default(USER_ONLY)
   gender           GenderPolicy  @default(COED)
   // Instant Book confirms on payment; otherwise a booking waits for host accept
   // (Request-to-Book) before the payment link activates.
@@ -452,6 +502,7 @@ model PgListing {
 
   host            User             @relation("HostListings", fields: [hostId], references: [id])
   rooms           Room[]
+  hotelCategories HotelRoomCategory[]
   photos          ListingPhoto[]
   bookings        Booking[]
   trustTags       TrustTag[]
@@ -514,6 +565,129 @@ model Bed {
   @@unique([roomId, label])
   @@index([roomId])
   @@map("beds")
+}
+
+// ---------------------------------------------------------------------------
+// Hotel inventory (the B2C add-on): listing -> HotelRoomCategory -> HotelRoom,
+// with nightly, date-range reservations. This is DISTINCT from the PG bed/monthly
+// model: a hotel category is a room tier (Standard/Deluxe/...) priced PER NIGHT,
+// and inventory is checked/held over a [checkIn, checkOut) date range.
+//
+// OVERBOOKING GUARD (the critical correctness item — the hotel analog of the bed
+// double-booking guard). Capacity per category is > 1, so a plain partial unique
+// index cannot express it. Instead each category is materialised into `totalRooms`
+// concrete HotelRoom units (like Beds), and the "no two live reservations overlap
+// on the SAME room over overlapping dates" invariant is a GiST EXCLUDE constraint
+// on hotel_reservations (prisma/sql/03_hotel_guard.sql — a daterange-overlap
+// exclusion cannot be expressed in schema.prisma). The FK to a real HotelRoom row
+// bounds total capacity (you cannot reserve a room that does not exist), and the
+// exclusion constraint bounds per-room overlap — together making an
+// overlapping-date-range double-book impossible at the DB level, not just in app
+// code. The booking service will ALSO take a row lock when it lands (out of scope
+// for this schema gate), mirroring the bed FOR UPDATE path.
+// ---------------------------------------------------------------------------
+
+// A hotel room TIER for a listing (Standard / Deluxe / Premium / Suite). Priced per
+// night (integer paise). `totalRooms` is the declared capacity; `corporateReservedRooms`
+// is the ring-fenced corporate allotment carved out of it — so the B2C-bookable
+// count is (totalRooms - corporateReservedRooms). Those counts are materialised into
+// HotelRoom units (channel B2C vs CORPORATE), which is what the overbooking guard and
+// the corporate/B2C inventory isolation actually operate on.
+model HotelRoomCategory {
+  id                    String   @id @default(uuid()) @db.Uuid
+  listingId             String   @db.Uuid
+  // Tier name shown to guests (free text; e.g. "Deluxe"). Unique per listing.
+  tier                  String
+  // Base nightly rate, integer paise (/CLAUDE.md money rule #1). Seasonal / weekend /
+  // length-of-stay rate plans are DEFERRED to a future HotelRatePlan table (flagged
+  // for sign-off) — this gate models a single base rate only.
+  perNightPaise         Int
+  photos                String[] @default([])
+  amenities             String[] @default([])
+  // Declared room count for this tier and the corporate carve-out. Invariant
+  // (enforced when units are provisioned): B2C units = totalRooms - corporateReservedRooms,
+  // CORPORATE units = corporateReservedRooms. A hard reserved block (signed-off
+  // isolation model), not advisory.
+  totalRooms            Int
+  corporateReservedRooms Int     @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  listing      PgListing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  rooms        HotelRoom[]
+  reservations HotelReservation[]
+
+  // One tier name per listing.
+  @@unique([listingId, tier])
+  @@index([listingId])
+  @@map("hotel_room_categories")
+}
+
+// One concrete, bookable hotel room UNIT within a category (the nightly analog of a
+// Bed — capacity 1). `channel` physically partitions the category's rooms into the
+// B2C pool and the ring-fenced CORPORATE allotment, so a corporate room can never be
+// sold to a B2C guest (isolation enforced in the availability query, like masking).
+model HotelRoom {
+  id         String              @id @default(uuid()) @db.Uuid
+  categoryId String              @db.Uuid
+  // Human room label/number, unique within the category (e.g. "201").
+  label      String
+  channel    HotelBookingChannel @default(B2C)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  category     HotelRoomCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  reservations HotelReservation[]
+
+  @@unique([categoryId, label])
+  @@index([categoryId, channel])
+  @@map("hotel_rooms")
+}
+
+// A nightly reservation of ONE hotel room over a [checkIn, checkOut) half-open date
+// range. `channel` records which pool it drew from (B2C vs the corporate allotment).
+// The overbooking guard is the EXCLUDE constraint added in prisma/sql/03_hotel_guard.sql:
+//   EXCLUDE USING gist (hotelRoomId WITH =, daterange(checkIn, checkOut, '[)') WITH &&)
+//   WHERE (status IN ('HELD','CONFIRMED'))
+// so two LIVE reservations can never overlap on the same room. Half-open ranges make
+// same-day turnover (prev.checkOut == next.checkIn) NOT a conflict. Money is snapshot
+// at hold time and settled only via the verified webhook (booking flow is future work).
+model HotelReservation {
+  id            String                 @id @default(uuid()) @db.Uuid
+  hotelRoomId   String                 @db.Uuid
+  categoryId    String                 @db.Uuid
+  // Denormalised for fast listing-scoped queries + masking checks.
+  listingId     String                 @db.Uuid
+  // The guest holding the reservation (nullable until the booking flow lands; a
+  // corporate reservation may be booked on behalf of an account).
+  guestId       String?                @db.Uuid
+  channel       HotelBookingChannel    @default(B2C)
+  status        HotelReservationStatus @default(HELD)
+  // Half-open stay range: occupies nights [checkIn, checkOut). Date-only (no time).
+  checkIn       DateTime               @db.Date
+  checkOut      DateTime               @db.Date
+  // Money snapshot taken at hold time (integer paise) so later rate edits don't move
+  // a live reservation. `nights` * perNightPaise at hold time == roomTotalPaise.
+  perNightPaise Int
+  nights        Int
+  roomTotalPaise Int
+  // Hold expiry: a HELD reservation past this is swept to EXPIRED (mirrors bookings).
+  holdExpiresAt DateTime?
+  confirmedAt   DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  hotelRoom HotelRoom          @relation(fields: [hotelRoomId], references: [id], onDelete: Cascade)
+  category  HotelRoomCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  // NOTE: the "no overlapping live reservation per room" EXCLUDE constraint
+  // (no_overlapping_hotel_reservation) lives in prisma/sql/03_hotel_guard.sql —
+  // Prisma cannot express a daterange-overlap exclusion constraint.
+  @@index([hotelRoomId])
+  @@index([categoryId, status])
+  @@index([listingId, status])
+  @@map("hotel_reservations")
 }
 
 // ---------------------------------------------------------------------------

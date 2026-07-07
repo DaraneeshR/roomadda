@@ -15,7 +15,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
-    "db:sql": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/01_postgis.sql && prisma db execute --schema prisma/schema.prisma --file prisma/sql/02_booking_guard.sql",
+    "db:sql": "prisma db execute --schema prisma/schema.prisma --file prisma/sql/01_postgis.sql && prisma db execute --schema prisma/schema.prisma --file prisma/sql/02_booking_guard.sql && prisma db execute --schema prisma/schema.prisma --file prisma/sql/03_hotel_guard.sql",
     "db:setup": "prisma migrate deploy && pnpm db:sql && prisma generate",
     "demo:seed": "tsx scripts/demo-seed.ts",
     "demo:confirm": "tsx scripts/dev-confirm-payment.ts",

@@ -11,6 +11,7 @@ import {
   toPublicListing,
   type Viewer,
 } from "./serializer.js";
+import { isVisibleTo } from "./visibility.js";
 import {
   createBedSchema,
   createListingSchema,
@@ -193,6 +194,13 @@ export const listingRoutes: FastifyPluginAsync = async (app) => {
       // Hide non-published (or host-paused) listings from anyone who can't see
       // the private shape.
       if ((listing.status !== "PUBLISHED" || listing.paused) && !reveal) {
+        throw new AppError({ statusCode: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" });
+      }
+
+      // Visibility enforcement: a CORPORATE_ONLY listing must NEVER surface on the
+      // B2C detail read. Owner / admin / agent (and a confirmed tenant) keep access
+      // via `reveal`; everyone else gets a 404 exactly like a hidden listing.
+      if (!isVisibleTo("B2C", listing.visibility) && !reveal) {
         throw new AppError({ statusCode: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" });
       }
 
