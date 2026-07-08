@@ -234,7 +234,86 @@ async function main(): Promise<void> {
   const visit = { listingId: LISTING_IDS[0], agentId: agent.id, status: "SCHEDULED" as const, scheduledAt };
   await prisma.agentVisit.upsert({ where: { id: visitId }, create: { id: visitId, ...visit }, update: visit });
 
+  // --- Hotel B2C add-on: one bookable HOTEL property (nightly reservations) ---
+  await seedHotel(host.id);
+
   printSummary();
+}
+
+/** Fixed hotel ids → deterministic + idempotent (valid v4 UUID shape). */
+const HOTEL_LISTING_ID = "11000000-0000-4000-8000-000000000001";
+
+/**
+ * One PUBLISHED HOTEL property (propertyType HOTEL, USER_ONLY so it is B2C-visible)
+ * with two room categories and their physical room UNITS. The B2C search + booking
+ * flow (/v1/hotels/*) reads exactly this: nightly price + real per-date availability
+ * are server-owned; units are what the overbooking guard operates on. The corporate
+ * carve-out is exercised (Deluxe reserves 1 room CORPORATE, kept out of the B2C pool).
+ */
+async function seedHotel(hostId: string): Promise<void> {
+  const base = {
+    hostId,
+    alias: "Skyline Suites · MG Road",
+    areaLabel: "MG Road",
+    city: CITY,
+    amenities: ["WIFI", "AC", "BREAKFAST", "PARKING", "POWER_BACKUP"],
+    actualName: "Skyline Suites Hotel",
+    fullAddress: "1, MG Road, Bengaluru",
+    pincode: "560001",
+    latitude: 12.9756,
+    longitude: 77.6068,
+    status: "PUBLISHED" as const,
+    propertyType: "HOTEL" as const,
+    visibility: "USER_ONLY" as const, // B2C-visible (never CORPORATE_ONLY)
+    gender: "COED" as const,
+    paused: false,
+  };
+  await prisma.pgListing.upsert({
+    where: { id: HOTEL_LISTING_ID },
+    create: { id: HOTEL_LISTING_ID, ...base },
+    update: base,
+  });
+
+  // 5 photos so the property card renders (same §9.2 minimum shape as the PGs).
+  for (let i = 1; i <= 5; i++) {
+    const photoId = `41000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+    const photo = {
+      listingId: HOTEL_LISTING_ID,
+      url: `https://picsum.photos/seed/roomadda-hotel-${i}/800/600`,
+      isPrimary: i === 1,
+      sortOrder: i,
+    };
+    await prisma.listingPhoto.upsert({ where: { id: photoId }, create: { id: photoId, ...photo }, update: photo });
+  }
+
+  // Two categories; each provisions (totalRooms − corporateReservedRooms) B2C units
+  // + corporateReservedRooms CORPORATE units, exactly like hotelService.provisionUnits.
+  const CATEGORIES = [
+    { n: 1, id: "12000000-0000-4000-8000-000000000001", tier: "Deluxe Room", perNightPaise: 300_000, totalRooms: 4, corporate: 1 },
+    { n: 2, id: "12000000-0000-4000-8000-000000000002", tier: "Executive Suite", perNightPaise: 550_000, totalRooms: 2, corporate: 0 },
+  ] as const;
+
+  for (const c of CATEGORIES) {
+    const cat = {
+      listingId: HOTEL_LISTING_ID,
+      tier: c.tier,
+      perNightPaise: c.perNightPaise,
+      photos: [`https://picsum.photos/seed/roomadda-hotel-cat-${c.n}/800/600`],
+      amenities: base.amenities,
+      totalRooms: c.totalRooms,
+      corporateReservedRooms: c.corporate,
+    };
+    await prisma.hotelRoomCategory.upsert({ where: { id: c.id }, create: { id: c.id, ...cat }, update: cat });
+
+    const b2c = c.totalRooms - c.corporate;
+    for (let i = 0; i < c.totalRooms; i++) {
+      const channel = i < b2c ? ("B2C" as const) : ("CORPORATE" as const);
+      const label = channel === "B2C" ? `B2C-${i + 1}` : `CORP-${i - b2c + 1}`;
+      const roomId = `13000000-0000-4000-8000-${String(c.n)}${String(i + 1).padStart(11, "0")}`;
+      const room = { categoryId: c.id, label, channel };
+      await prisma.hotelRoom.upsert({ where: { id: roomId }, create: { id: roomId, ...room }, update: room });
+    }
+  }
 }
 
 function printSummary(): void {
@@ -249,6 +328,7 @@ function printSummary(): void {
   console.log(`  TENANT (plain)   ${ACCOUNTS.tenantPlain.phone}   → tenant app, KYC not done`);
   console.log(`  AGENT            ${ACCOUNTS.agent.phone}   → host_agent app, city ${CITY}, 1 visit`);
   console.log(`\n  Listings: 3 PUBLISHED PGs in ${CITY} (Koramangala, HSR Layout, Indiranagar).`);
+  console.log(`  Hotel:    1 PUBLISHED B2C hotel in ${CITY} (Skyline Suites · MG Road) → /hotels`);
   console.log(`\n  🔑  OTP: there is no SMS locally. When you request a code, the`);
   console.log(`      backend terminal logs it as:  DEV_OTP <phone> <code>`);
   console.log(`      Read the 6-digit code from there and type it into the app.`);
