@@ -41,6 +41,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     {c}
                   </Link>
                 ))}
+                <Link href="/hotels" className="font-medium text-slate-700 hover:text-teal-700">
+                  Hotels
+                </Link>
                 <AuthButton />
               </nav>
             </div>

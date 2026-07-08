@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { publicApi } from "../lib/api";
 import { ListingGrid } from "../components/ListingGrid";
 import { SearchForm } from "../components/SearchForm";
@@ -18,6 +19,12 @@ export default async function HomePage() {
         <div className="mt-6">
           <SearchForm />
         </div>
+        <p className="mt-3 text-sm text-slate-600">
+          Travelling for a few nights?{" "}
+          <Link href="/hotels" className="font-semibold text-teal-700 hover:underline">
+            Book a hotel by date →
+          </Link>
+        </p>
       </section>
 
       <section>

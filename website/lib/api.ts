@@ -1,6 +1,7 @@
 import "server-only";
 import type {
   AreaInsights,
+  HotelSearchResponse,
   NearbyListing,
   Page,
   PublicListing,
@@ -64,4 +65,10 @@ export const publicApi = {
   // Cached, PUBLISHED-only price insights for one area (bands + histogram).
   areaInsights: (area: string, city?: string, revalidate = 300) =>
     getJson<AreaInsights>(`/v1/areas/${encodeURIComponent(area)}/insights${qs({ city })}`, { revalidate }),
+
+  // B2C hotel availability for a city (+ optional area) and date range. Server-owned
+  // masking + nightly price + REAL per-date availability. Availability is date- and
+  // stock-sensitive, so it must not be cached (revalidate: 0).
+  hotelSearch: (params: Record<string, string | undefined>) =>
+    getJson<HotelSearchResponse>(`/v1/hotels/search${qs(params)}`, { revalidate: 0 }),
 };
