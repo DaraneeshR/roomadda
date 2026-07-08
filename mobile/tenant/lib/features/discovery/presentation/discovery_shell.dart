@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../booking/presentation/my_bookings_screen.dart';
+import '../../hotel/presentation/hotel_search_screen.dart';
 import '../../wishlist/presentation/wishlist_screen.dart';
 import 'home_screen.dart';
 
-/// Tenant home shell — bottom tabs for Search (discovery home), Saved (wishlist)
-/// and Bookings. State is preserved across tabs via an IndexedStack.
+/// Tenant home shell — bottom tabs for Search (PG discovery home), Hotels (B2C
+/// nightly booking), Saved (wishlist) and Bookings. State is preserved across tabs
+/// via an IndexedStack.
 class DiscoveryShell extends StatefulWidget {
   const DiscoveryShell({super.key});
 
@@ -18,6 +20,7 @@ class _DiscoveryShellState extends State<DiscoveryShell> {
 
   static const _tabs = [
     DiscoveryHomeScreen(),
+    HotelSearchScreen(),
     WishlistScreen(),
     MyBookingsScreen(),
   ];
@@ -31,6 +34,11 @@ class _DiscoveryShellState extends State<DiscoveryShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
+          NavigationDestination(
+            icon: Icon(Icons.hotel_outlined),
+            selectedIcon: Icon(Icons.hotel),
+            label: 'Hotels',
+          ),
           NavigationDestination(
             icon: Icon(Icons.favorite_border),
             selectedIcon: Icon(Icons.favorite),

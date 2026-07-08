@@ -8,6 +8,8 @@ import 'features/booking/presentation/booking_payment_screen.dart';
 import 'features/discovery/presentation/listing_detail_screen.dart';
 import 'features/discovery/presentation/map_screen.dart';
 import 'features/discovery/presentation/results_screen.dart';
+import 'features/hotel/presentation/hotel_detail_screen.dart';
+import 'features/hotel/presentation/hotel_reservation_screen.dart';
 import 'features/kyc/presentation/kyc_screen.dart';
 import 'features/rent/presentation/rent_payment_screen.dart';
 import 'features/rent/presentation/rent_screen.dart';
@@ -42,6 +44,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'map',
             builder: (_, __) => const MapScreen(),
+          ),
+          // Hotel detail is booked from exactly what the search returned (no
+          // per-listing hotel endpoint exists), so the search result + stay window
+          // are passed as `extra`; a deep-link without it falls back to search.
+          GoRoute(
+            path: 'hotels/:id',
+            builder: (context, state) => HotelDetailScreen(
+              listingId: state.pathParameters['id']!,
+              args: state.extra as HotelDetailArgs?,
+            ),
+          ),
+          GoRoute(
+            path: 'hotels/reservation/:id',
+            builder: (context, state) => HotelReservationScreen(reservationId: state.pathParameters['id']!),
           ),
           GoRoute(
             path: 'kyc',

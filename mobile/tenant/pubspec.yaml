@@ -40,6 +40,9 @@ dependencies:
   # Share/save the downloaded PDF receipt.
   share_plus: ^10.1.4
 
+  # Render the hotel check-in QR (minted server-side only on the confirmed webhook).
+  qr_flutter: ^4.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
