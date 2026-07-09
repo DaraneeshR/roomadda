@@ -10,6 +10,7 @@ import {
   broadcastChannelSchema,
   commissionSettlementStatusSchema,
   e164Schema,
+  enquiryStatusSchema,
   genderPolicySchema,
   inspectionRecommendationSchema,
   inspectionStatusSchema,
@@ -1576,3 +1577,132 @@ export const updateOrgSettingsSchema = z
   .strict()
   .refine((b) => Object.keys(b).length > 0, { message: "Provide at least one field to update" });
 export type UpdateOrgSettingsInput = z.infer<typeof updateOrgSettingsSchema>;
+
+// ---------------------------------------------------------------------------
+// Corporate (B2B) add-on — request schemas (C1). Money is NEVER accepted from a
+// company caller: quotation line prices are set by the admin/CRM (server-owned);
+// invoice amounts are engine-sourced. All `.strict()`.
+// ---------------------------------------------------------------------------
+
+/** Half-open stay range (checkOut strictly after checkIn), reused across corporate. */
+const corpRange = { checkIn: z.coerce.date(), checkOut: z.coerce.date() };
+const corpRangeRefine = (d: { checkIn: Date; checkOut: Date }) => d.checkOut.getTime() > d.checkIn.getTime();
+const corpRangeError = { message: "checkOut must be after checkIn", path: ["checkOut"] };
+
+/** ADMIN: create a company account (+ optional account-manager + billing terms). */
+export const createCompanySchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    gstin: z.string().trim().max(20).nullable().optional(),
+    billingAddress: z.string().trim().max(500).nullable().optional(),
+    billingEmail: z.string().trim().email().max(200).nullable().optional(),
+    billingMode: z.enum(["PREPAY", "CREDIT"]).default("CREDIT"),
+    creditDays: z.coerce.number().int().min(0).max(180).default(30),
+    accountManagerId: z.string().uuid().nullable().optional(),
+    // Optional first HR seat to attach (an existing User id) as the company ADMIN.
+    adminUserId: z.string().uuid().optional(),
+  })
+  .strict();
+export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+
+/** ADMIN: assign / change a company's account manager. */
+export const assignAccountManagerSchema = z
+  .object({ accountManagerId: z.string().uuid().nullable() })
+  .strict();
+export type AssignAccountManagerInput = z.infer<typeof assignAccountManagerSchema>;
+
+/** COMPANY(ADMIN): add an employee directory entry. */
+export const createEmployeeSchema = z
+  .object({
+    fullName: z.string().trim().min(1).max(120),
+    phone: e164Schema,
+    email: z.string().trim().email().max(200).nullable().optional(),
+    empCode: z.string().trim().max(60).nullable().optional(),
+  })
+  .strict();
+export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
+
+/** COMPANY: raise an enquiry (top of the pipeline). No money. */
+export const createEnquirySchema = z
+  .object({
+    city: z.string().trim().min(1).max(120),
+    area: z.string().trim().max(120).nullable().optional(),
+    propertyType: propertyTypeSchema.default("HOTEL"),
+    headcount: z.coerce.number().int().min(1).max(10_000),
+    ...corpRange,
+    notes: z.string().trim().max(1000).nullable().optional(),
+  })
+  .strict()
+  .refine(corpRangeRefine, corpRangeError);
+export type CreateEnquiryInput = z.infer<typeof createEnquirySchema>;
+
+/** One line in an admin-built quotation. `unitPricePaise` is the negotiated nightly
+ *  rate (server-owned — set by the CRM, never by the company). */
+export const quotationLineInputSchema = z
+  .object({
+    categoryId: z.string().uuid().nullable().optional(),
+    description: z.string().trim().min(1).max(200),
+    unitPricePaise: paise.positive(),
+    quantity: z.coerce.number().int().min(1).max(1000).default(1),
+    nights: z.coerce.number().int().min(1).max(365).default(1),
+  })
+  .strict();
+export type QuotationLineInput = z.infer<typeof quotationLineInputSchema>;
+
+/** ADMIN/CRM: build a quotation (revision 1) against an enquiry. */
+export const buildQuotationSchema = z
+  .object({
+    enquiryId: z.string().uuid(),
+    validUntil: z.coerce.date().optional(),
+    taxPaise: paise.default(0),
+    lineItems: z.array(quotationLineInputSchema).min(1).max(50),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+export type BuildQuotationInput = z.infer<typeof buildQuotationSchema>;
+
+/** ADMIN/CRM: append a new revision (a negotiation round — history preserved). */
+export const addRevisionSchema = z
+  .object({
+    taxPaise: paise.default(0),
+    lineItems: z.array(quotationLineInputSchema).min(1).max(50),
+    notes: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+export type AddRevisionInput = z.infer<typeof addRevisionSchema>;
+
+/** COMPANY: respond to a SENT quotation. */
+export const respondQuotationSchema = z
+  .object({
+    action: z.enum(["ACCEPT", "REJECT", "REQUEST_CHANGES"]),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+export type RespondQuotationInput = z.infer<typeof respondQuotationSchema>;
+
+/** COMPANY(ADMIN): allocate an employee to a corporate reservation. */
+export const allocateEmployeeSchema = z
+  .object({
+    employeeId: z.string().uuid(),
+    hotelReservationId: z.string().uuid(),
+  })
+  .strict();
+export type AllocateEmployeeInput = z.infer<typeof allocateEmployeeSchema>;
+
+/** ADMIN: mark a company invoice settled OFFLINE (bank transfer / cheque). Audited. */
+export const settleInvoiceOfflineSchema = z
+  .object({ settlementRef: z.string().trim().min(1).max(200) })
+  .strict();
+export type SettleInvoiceOfflineInput = z.infer<typeof settleInvoiceOfflineSchema>;
+
+/** Cursor-paginated corporate list query, optionally narrowed to a company (admin). */
+export const corporateListQuerySchema = z
+  .object({ companyId: z.string().uuid().optional(), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type CorporateListQuery = z.infer<typeof corporateListQuerySchema>;
+
+/** ADMIN pipeline queue, optionally filtered by enquiry status. */
+export const corporatePipelineQuerySchema = z
+  .object({ status: enquiryStatusSchema.optional(), cursor: cursorParam, limit: limitSchema })
+  .strict();
+export type CorporatePipelineQuery = z.infer<typeof corporatePipelineQuerySchema>;

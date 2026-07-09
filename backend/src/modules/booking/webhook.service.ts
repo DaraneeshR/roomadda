@@ -9,6 +9,7 @@ import { notifyBookingConfirmed } from "../../lib/notifications.js";
 import { markAdPaidByOrder } from "../ad/ad.payment.js";
 import { markRentInvoicePaidByOrder } from "../rent/rent.payment.js";
 import { markHotelReservationPaidByOrder } from "../hotel/hotel.payment.js";
+import { markCorporateInvoicePaidByOrder } from "../corporate/corporate.invoice.payment.js";
 import { applyRefundWebhook } from "../refund/refund.payment.js";
 
 export interface WebhookResult {
@@ -103,7 +104,7 @@ export const webhookService = {
 };
 
 interface CaptureResult {
-  kind: "booking" | "rent" | "ad" | "hotel" | "refund";
+  kind: "booking" | "rent" | "ad" | "hotel" | "corporate" | "refund";
   targetId: string;
   meta: Record<string, unknown>;
 }
@@ -117,6 +118,8 @@ function auditActionFor(processed: CaptureResult): string {
       return "rent.paid";
     case "hotel":
       return "hotel.reservation.confirmed";
+    case "corporate":
+      return "corporate.invoice.paid";
     case "refund":
       // "refund.failed" IS the admin flag — money did not move; reconcile.
       return processed.meta.refundStatus === "PROCESSED" ? "refund.processed" : "refund.failed";
@@ -205,6 +208,11 @@ async function handlePaymentCaptured(
     // A B2C hotel reservation? (only a full capture confirms the stay; mints the QR)
     const hotelReservationId = await markHotelReservationPaidByOrder(tx, orderId, entity, webhookEvent?.id ?? null);
     if (hotelReservationId) return { kind: "hotel", targetId: hotelReservationId, meta: {} };
+
+    // A corporate company invoice? (full capture marks it PAID; PREPAY also confirms
+    // the corporate booking — webhook-truth, never a client callback.)
+    const corporateInvoiceId = await markCorporateInvoicePaidByOrder(tx, orderId, entity, webhookEvent?.id ?? null);
+    if (corporateInvoiceId) return { kind: "corporate", targetId: corporateInvoiceId, meta: {} };
 
     // Otherwise an ad-slot payment?
     const adSlotId = await markAdPaidByOrder(tx, orderId);

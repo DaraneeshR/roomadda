@@ -4,5 +4,6 @@
  * (`contracts.ts`), and the request (input) schemas (`requests.ts`).
  */
 export * from "./money.js";
+export * from "./corporate.pricing.js";
 export * from "./contracts.js";
 export * from "./requests.js";
