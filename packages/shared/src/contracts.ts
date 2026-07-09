@@ -62,6 +62,45 @@ export const hotelReservationStatusSchema = z.enum(["HELD", "CONFIRMED", "CANCEL
 export type HotelReservationStatus = z.infer<typeof hotelReservationStatusSchema>;
 export const HOTEL_RESERVATION_STATUSES = hotelReservationStatusSchema.options;
 
+// ---------------------------------------------------------------------------
+// Corporate (B2B) add-on enums (C0). See docs/corporate-addon-schema-gate.md.
+// ---------------------------------------------------------------------------
+
+/** A company account's standing. */
+export const companyStatusSchema = z.enum(["ACTIVE", "SUSPENDED"]);
+export type CompanyStatus = z.infer<typeof companyStatusSchema>;
+
+/** A seat's role WITHIN a company (orthogonal to the platform UserRole). */
+export const companyUserRoleSchema = z.enum(["ADMIN", "MEMBER"]);
+export type CompanyUserRole = z.infer<typeof companyUserRoleSchema>;
+
+/** Signed-off billing terms (open Q#1). PREPAY = webhook-truth like B2C; CREDIT =
+ *  a net-`creditDays` post-stay invoice. */
+export const corporateBillingModeSchema = z.enum(["PREPAY", "CREDIT"]);
+export type CorporateBillingMode = z.infer<typeof corporateBillingModeSchema>;
+
+/** Corporate enquiry (top-of-pipeline) lifecycle. */
+export const enquiryStatusSchema = z.enum(["NEW", "QUOTED", "CONVERTED", "CANCELLED"]);
+export type EnquiryStatus = z.infer<typeof enquiryStatusSchema>;
+export const ENQUIRY_STATUSES = enquiryStatusSchema.options;
+
+/** Quotation lifecycle. NEGOTIATING appends a new revision (history preserved). */
+export const quotationStatusSchema = z.enum(["DRAFT", "SENT", "NEGOTIATING", "ACCEPTED", "REJECTED", "EXPIRED"]);
+export type QuotationStatus = z.infer<typeof quotationStatusSchema>;
+export const QUOTATION_STATUSES = quotationStatusSchema.options;
+
+/** Confirmed corporate stay lifecycle. */
+export const corporateBookingStatusSchema = z.enum(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"]);
+export type CorporateBookingStatus = z.infer<typeof corporateBookingStatusSchema>;
+
+/** Company-level invoice lifecycle (mirrors RentInvoice: DUE/PAID/OVERDUE). */
+export const corporateInvoiceStatusSchema = z.enum(["DUE", "PAID", "OVERDUE"]);
+export type CorporateInvoiceStatus = z.infer<typeof corporateInvoiceStatusSchema>;
+
+/** An employee↔reservation allocation's state. */
+export const employeeAllocationStatusSchema = z.enum(["ALLOCATED", "CANCELLED"]);
+export type EmployeeAllocationStatus = z.infer<typeof employeeAllocationStatusSchema>;
+
 export const bookingStatusSchema = z.enum([
   "INITIATED",
   // Request-to-Book: held, awaiting host acceptance before payment unlocks.
@@ -2566,3 +2605,205 @@ export type AgentErpUploadUrlResponse = z.infer<typeof agentErpUploadUrlResponse
  *  the shared admin approval queue. */
 export const agentSubmitBookingResultSchema = z.object({ booking: agentErpBookingRowSchema });
 export type AgentSubmitBookingResult = z.infer<typeof agentSubmitBookingResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Corporate (B2B) add-on — response DTOs.
+//
+// EMPLOYEE PRIVACY (C0 invariant): `EmployeeStayView` is the ONLY shape an
+// employee-scoped read returns. It carries the stay + QR and DELIBERATELY has NO
+// rate / finance / other-employee field. The property's real name appears ONLY once
+// the reservation is CONFIRMED (the same entitlement a confirmed tenant gets); it is
+// null beforehand.
+// ---------------------------------------------------------------------------
+
+/** An allocated employee's view of their OWN corporate stay. No money, ever. */
+export const employeeStayViewSchema = z.object({
+  allocationId: z.string(),
+  status: employeeAllocationStatusSchema,
+  companyName: z.string(),
+  /** Masked area/city — always safe to show. */
+  areaLabel: z.string().nullable(),
+  city: z.string().nullable(),
+  tier: z.string().nullable(),
+  checkIn: z.string().nullable(),
+  checkOut: z.string().nullable(),
+  reservationStatus: hotelReservationStatusSchema.nullable(),
+  /** Real property name — null until the reservation is CONFIRMED. */
+  propertyName: z.string().nullable(),
+  /** Opaque check-in code (render as a QR). Null until CONFIRMED. */
+  qrCodeToken: z.string().nullable(),
+});
+export type EmployeeStayView = z.infer<typeof employeeStayViewSchema>;
+
+/** A company account (admin + HR views). No money. */
+export const corporateCompanySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  gstin: z.string().nullable(),
+  billingAddress: z.string().nullable(),
+  billingEmail: z.string().nullable(),
+  status: companyStatusSchema,
+  accountManagerId: z.string().nullable(),
+  billingMode: corporateBillingModeSchema,
+  creditDays: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type CorporateCompany = z.infer<typeof corporateCompanySchema>;
+
+/** A company's employee directory entry. `linkedUser` is true once a consumer User
+ *  with this phone is linked (single-identity). NO pricing/finance — ever. */
+export const corporateEmployeeSchema = z.object({
+  id: z.string(),
+  fullName: z.string(),
+  phone: z.string(),
+  email: z.string().nullable(),
+  empCode: z.string().nullable(),
+  linkedUser: z.boolean(),
+  createdAt: z.string(),
+});
+export type CorporateEmployee = z.infer<typeof corporateEmployeeSchema>;
+
+export const corporateEnquirySchema = z.object({
+  id: z.string(),
+  companyId: z.string(),
+  city: z.string(),
+  area: z.string().nullable(),
+  propertyType: propertyTypeSchema,
+  headcount: z.number().int().positive(),
+  checkIn: z.string(),
+  checkOut: z.string(),
+  notes: z.string().nullable(),
+  status: enquiryStatusSchema,
+  createdAt: z.string(),
+});
+export type CorporateEnquiry = z.infer<typeof corporateEnquirySchema>;
+
+/** One priced line on a quotation revision (integer paise, engine-sourced). */
+export const quotationLineItemSchema = z.object({
+  id: z.string(),
+  categoryId: z.string().nullable(),
+  description: z.string(),
+  unitPricePaise: z.number().int().nonnegative(),
+  quantity: z.number().int().positive(),
+  nights: z.number().int().positive(),
+  amountPaise: z.number().int().nonnegative(),
+});
+export type QuotationLineItem = z.infer<typeof quotationLineItemSchema>;
+
+/** One append-only revision of a quotation (full negotiation history). */
+export const quotationRevisionSchema = z.object({
+  id: z.string(),
+  revision: z.number().int().positive(),
+  subtotalPaise: z.number().int().nonnegative(),
+  taxPaise: z.number().int().nonnegative(),
+  totalPaise: z.number().int().nonnegative(),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  lineItems: z.array(quotationLineItemSchema),
+});
+export type QuotationRevision = z.infer<typeof quotationRevisionSchema>;
+
+/** A quotation with its full revision history (newest revision is `currentRevision`). */
+export const quotationSchema = z.object({
+  id: z.string(),
+  companyId: z.string(),
+  enquiryId: z.string().nullable(),
+  status: quotationStatusSchema,
+  currentRevision: z.number().int().positive(),
+  validUntil: z.string().nullable(),
+  sentAt: z.string().nullable(),
+  acceptedAt: z.string().nullable(),
+  rejectedAt: z.string().nullable(),
+  createdAt: z.string(),
+  revisions: z.array(quotationRevisionSchema),
+});
+export type Quotation = z.infer<typeof quotationSchema>;
+
+/** An employee↔reservation allocation (HR view; no money). */
+export const employeeAllocationSchema = z.object({
+  id: z.string(),
+  employeeId: z.string(),
+  employeeName: z.string(),
+  hotelReservationId: z.string().nullable(),
+  status: employeeAllocationStatusSchema,
+  checkIn: z.string().nullable(),
+  checkOut: z.string().nullable(),
+  reservationStatus: hotelReservationStatusSchema.nullable(),
+});
+export type EmployeeAllocation = z.infer<typeof employeeAllocationSchema>;
+
+/** One drawn corporate reservation on a booking (room-stay). `allocated` = an
+ *  employee is assigned. No money — allocation is an HR concern, not finance. */
+export const corporateBookingReservationSchema = z.object({
+  id: z.string(),
+  checkIn: z.string(),
+  checkOut: z.string(),
+  status: hotelReservationStatusSchema,
+  allocated: z.boolean(),
+});
+export type CorporateBookingReservation = z.infer<typeof corporateBookingReservationSchema>;
+
+/** A confirmed corporate stay (with its drawn reservations + allocations).
+ *  `totalPaise` is the snapshot of the accepted quotation total (engine-sourced). */
+export const corporateBookingSchema = z.object({
+  id: z.string(),
+  companyId: z.string(),
+  quotationId: z.string(),
+  status: corporateBookingStatusSchema,
+  totalPaise: z.number().int().nonnegative(),
+  confirmedAt: z.string().nullable(),
+  createdAt: z.string(),
+  reservations: z.array(corporateBookingReservationSchema),
+  allocations: z.array(employeeAllocationSchema),
+});
+export type CorporateBooking = z.infer<typeof corporateBookingSchema>;
+
+/** A company-level invoice (engine-sourced total; balance = total − paid). */
+export const corporateInvoiceSchema = z.object({
+  id: z.string(),
+  companyId: z.string(),
+  corporateBookingId: z.string().nullable(),
+  billingMode: corporateBillingModeSchema,
+  status: corporateInvoiceStatusSchema,
+  totalPaise: z.number().int(),
+  paidPaise: z.number().int(),
+  balancePaise: z.number().int(),
+  issuedAt: z.string().nullable(),
+  dueDate: z.string().nullable(),
+  paidAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type CorporateInvoice = z.infer<typeof corporateInvoiceSchema>;
+
+/** POST /v1/corporate/invoices/:id/pay — server-owned Razorpay order (online). */
+export const corporatePaymentResponseSchema = z.object({
+  invoiceId: z.string(),
+  amountPaise: z.number().int().nonnegative(),
+  razorpayOrder: z.object({
+    orderId: z.string(),
+    amount: z.number().int().nonnegative(),
+    currency: z.string(),
+    keyId: z.string(),
+  }),
+});
+export type CorporatePaymentResponse = z.infer<typeof corporatePaymentResponseSchema>;
+
+/** The HR dashboard overview (company-scoped roll-up). All money engine-sourced. */
+export const corporateOverviewSchema = z.object({
+  company: corporateCompanySchema,
+  bookingsTotal: z.number().int().nonnegative(),
+  activeStays: z.number().int().nonnegative(),
+  employeesTotal: z.number().int().nonnegative(),
+  spendPaise: z.number().int().nonnegative(),
+  outstandingPaise: z.number().int(),
+});
+export type CorporateOverview = z.infer<typeof corporateOverviewSchema>;
+
+/** Admin corporate finance/receivables roll-up (engine-sourced). */
+export const corporateFinanceSummarySchema = z.object({
+  invoicedPaise: z.number().int(),
+  collectedPaise: z.number().int(),
+  outstandingPaise: z.number().int(),
+  overdueCount: z.number().int().nonnegative(),
+});
+export type CorporateFinanceSummary = z.infer<typeof corporateFinanceSummarySchema>;

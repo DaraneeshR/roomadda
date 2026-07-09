@@ -102,6 +102,84 @@ enum HotelReservationStatus {
   EXPIRED
 }
 
+// ---------------------------------------------------------------------------
+// Corporate (B2B) add-on enums (C0). See the Corporate models section below and
+// docs/corporate-addon-schema-gate.md for the signed-off open questions.
+// ---------------------------------------------------------------------------
+
+// A company account's standing. ACTIVE is the default; SUSPENDED is a reversible
+// admin hold (its CompanyUsers keep their platform login, but the account cannot
+// transact). Mirrors UserStatus' intent at the company grain.
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// A seat's role WITHIN a company. ADMIN can manage the company's employees,
+// enquiries, quotations and pay invoices; MEMBER is a read-mostly HR seat. This is
+// orthogonal to the platform UserRole — a CompanyUser's User is a normal login.
+enum CompanyUserRole {
+  ADMIN
+  MEMBER
+}
+
+// Signed-off billing terms (open Q#1). PREPAY = settled by the verified Razorpay
+// webhook exactly like B2C; CREDIT = a net-`creditDays` invoice issued post-stay.
+// Both are modelled; the per-company default is set by an admin.
+enum CorporateBillingMode {
+  PREPAY
+  CREDIT
+}
+
+// Lifecycle of a corporate enquiry (the top of the sales pipeline). NEW enters the
+// admin/account-manager queue; QUOTED once a quotation is raised; CONVERTED when an
+// accepted quotation becomes a CorporateBooking; CANCELLED if dropped.
+enum EnquiryStatus {
+  NEW
+  QUOTED
+  CONVERTED
+  CANCELLED
+}
+
+// Quotation lifecycle. A NEGOTIATING round appends a new QuotationRevision (history
+// is never overwritten — open Q#2). ACCEPTED is the only status that may spawn a
+// CorporateBooking; EXPIRED once past `validUntil`.
+enum QuotationStatus {
+  DRAFT
+  SENT
+  NEGOTIATING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+// Lifecycle of a confirmed corporate stay. PENDING until the confirmation flow
+// completes (PREPAY: the verified webhook marks its invoice PAID; CREDIT: an admin
+// CRM confirm — documented as acceptable for MVP); COMPLETED after the stay.
+enum CorporateBookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+// Company-level invoice lifecycle. Mirrors RentInvoice: DUE until settled, PAID once
+// the full amount is settled (webhook for online, admin-marked for offline — both
+// audited), OVERDUE = a derived label for an unpaid CREDIT invoice past its dueDate.
+enum CorporateInvoiceStatus {
+  DUE
+  PAID
+  OVERDUE
+}
+
+// An employee↔reservation allocation's state. ALLOCATED = the employee holds the
+// room-stay; CANCELLED frees the assignment (the underlying HotelReservation lifecycle
+// is separate and governs inventory via the overbooking guard).
+enum EmployeeAllocationStatus {
+  ALLOCATED
+  CANCELLED
+}
+
 enum GenderPolicy {
   MALE
   FEMALE
@@ -347,64 +425,70 @@ enum WebhookStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id              String          @id @default(uuid()) @db.Uuid
-  role            UserRole        @default(TENANT)
+  id                 String          @id @default(uuid()) @db.Uuid
+  role               UserRole        @default(TENANT)
   // Phone is the identity for TENANT/HOST/AGENT (phone-OTP signup) and is unique
   // when present. It is NULLABLE because a §15.7 back-office TEAM login is created
   // by an admin with email + password and has no phone (Postgres allows many NULLs
   // under a unique index). Every phone-OTP user still has one.
-  phone           String?         @unique
-  email           String?         @unique
-  fullName        String
-  isPhoneVerified Boolean         @default(false)
+  phone              String?         @unique
+  email              String?         @unique
+  fullName           String
+  isPhoneVerified    Boolean         @default(false)
   // §15.7 team logins: a scrypt password hash (never the raw password) + a
   // forced-first-login flag. Both null/false for phone-OTP users (who never carry
   // a password). `mustChangePassword` is set true when an admin issues a temp
   // password and cleared once the user sets their own — enforced at login (a temp
   // password grants NO session, only the ability to set a new one).
   passwordHash       String?
-  mustChangePassword Boolean      @default(false)
+  mustChangePassword Boolean         @default(false)
   // Optional self-managed profile (PATCH /v1/me, self only). `gender` is used
   // ONLY for discovery filter matching and is NEVER returned to hosts
   // (see /CLAUDE.md domain rules + privacy rules).
-  gender          UserGender?
-  dateOfBirth     DateTime?
-  occupationType  OccupationType?
-  college         String?
-  company         String?
+  gender             UserGender?
+  dateOfBirth        DateTime?
+  occupationType     OccupationType?
+  college            String?
+  company            String?
   // Agent zone (the §9.1 zone-access invariant): the city an AGENT is scoped to.
   // Set by ADMIN at agent creation (agents are never self-registered); an agent
   // may only ever read/act on leads, visits, and properties in this city. Null for
   // every non-agent role. Enforced server-side on every agent route (zone.ts).
-  assignedCity    String?
+  assignedCity       String?
   // Account standing (ADMIN moderation). Non-ACTIVE states block new sessions;
   // `statusReason` is the mandatory reason captured on suspend/ban (audited too).
-  status          UserStatus      @default(ACTIVE)
-  statusReason    String?
-  statusUpdatedAt DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  status             UserStatus      @default(ACTIVE)
+  statusReason       String?
+  statusUpdatedAt    DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
-  kyc              KycRecord?
-  listings         PgListing[]             @relation("HostListings")
-  bookings         Booking[]               @relation("TenantBookings")
-  agentBookings    Booking[]               @relation("AgentBookings")
-  agentVisits      AgentVisit[]            @relation("AgentVisits")
-  agentInspections PropertyInspection[]    @relation("AgentInspections")
-  cashCollections  CashCollection[]        @relation("AgentCashCollections")
-  suspendedBadges  TrustTag[]              @relation("TrustSuspendedBy")
-  refreshTokens    RefreshToken[]          @relation("UserRefreshTokens")
-  wishlist         Wishlist[]              @relation("UserWishlist")
-  menuUpdates      MealMenu[]              @relation("MenuUpdatedByHost")
-  serviceRequests  ServiceRequest[]        @relation("TenantServiceRequests")
-  serviceComments  ServiceRequestComment[] @relation("ServiceRequestComments")
-  leaveNotices     LeaveNotice[]           @relation("TenantLeaveNotices")
-  trustedContacts  TrustedContact[]        @relation("UserTrustedContacts")
-  deviceTokens     DeviceToken[]           @relation("UserDevices")
-  reviews          Review[]                @relation("TenantReviews")
-  commissionReceipts CommissionLedger[]    @relation("CommissionReceivedBy")
-  invoicesSent     Invoice[]               @relation("InvoiceSentBy")
-  hotelReservations HotelReservation[]     @relation("GuestHotelReservations")
+  kyc                KycRecord?
+  listings           PgListing[]             @relation("HostListings")
+  bookings           Booking[]               @relation("TenantBookings")
+  agentBookings      Booking[]               @relation("AgentBookings")
+  agentVisits        AgentVisit[]            @relation("AgentVisits")
+  agentInspections   PropertyInspection[]    @relation("AgentInspections")
+  cashCollections    CashCollection[]        @relation("AgentCashCollections")
+  suspendedBadges    TrustTag[]              @relation("TrustSuspendedBy")
+  refreshTokens      RefreshToken[]          @relation("UserRefreshTokens")
+  wishlist           Wishlist[]              @relation("UserWishlist")
+  menuUpdates        MealMenu[]              @relation("MenuUpdatedByHost")
+  serviceRequests    ServiceRequest[]        @relation("TenantServiceRequests")
+  serviceComments    ServiceRequestComment[] @relation("ServiceRequestComments")
+  leaveNotices       LeaveNotice[]           @relation("TenantLeaveNotices")
+  trustedContacts    TrustedContact[]        @relation("UserTrustedContacts")
+  deviceTokens       DeviceToken[]           @relation("UserDevices")
+  reviews            Review[]                @relation("TenantReviews")
+  commissionReceipts CommissionLedger[]      @relation("CommissionReceivedBy")
+  invoicesSent       Invoice[]               @relation("InvoiceSentBy")
+  hotelReservations  HotelReservation[]      @relation("GuestHotelReservations")
+  // Corporate (B2B) add-on relations. `managedCompanies` = accounts this admin/agent
+  // is the account-manager for; `companySeats` = HR/admin seats this login holds;
+  // `employeeRecords` = directory entries linked to this login by phone (usually 0/1).
+  managedCompanies   Company[]               @relation("CompanyAccountManager")
+  companySeats       CompanyUser[]           @relation("CompanyUserAccounts")
+  employeeRecords    Employee[]              @relation("EmployeeUser")
 
   @@index([role])
   @@map("users")
@@ -443,65 +527,65 @@ model KycRecord {
 // ---------------------------------------------------------------------------
 
 model PgListing {
-  id               String        @id @default(uuid()) @db.Uuid
-  hostId           String        @db.Uuid
+  id                      String            @id @default(uuid()) @db.Uuid
+  hostId                  String            @db.Uuid
   // Public-safe identity (always returned).
-  alias            String
-  areaLabel        String
-  city             String
-  amenities        String[]      @default([])
+  alias                   String
+  areaLabel               String
+  city                    String
+  amenities               String[]          @default([])
   // Masked fields — only revealed to a confirmed tenant / owner / admin / agent.
-  actualName       String
-  fullAddress      String
-  pincode          String
-  latitude         Float
-  longitude        Float
+  actualName              String
+  fullAddress             String
+  pincode                 String
+  latitude                Float
+  longitude               Float
   // NOTE: a PostGIS `location geography(Point,4326)` column is added to this
   // table out-of-band by prisma/sql/01_postgis.sql (Prisma does not model the
   // geography type). It is maintained from latitude/longitude by a trigger and
   // queried via raw SQL. Kept out of the Prisma schema so migrations stay
   // relational and portable.
-  status           ListingStatus @default(DRAFT)
+  status                  ListingStatus     @default(DRAFT)
   // Property kind + distribution channel for the Hotel B2C add-on. Both default so
   // every existing PG listing is byte-for-byte unchanged: PG + USER_ONLY = today's
   // behaviour. HOTEL listings hang their nightly inventory off `hotelCategories`;
   // `visibility` is enforced server-side in every B2C read (see visibility.ts).
-  propertyType     PropertyType      @default(PG)
-  visibility       ListingVisibility @default(USER_ONLY)
-  gender           GenderPolicy  @default(COED)
+  propertyType            PropertyType      @default(PG)
+  visibility              ListingVisibility @default(USER_ONLY)
+  gender                  GenderPolicy      @default(COED)
   // Instant Book confirms on payment; otherwise a booking waits for host accept
   // (Request-to-Book) before the payment link activates.
-  instantBook      Boolean       @default(true)
+  instantBook             Boolean           @default(true)
   // Meals create-step: whether the PG serves meals + the monthly charge (paise).
   // The DAILY menu lives in MealMenu; this is the listing-level offer.
-  mealsOffered     Boolean       @default(false)
-  mealChargesPaise Int?
+  mealsOffered            Boolean           @default(false)
+  mealChargesPaise        Int?
   // House-rules create-step: free-text rule lines shown to tenants.
-  houseRules       String[]      @default([])
+  houseRules              String[]          @default([])
   // Token create-step: host-configured amount to secure a bed (paise). When null
   // the booking flow falls back to the deposit, else one month's rent.
-  tokenAmountPaise Int?
+  tokenAmountPaise        Int?
   // Host pause (NOT a delete): hidden from tenant discovery while keeping its
   // inventory, bookings, and tenants intact. Distinct from admin SUSPENDED.
-  paused           Boolean       @default(false)
+  paused                  Boolean           @default(false)
   // Cached rating aggregate, maintained atomically on every new review (the sum
   // of integer ratings + the review count). The average is derived from these
   // in the serializer (ratingSum/ratingCount) so no float is ever stored, and a
   // zero-review listing serializes cleanly as null/0. See modules/review.
-  ratingSum        Int           @default(0)
-  ratingCount      Int           @default(0)
+  ratingSum               Int               @default(0)
+  ratingCount             Int               @default(0)
   // Cached "booked N times recently" social-proof count — REAL confirmed-paid
   // bookings + host walk-ins in the last `recentBookingWindowDays` days, as of
   // `recentBookingCountAt`. Recomputed by the social-booked cron (never on the
   // read path). Null window = never swept yet → the widget is omitted. See
   // modules/social; honesty-gated by SOCIAL_BOOKED_FLOOR.
-  recentBookingCount      Int      @default(0)
+  recentBookingCount      Int               @default(0)
   recentBookingWindowDays Int?
   recentBookingCountAt    DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
-  host            User             @relation("HostListings", fields: [hostId], references: [id])
+  host            User                 @relation("HostListings", fields: [hostId], references: [id])
   rooms           Room[]
   hotelCategories HotelRoomCategory[]
   photos          ListingPhoto[]
@@ -595,26 +679,26 @@ model Bed {
 // HotelRoom units (channel B2C vs CORPORATE), which is what the overbooking guard and
 // the corporate/B2C inventory isolation actually operate on.
 model HotelRoomCategory {
-  id                    String   @id @default(uuid()) @db.Uuid
-  listingId             String   @db.Uuid
+  id                     String   @id @default(uuid()) @db.Uuid
+  listingId              String   @db.Uuid
   // Tier name shown to guests (free text; e.g. "Deluxe"). Unique per listing.
-  tier                  String
+  tier                   String
   // Base nightly rate, integer paise (/CLAUDE.md money rule #1). Seasonal / weekend /
   // length-of-stay rate plans are DEFERRED to a future HotelRatePlan table (flagged
   // for sign-off) — this gate models a single base rate only.
-  perNightPaise         Int
-  photos                String[] @default([])
-  amenities             String[] @default([])
+  perNightPaise          Int
+  photos                 String[] @default([])
+  amenities              String[] @default([])
   // Declared room count for this tier and the corporate carve-out. Invariant
   // (enforced when units are provisioned): B2C units = totalRooms - corporateReservedRooms,
   // CORPORATE units = corporateReservedRooms. A hard reserved block (signed-off
   // isolation model), not advisory.
-  totalRooms            Int
-  corporateReservedRooms Int     @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  totalRooms             Int
+  corporateReservedRooms Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  listing      PgListing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing      PgListing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
   rooms        HotelRoom[]
   reservations HotelReservation[]
 
@@ -654,50 +738,56 @@ model HotelRoom {
 // same-day turnover (prev.checkOut == next.checkIn) NOT a conflict. Money is snapshot
 // at hold time and settled only via the verified webhook (booking flow is future work).
 model HotelReservation {
-  id            String                 @id @default(uuid()) @db.Uuid
-  hotelRoomId   String                 @db.Uuid
-  categoryId    String                 @db.Uuid
+  id                 String                 @id @default(uuid()) @db.Uuid
+  hotelRoomId        String                 @db.Uuid
+  categoryId         String                 @db.Uuid
   // Denormalised for fast listing-scoped queries + masking checks.
-  listingId     String                 @db.Uuid
+  listingId          String                 @db.Uuid
   // The guest holding the reservation (nullable until the booking flow lands; a
   // corporate reservation may be booked on behalf of an account).
-  guestId       String?                @db.Uuid
-  channel       HotelBookingChannel    @default(B2C)
-  status        HotelReservationStatus @default(HELD)
+  guestId            String?                @db.Uuid
+  // Corporate add-on: set when this reservation is part of a CorporateBooking (drawn
+  // from the CORPORATE-channel units). Null for every B2C reservation — the B2C flow
+  // is byte-for-byte unchanged.
+  corporateBookingId String?                @db.Uuid
+  channel            HotelBookingChannel    @default(B2C)
+  status             HotelReservationStatus @default(HELD)
   // Half-open stay range: occupies nights [checkIn, checkOut). Date-only (no time).
-  checkIn       DateTime               @db.Date
-  checkOut      DateTime               @db.Date
+  checkIn            DateTime               @db.Date
+  checkOut           DateTime               @db.Date
   // Money snapshot taken at hold time (integer paise) so later rate edits don't move
   // a live reservation. `nights` * perNightPaise at hold time == roomTotalPaise.
-  perNightPaise Int
-  nights        Int
-  roomTotalPaise Int
+  perNightPaise      Int
+  nights             Int
+  roomTotalPaise     Int
   // The securing payment due now to confirm the hold (integer paise, server-owned).
   // B2C hotel is full-stay prepay, so this equals roomTotalPaise — kept as its own
   // field so a future token policy (e.g. first-night) can lower it without a migration.
-  tokenAmountPaise Int                 @default(0)
+  tokenAmountPaise   Int                    @default(0)
   // Razorpay refs live directly on the reservation (like RentInvoice/AdSlot): a
   // HotelReservation is NOT a Booking, so it does NOT use the Payment model (Payment
   // is 1:1 with Booking). The verified webhook matches by `razorpayOrderId` and is the
   // ONLY thing that flips the reservation to CONFIRMED (/CLAUDE.md money rule #2).
-  razorpayOrderId   String?            @unique
-  razorpayPaymentId String?            @unique
+  razorpayOrderId    String?                @unique
+  razorpayPaymentId  String?                @unique
   // Links the CONFIRMED transition to the verified webhook that produced it.
-  webhookEventId    String?            @db.Uuid
+  webhookEventId     String?                @db.Uuid
   // Opaque check-in code minted ONLY on CONFIRMED (the client renders it as a QR).
-  qrCodeToken       String?            @unique
+  qrCodeToken        String?                @unique
   // Hold expiry: a HELD reservation past this is swept to EXPIRED (mirrors bookings).
-  holdExpiresAt DateTime?
-  confirmedAt   DateTime?
-  cancelledAt   DateTime?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  holdExpiresAt      DateTime?
+  confirmedAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
-  hotelRoom    HotelRoom           @relation(fields: [hotelRoomId], references: [id], onDelete: Cascade)
-  category     HotelRoomCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  guest        User?               @relation("GuestHotelReservations", fields: [guestId], references: [id])
-  webhookEvent WebhookEvent?       @relation(fields: [webhookEventId], references: [id])
-  refunds      RefundTransaction[]
+  hotelRoom        HotelRoom           @relation(fields: [hotelRoomId], references: [id], onDelete: Cascade)
+  category         HotelRoomCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  guest            User?               @relation("GuestHotelReservations", fields: [guestId], references: [id])
+  webhookEvent     WebhookEvent?       @relation(fields: [webhookEventId], references: [id])
+  refunds          RefundTransaction[]
+  corporateBooking CorporateBooking?   @relation(fields: [corporateBookingId], references: [id])
+  allocation       EmployeeAllocation? @relation("HotelReservationAllocation")
 
   // NOTE: the "no overlapping live reservation per room" EXCLUDE constraint
   // (no_overlapping_hotel_reservation) lives in prisma/sql/03_hotel_guard.sql —
@@ -706,6 +796,7 @@ model HotelReservation {
   @@index([categoryId, status])
   @@index([listingId, status])
   @@index([guestId])
+  @@index([corporateBookingId])
   @@map("hotel_reservations")
 }
 
@@ -752,15 +843,15 @@ model Booking {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  bed             Bed                 @relation(fields: [bedId], references: [id])
-  tenant          User                @relation("TenantBookings", fields: [tenantId], references: [id])
-  bookedByAgent   User?               @relation("AgentBookings", fields: [bookedByAgentId], references: [id])
-  listing         PgListing           @relation(fields: [listingId], references: [id])
-  payment         Payment?
-  cashCollections CashCollection[]
-  rentInvoices    RentInvoice[]
-  serviceRequests ServiceRequest[]
-  leaveNotices    LeaveNotice[]
+  bed              Bed                 @relation(fields: [bedId], references: [id])
+  tenant           User                @relation("TenantBookings", fields: [tenantId], references: [id])
+  bookedByAgent    User?               @relation("AgentBookings", fields: [bookedByAgentId], references: [id])
+  listing          PgListing           @relation(fields: [listingId], references: [id])
+  payment          Payment?
+  cashCollections  CashCollection[]
+  rentInvoices     RentInvoice[]
+  serviceRequests  ServiceRequest[]
+  leaveNotices     LeaveNotice[]
   conversation     Conversation?
   refunds          RefundTransaction[]
   review           Review?
@@ -829,23 +920,23 @@ model PaymentTransaction {
 // ONLY the verified refund.processed/failed webhook settles it (refund truth =
 // webhook, /CLAUDE.md rule #2), matched by the unique `razorpayRefundId`.
 model RefundTransaction {
-  id               String       @id @default(uuid()) @db.Uuid
+  id                 String       @id @default(uuid()) @db.Uuid
   // Booking-refund owner (a booking token refund). Null for a hotel refund.
-  paymentId        String?      @db.Uuid
+  paymentId          String?      @db.Uuid
   // Denormalised so the webhook can find the booking without a join. Null for hotel.
-  bookingId        String?      @db.Uuid
+  bookingId          String?      @db.Uuid
   // Hotel-refund owner (a hotel reservation refund). Null for a booking refund.
-  hotelReservationId String?    @db.Uuid
-  amountPaise      Int
-  status           RefundStatus @default(INITIATED)
+  hotelReservationId String?      @db.Uuid
+  amountPaise        Int
+  status             RefundStatus @default(INITIATED)
   // The gateway refund id (rfnd_…). Null only in the tiny window between the
   // cancel commit and the synchronous API response; unique once set.
-  razorpayRefundId String?      @unique
+  razorpayRefundId   String?      @unique
   // Links the settled transition to the verified webhook that produced it.
-  webhookEventId   String?      @db.Uuid
-  processedAt      DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  webhookEventId     String?      @db.Uuid
+  processedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   payment          Payment?          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   booking          Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -1549,6 +1640,7 @@ model WebhookEvent {
   rentInvoices       RentInvoice[]
   refundTransactions RefundTransaction[]
   hotelReservations  HotelReservation[]
+  corporateInvoices  CorporateInvoice[]
 
   @@unique([provider, eventId])
   @@index([status])
@@ -1787,29 +1879,319 @@ model AdminBroadcast {
 // CA compliance pack + finance screens use when no explicit FY is passed.
 // ---------------------------------------------------------------------------
 model OrgSettings {
-  id             String   @id @default(uuid()) @db.Uuid
+  id                    String   @id @default(uuid()) @db.Uuid
   // Company / legal details shown on the compliance pack + invoices header.
-  legalName      String   @default("RoomAdda")
-  displayName    String   @default("RoomAdda")
-  gstin          String?
-  pan            String?
-  addressLine    String?
-  city           String?
-  state          String?
-  pincode        String?
-  contactEmail   String?
-  contactPhone   String?
+  legalName             String   @default("RoomAdda")
+  displayName           String   @default("RoomAdda")
+  gstin                 String?
+  pan                   String?
+  addressLine           String?
+  city                  String?
+  state                 String?
+  pincode               String?
+  contactEmail          String?
+  contactPhone          String?
   // Active Indian FY start year (2026 = 1 Apr 2026 → 31 Mar 2027). Null = fall
   // back to the FY of "now" (the finance engine's default).
-  financialYear  Int?
+  financialYear         Int?
   // Operating-mode flags — configuration the settings screen manages (stored +
   // audited). Wiring them into the live booking flow is out of §15.7 scope.
-  onlineBookingsEnabled Boolean @default(true)
-  walkInBookingsEnabled Boolean @default(true)
-  maintenanceMode       Boolean @default(false)
-  updatedById    String?  @db.Uuid
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  onlineBookingsEnabled Boolean  @default(true)
+  walkInBookingsEnabled Boolean  @default(true)
+  maintenanceMode       Boolean  @default(false)
+  updatedById           String?  @db.Uuid
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@map("org_settings")
+}
+
+// ---------------------------------------------------------------------------
+// Corporate (B2B) add-on — data-model foundation (C0). Company accounts, their
+// HR/admin seats + employee directory, and the enquiry→quotation→corporate-booking
+// →company-invoice pipeline. NO services/flow in this gate (see C1). See
+// docs/corporate-addon-schema-gate.md for the signed-off open questions.
+//
+// Reuses (does NOT fork): the H0 listing `visibility` (CORPORATE_ONLY|BOTH) for
+// distribution; the H0 hotel inventory + GiST overbooking guard for the actual
+// corporate stays (channel = CORPORATE units); the ERP money-engine pattern
+// (integer paise; store only non-derivable figures); the single-identity phone
+// rule for linking an Employee to a consumer User.
+//
+// EMPLOYEE PRIVACY (C0 invariant): an Employee row carries NO pricing / negotiated
+// rate / company-finance field — that money lives ONLY on Quotation /
+// QuotationRevision / CorporateBooking / CorporateInvoice. The employee-scoped read
+// (modules/corporate/corporate.employee.ts) touches none of those. Structural, not
+// filtered.
+// ---------------------------------------------------------------------------
+
+// A company (B2B account). Money terms are per-company (open Q#1): PREPAY settles by
+// the verified webhook like B2C; CREDIT is a net-`creditDays` post-stay invoice.
+model Company {
+  id               String               @id @default(uuid()) @db.Uuid
+  name             String
+  // India GSTIN / tax id (nullable — captured during onboarding).
+  gstin            String?
+  billingAddress   String?
+  billingEmail     String?
+  status           CompanyStatus        @default(ACTIVE)
+  // The ADMIN / AGENT user who owns this relationship (nullable until assigned).
+  accountManagerId String?              @db.Uuid
+  // Signed-off billing terms (open Q#1). creditDays applies only to CREDIT mode.
+  billingMode      CorporateBillingMode @default(CREDIT)
+  creditDays       Int                  @default(30)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  accountManager User?              @relation("CompanyAccountManager", fields: [accountManagerId], references: [id])
+  companyUsers   CompanyUser[]
+  employees      Employee[]
+  enquiries      CorporateEnquiry[]
+  quotations     Quotation[]
+  bookings       CorporateBooking[]
+  invoices       CorporateInvoice[]
+
+  @@index([status])
+  @@index([accountManagerId])
+  @@map("companies")
+}
+
+// An HR/admin SEAT: it maps a platform login (a User) to a Company with a role
+// within that company. The User is a normal login (phone-OTP or a §15.7-style
+// email/password team login) — CompanyUserRole is orthogonal to UserRole.
+model CompanyUser {
+  id        String          @id @default(uuid()) @db.Uuid
+  companyId String          @db.Uuid
+  userId    String          @db.Uuid
+  role      CompanyUserRole @default(MEMBER)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation("CompanyUserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
+  // One seat per (company, user).
+  @@unique([companyId, userId])
+  @@index([companyId])
+  @@index([userId])
+  @@map("company_users")
+}
+
+// A company's employee DIRECTORY entry. Phone is the merge key (single-identity
+// rule): `userId` links the consumer User with this phone when one exists/registers.
+// Carries NO pricing / rate / finance — the employee-privacy invariant is structural.
+model Employee {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  fullName  String
+  // E.164 phone — the JIT link key to a consumer User.
+  phone     String
+  email     String?
+  // Optional employee code within the company (free text).
+  empCode   String?
+  // JIT link to the consumer User (by phone). Null until a matching User exists.
+  userId    String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User?                @relation("EmployeeUser", fields: [userId], references: [id])
+  allocations EmployeeAllocation[]
+
+  // One directory entry per (company, phone).
+  @@unique([companyId, phone])
+  @@index([companyId])
+  @@index([userId])
+  @@map("employees")
+}
+
+// The top of the sales pipeline: a company's requirement (dates / location /
+// headcount / property type). Raised by a CompanyUser's login or by an admin on
+// their behalf (`createdById`). One enquiry may yield several quotations over time.
+model CorporateEnquiry {
+  id           String        @id @default(uuid()) @db.Uuid
+  companyId    String        @db.Uuid
+  createdById  String        @db.Uuid
+  city         String
+  area         String?
+  propertyType PropertyType  @default(HOTEL)
+  headcount    Int
+  // Requested stay window (date-only).
+  checkIn      DateTime      @db.Date
+  checkOut     DateTime      @db.Date
+  notes        String?
+  status       EnquiryStatus @default(NEW)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  quotations Quotation[]
+
+  @@index([companyId, status])
+  @@index([status, createdAt])
+  @@map("corporate_enquiries")
+}
+
+// A quotation CONTAINER. Its actual terms + line items live on QuotationRevision so
+// a NEGOTIATING round is an append (history preserved — open Q#2). `currentRevision`
+// points at the in-force revision number.
+model Quotation {
+  id              String          @id @default(uuid()) @db.Uuid
+  companyId       String          @db.Uuid
+  enquiryId       String?         @db.Uuid
+  createdById     String          @db.Uuid
+  status          QuotationStatus @default(DRAFT)
+  currentRevision Int             @default(1)
+  // Offer validity; past this the quote is EXPIRED (swept / checked on read).
+  validUntil      DateTime?
+  sentAt          DateTime?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  enquiry   CorporateEnquiry?   @relation(fields: [enquiryId], references: [id])
+  revisions QuotationRevision[]
+  bookings  CorporateBooking[]
+
+  @@index([companyId, status])
+  @@index([enquiryId])
+  @@map("quotations")
+}
+
+// One APPEND-ONLY revision of a quotation (1-based). A NEGOTIATING round creates the
+// NEXT number; earlier revisions are never mutated, so the full negotiation history
+// survives. Totals are engine-sourced integer paise, snapshotted at build time.
+model QuotationRevision {
+  id            String   @id @default(uuid()) @db.Uuid
+  quotationId   String   @db.Uuid
+  revision      Int
+  createdById   String   @db.Uuid
+  // Engine-sourced money (integer paise). subtotal = Σ line items; total = subtotal + tax.
+  subtotalPaise Int
+  taxPaise      Int      @default(0)
+  totalPaise    Int
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  quotation Quotation           @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  lineItems QuotationLineItem[]
+
+  // One row per (quotation, revision number).
+  @@unique([quotationId, revision])
+  @@index([quotationId])
+  @@map("quotation_revisions")
+}
+
+// A single priced line on a quotation revision. Money is integer paise, server-owned:
+// amountPaise = unitPricePaise × quantity × nights (snapshot). Optionally references
+// the hotel category being quoted (corporate inventory).
+model QuotationLineItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  revisionId     String   @db.Uuid
+  categoryId     String?  @db.Uuid
+  description    String
+  unitPricePaise Int
+  quantity       Int      @default(1)
+  nights         Int      @default(1)
+  amountPaise    Int
+  createdAt      DateTime @default(now())
+
+  revision QuotationRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  @@index([revisionId])
+  @@map("quotation_line_items")
+}
+
+// A CONFIRMED corporate stay created from an ACCEPTED quotation. It groups the
+// HotelReservation rows (channel = CORPORATE) that draw from the ring-fenced
+// corporate inventory via the H0 overbooking guard, plus the employee allocations.
+// `totalPaise` is a snapshot of the accepted quotation total (engine-sourced) so a
+// later re-quote can't move a confirmed booking's price.
+model CorporateBooking {
+  id          String                 @id @default(uuid()) @db.Uuid
+  companyId   String                 @db.Uuid
+  quotationId String                 @db.Uuid
+  createdById String                 @db.Uuid
+  status      CorporateBookingStatus @default(PENDING)
+  totalPaise  Int
+  confirmedAt DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  company      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  quotation    Quotation            @relation(fields: [quotationId], references: [id])
+  reservations HotelReservation[]
+  allocations  EmployeeAllocation[]
+  invoices     CorporateInvoice[]
+
+  @@index([companyId, status])
+  @@index([quotationId])
+  @@map("corporate_bookings")
+}
+
+// Assigns an employee to a specific corporate HotelReservation (room + dates) within
+// a CorporateBooking. `hotelReservationId` is nullable until a room is picked; unique
+// so at most one live allocation maps to a given reservation.
+model EmployeeAllocation {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  corporateBookingId String                   @db.Uuid
+  employeeId         String                   @db.Uuid
+  hotelReservationId String?                  @db.Uuid
+  status             EmployeeAllocationStatus @default(ALLOCATED)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  corporateBooking CorporateBooking  @relation(fields: [corporateBookingId], references: [id], onDelete: Cascade)
+  employee         Employee          @relation(fields: [employeeId], references: [id])
+  hotelReservation HotelReservation? @relation("HotelReservationAllocation", fields: [hotelReservationId], references: [id])
+
+  // At most one allocation per reservation (many NULLs allowed pre-assignment).
+  @@unique([hotelReservationId])
+  @@index([corporateBookingId])
+  @@index([employeeId])
+  @@map("employee_allocations")
+}
+
+// A COMPANY-LEVEL invoice referencing a corporate booking. Money is engine-sourced
+// integer paise; balance = total − paid is derived on read. `billingMode` is snapshot
+// from the Company at issue. Settlement (C1) is webhook-truth for ONLINE payment
+// (razorpay refs + webhookEventId, matched by the unique order id — exactly like a
+// hotel reservation / rent invoice) OR an admin-marked OFFLINE settle (settledById +
+// settlementRef) — both audited. A client callback NEVER self-confirms (money rule #2).
+model CorporateInvoice {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  companyId          String                 @db.Uuid
+  // Aggregates one booking in this gate; nullable so multi-booking aggregation can
+  // arrive later without a migration.
+  corporateBookingId String?                @db.Uuid
+  billingMode        CorporateBillingMode
+  status             CorporateInvoiceStatus @default(DUE)
+  totalPaise         Int
+  paidPaise          Int                    @default(0)
+  issuedAt           DateTime?
+  // issuedAt + creditDays for CREDIT; issuedAt for PREPAY.
+  dueDate            DateTime?
+  paidAt             DateTime?
+  // ONLINE settlement (webhook-truth): the verified webhook matches by razorpayOrderId
+  // and is the ONLY thing that flips an online invoice to PAID.
+  razorpayOrderId    String?                @unique
+  razorpayPaymentId  String?                @unique
+  webhookEventId     String?                @db.Uuid
+  // OFFLINE settlement (bank transfer / cheque): an admin marks it paid with a
+  // reference. Audited. No client ever self-confirms an online payment.
+  settledById        String?                @db.Uuid
+  settlementRef      String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  corporateBooking CorporateBooking? @relation(fields: [corporateBookingId], references: [id])
+  webhookEvent     WebhookEvent?     @relation(fields: [webhookEventId], references: [id])
+
+  @@index([companyId, status])
+  @@index([status, dueDate])
+  @@map("corporate_invoices")
 }
