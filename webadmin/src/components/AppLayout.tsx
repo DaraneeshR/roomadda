@@ -74,6 +74,15 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/erp/settings", label: "Settings" },
     ],
   },
+  {
+    heading: "Corporate",
+    items: [
+      { to: "/corporate", label: "Companies", end: true },
+      { to: "/corporate/pipeline", label: "Sales pipeline" },
+      { to: "/corporate/bookings", label: "Bookings" },
+      { to: "/corporate/finance", label: "Finance" },
+    ],
+  },
 ];
 
 export function AppLayout() {

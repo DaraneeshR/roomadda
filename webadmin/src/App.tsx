@@ -14,6 +14,10 @@ import { BookingsPage } from "./pages/BookingsPage";
 import { BroadcastsPage } from "./pages/BroadcastsPage";
 import { CashReconciliationPage } from "./pages/CashReconciliationPage";
 import { CmsPage } from "./pages/CmsPage";
+import { CorporateBookingsPage } from "./pages/CorporateBookingsPage";
+import { CorporateCompaniesPage } from "./pages/CorporateCompaniesPage";
+import { CorporateFinancePage } from "./pages/CorporateFinancePage";
+import { CorporatePipelinePage } from "./pages/CorporatePipelinePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ErpAgentsFinancePage } from "./pages/ErpAgentsFinancePage";
 import { ErpApprovalsPage } from "./pages/ErpApprovalsPage";
@@ -70,6 +74,10 @@ export function App() {
                       <Route path="/erp/agents-finance" element={<ErpAgentsFinancePage />} />
                       <Route path="/erp/ca" element={<ErpCaPage />} />
                       <Route path="/erp/settings" element={<ErpSettingsPage />} />
+                      <Route path="/corporate" element={<CorporateCompaniesPage />} />
+                      <Route path="/corporate/pipeline" element={<CorporatePipelinePage />} />
+                      <Route path="/corporate/bookings" element={<CorporateBookingsPage />} />
+                      <Route path="/corporate/finance" element={<CorporateFinancePage />} />
                     </Route>
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
